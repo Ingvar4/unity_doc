@@ -1,0 +1,21 @@
+---
+title: Соглашения об именовании функций
+description: Как вы помните, имена переменных должны быть достаточно описательными, начинаться с строчной буквы и использовать camelCase (заглавные буквы в конце каждого слова).
+---
+
+```
+int       numEnemies;
+float     radiusOfPlanet;
+Color     colorAlert;
+string    playerName;
+```
+
+Имена функций похожи; однако все имена функций должны начинаться с
+заглавной буквы, чтобы их было легче отличить от переменных в коде. Вот несколько подходящих имен функций:
+
+```c#
+void ColorAGameObject( GameObject go, Color c ) { … }
+void AlignX( GameObject go0, GameObject go1, GameObject go2 ) { … }
+void AlignXList( List<GameObject> goList ) { … }
+void SetX( GameObject go, float newX ) { … }
+```

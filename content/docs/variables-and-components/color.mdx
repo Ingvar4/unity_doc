@@ -1,0 +1,70 @@
+---
+title: Цвет с информацией о прозрачности
+description: Тип переменной Color может хранить информацию о цвете, включая его прозрачность (значение альфа).
+---
+
+Цвета на компьютерах представляют
+собой смеси трех основных цветов света: красного, зеленого и синего. Они
+отличаются от основных цветов красок, о которых вы, возможно, узнали в
+детстве (красный, желтый и синий), поскольку цвет на экране компьютера
+является аддитивным, а не субтрактивным. В субтрактивной цветовой
+системе, такой как краски, смешивание все большего количества разных
+цветов приведет к тому, что смешанный цвет будет сдвигаться в сторону черный (или очень темный, грязно-коричневый). Напротив, в аддитивной
+цветовой системе (такой как компьютерный экран, театральное освещение
+или цвета HTML в Интернете) при смешивании всё большего количества
+цветов цвет становится всё ярче и ярче, пока конечный смешанный цвет в
+итоге не станет белым. Красная, зеленая и синяя компоненты цвета в C#
+хранятся в виде чисел с плавающей запятой в диапазоне от `0.0f` до
+`1.0f`, где `0.0f` означает полное отсутствие данного цветового канала, а
+`1.0f` — максимальное его присутствие:
+
+```c#
+// Colors are defined by floats for the Red, Green, Blue, Alpha channels
+Color darkRedTranslucent = new Color( 0.25f, 0f, 0f, 0.5f );
+// Now darkRedTranslucent is 0.25f red, 0 green, 0 blue, and 0.5f alpha
+Color darkGreen = new Color( 0f, 0.25f, 0f ); // If no alpha info is passed in,
+// then the alpha value is set to 1 (fully opaque)
+```
+
+Как видно, существует два разных способа определения цвета: один с
+тремя параметрами (red, green, и blue), а другой — с четырьмя (red, green,
+blue и alpha). Значение alpha задает прозрачность цвета. Цвет с alpha
+равным 0.0f полностью прозрачен, а с alpha равным 1.0f — полностью
+непрозрачен.
+
+**Переменные и функции экземпляра Color**  
+На каждый канал цвета можно ссылаться через переменные экземпляра:
+
+```c#
+print( darkRedTranslucent.r ); // 0.25f, The red value of this Color
+print( darkRedTranslucent.g ); // 0, The green value of darkRedTranslucent
+print( darkRedTranslucent.b ); // 0, The blue value of darkRedTranslucent
+print( darkRedTranslucent.a ); // 0.5f, The alpha value of darkRedTranslucent
+```
+
+**Статические переменные и функции класса Color**  
+В Unity несколько распространенных цветов предопределены как
+статические переменные класса (при выводе цвета на печать выводятся
+значения RGBA (т. е. красного, зеленого, синего и альфа-канала) этого
+цвета):
+
+```c#
+// Primary Colors: Red, Green, and Blue
+print( Color.red ); // RGBA( 1, 0, 0, 1 ) – Solid red
+print( Color.green ); // RGBA( 0, 1, 0, 1 ) – Solid green
+print( Color.blue ); // RGBA( 0, 0, 1, 1 ) – Solid blue
+
+// Secondary Colors: Cyan, Magenta, and Yellow
+print( Color.cyan ); // RGBA( 0, 1, 1, 1 ) – Cyan, greenish blue
+print( Color.magenta ); // RGBA( 1, 0, 1, 1 ) – Magenta, pinkish purple
+print( Color.yellow ); // RGBA( 1, 0.92f, 0.016f, 1 ); – A nice yellow
+// As you can imagine, a standard yellow would be RGBA( 1, 1, 0, 1 ),
+// but in Unity’s opinion, this yellow looks better.
+
+// Black, White, and Clear
+print( Color.black ); // RGBA( 0, 0, 0, 1 ) – Solid black
+print( Color.white ); // RGBA( 1, 1, 1, 1 ) – Solid white
+print( Color.gray ); // RGBA( 0.5f, 0.5f, 0.5f, 1 ) – Gray
+print( Color.grey ); // RGBA( 0.5f, 0.5f, 0.5f, 1 ) – British "grey" spelling
+print( Color.clear ); // RGBA( 0, 0, 0, 0 ) – Completely transparent
+```

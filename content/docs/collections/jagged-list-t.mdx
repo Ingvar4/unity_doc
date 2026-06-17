@@ -1,0 +1,77 @@
+---
+title: Неравномерные списки List<T>
+description: В заключение, что касается неровных коллекций, можно также создавать неровные списки.
+---
+
+Неравномерный двумерный список строк будет объявлен как
+`List<List<string>> jaggedStringList`. Так же, как и в случае с
+неравномерными массивами, подсписки изначально не будут определены, поэтому
+вам придется инициализировать каждый подсписок по мере его добавления, как
+показано в листинге кода. Как и все списки, неравномерные списки не
+допускают пустых или нулевых элементов. Чтобы создать неравномерный список:  
+
+1. Создайте новый скрипт C# с именем `JaggedListEx`, и прикрепите его к *Main Camera* и
+введите код, показанный в листинге:
+
+```c#
+using System.Collections;                                                                   // a
+using System.Collections.Generic;
+using UnityEngine;
+
+public class JaggedListEx : MonoBehaviour {
+    public List<List<string>> jaggedList;                                                   // b
+
+    // Start is called before the first frame update
+    void Start () {
+        jaggedList = new List<List<string>>();
+
+        // Add two List<string>s to jaggedList
+        jaggedList.Add( new List<string>() );
+        jaggedList.Add( new List<string>() );
+
+        // Add two strings to jaggedList[0]
+        jaggedList[0].Add ("Hello");
+        jaggedList[0].Add ("World");
+
+        // Add a third List<string> to jaggedList, including data
+        jaggedList.Add ( new List<string>( new string[]{"complex", "initialization"} ) );  // c
+
+        string str = "";
+        foreach (List<string> sL in jaggedList) {
+            foreach (string sTemp in sL) {
+                if (sTemp != null) {
+                    str += "|" +sTemp;
+                } else {
+                    str += "|_";
+                }
+            }
+            str += "|\n";
+        }
+        print( str );
+    }
+}
+```
+
+**a.** Хотя использование `System.Collections;` по умолчанию
+включено во все скрипты Unity на C#, на самом деле оно не требуется для
+списков (хотя для списков требуется `System.Collections.Generic`).  
+
+**b.** `jaggedStringList` объявлен как `List<List<string>>`, что делает его списком `List<string>`.  
+
+**c.** Строка 22 является продолжением оператора, начатого в строке 21. Один
+оператор оказался слишком длинным, чтобы поместиться на странице,
+поэтому я добавил разрыв строки. Поскольку вы не ставите разрыв строки посреди строки, C# обычно сможет его игнорировать, что позволяет вам избежать строк, выходящих за правый край экрана.  
+
+2. Сохраните скрипт `JaggedListEx` Visual Studio, вернитесь в Unity и нажмите «Play». Код
+выведет в панель «Консоль» следующее:
+
+```
+|Hello|World|
+|
+|complex|initialization|
+```
+
+Первый элемент jaggedList (показанный на средней строке выше) представляет собой
+пустой список `List<string>` (то есть список объявлен, но не содержит
+элементов, поэтому он пустой, но не равен `null`), поэтому код не вызывает
+исключение `NullReferenceException`.

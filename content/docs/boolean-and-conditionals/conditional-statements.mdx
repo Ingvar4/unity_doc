@@ -1,0 +1,252 @@
+---
+title: Условные операторы 
+description: Условные операторы можно комбинировать с логическими значениями и операторами сравнения для управления потоком выполнения программ.
+---
+
+Это означает, что значение `true` может привести к выводу одного результата, а значение `false` — к выводу другого. Это также означает, что значение `true` может привести к выполнению одной ветви кода, а значение `false` — к выполнению другой. Двумя наиболее распространенными формами условных операторов являются `if` и `switch`. 
+
+### Оператор if 
+
+Оператор `if` выполнит код внутри фигурных скобок `{}` только в том случае, если значение внутри круглых скобок `()` равняется `true`:
+
+```c#
+if (true) {
+    print( "The code in the first if statement was executed." );
+}
+if (false) {
+    print( "The code in the second if statement was executed."
+);
+}
+// The output of this code will be:
+// The code in the first if statement was executed.
+```
+
+Код внутри фигурных скобок `{}` первого оператора `if` выполняется, а код внутри фигурных скобок второго оператора `if` — нет. 
+
+<Callout>
+### Примечание  [!toc]
+Операторы, заключенные в фигурные скобки, не требуют точки с запятой после закрывающей скобки. Все остальные операторы, рассмотренные в этой книге, требуют точки с запятой в конце: 
+
+```c#
+float approxPi = 3.14159f; // This statement needs a semicolon
+```
+Составные операторы (то есть те, которые заключены в фигурные скобки) не требуют точки с запятой после закрывающей скобки: 
+
+```c#
+if (true) {
+    print( "Hello" ); // This line needs a semicolon.
+    print( "World" ); // This line needs a semicolon.
+} // No semicolon required after the closing brace!
+```
+То же самое верно для любого составного оператора, заключенного в фигурные скобки.
+</Callout>
+
+**Сочетание `if` с условиями и булевыми операциями **  
+
+Булевы операторы можно комбинировать с операторами `if` для реагирования на различные ситуации в игре: 
+
+```c#
+bool night = true;
+bool fullMoon = false;
+
+if (night) { // This is true
+    print( "It’s night." );
+}
+if (!fullMoon) { // This is true
+    print( "The moon is not full." );
+}
+if (night && fullMoon) { // This is false
+    print( "Watch for werewolves!!!" );
+}
+if (night && !fullMoon) { // This is true
+    print( "No werewolves tonight. (Whew!)" );
+}
+// The output of this code will be:
+// It’s night.
+// The moon is not full.
+// No werewolves tonight. (Whew!)
+```
+
+И, конечно же, операторы `if` можно комбинировать с операторами сравнения:
+
+```c#
+if (10 == 10 ) {
+    print( "10 is equal to 10." );
+}
+if ( 10 > 20 ) {
+    print( "10 is greater than 20." );
+}
+if ( 1.23f <= 3.14f ) {
+    print( "1.23 is less than or equal to 3.14." );
+}
+if ( 1.23f >= 1.23f ) {
+    print( "1.23 is greater than or equal to 1.23." );
+}
+if ( 3.14f != Mathf.PI ) {
+    print( "3.14 is not equal to " + Mathf.PI + "." );
+// + can be used to concatenate strings with other data types.
+// When this happens, the other data type is converted to a
+string.
+}
+// The output of this code will be:
+// 10 is equal to 10.
+// 1.23 is less than or equal to 3.14.
+// 1.23 is greater than or equal to 1.23.
+// 3.14 is not equal to 3.141593.
+```
+
+### if… else
+
+Часто вам нужно будет выполнять одно действие, если значение истинно, и другое, если оно ложно. В таких случаях необходимо добавить в оператор `if` условие `else`: 
+
+```c#
+bool night = false;
+if (night) {
+    print( "It’s night." );
+} else {
+    print( "It’s daytime. Why don’t you go outside and enjoy yourself?" );
+}
+// The output of this code will be:
+// It’s daytime. Why don’t you go outside and enjoy yourself?
+```
+
+В данном случае, поскольку `night` равно `false`, выполняется код в блоке `else`. 
+
+### if… else if… else
+
+Также можно написать цепочку условий `else if` и `else`:
+
+```c#
+bool night = true;
+bool fullMoon = true;
+if (!night) { // Condition 1 (false)
+    print( "It’s daytime. Why don’t you go outside and enjoy yourself?" );
+} else if (fullMoon) { // Condition 2 (true)
+    print( "Watch for werewolves!!!" );
+} else { // Condition 3 (not checked)
+    print( "It’s night, but the moon is not full." );
+}
+// The output of this code will be:
+// Watch for werewolves!!!
+```
+
+После того как любое условие в цепочке `if…` `else if…` `else` оценивается как `true`, все последующие условия больше не оцениваются (т. е. остальная часть цепочки пропускается). В приведенном выше коде условие 1 является ложным, поэтому проверяется условие 2. Поскольку условие 2 является истинным, компьютер полностью пропустит условие 3.  
+
+**Вложение операторов `if`**
+
+Вы можете вкладывать операторы `if` друг в друга для реализации более сложного поведения: 
+
+```c#
+bool night = true;
+bool fullMoon = false;
+
+if (!night) {
+    print( "It’s daytime. Why don’t you go outside and enjoy yourself?" );
+} else {
+    if (fullMoon) {
+        print( "Watch for werewolves!!!" );
+    } else {
+        print( "It’s night, but the moon is not full." );
+    }
+}
+// The output of this code will be:
+// It’s night, but the moon is not full.
+```
+
+### switch Statements
+
+Оператор switch может заменить несколько операторов `if… else`, но у него есть некоторые строгие ограничения: 
+1. Операторы switch могут сравнивать только на равенство. 
+2. Операторы switch могут сравнивать только одну переменную (например, `num` в следующем коде). 
+3. Операторы switch могут сравнивать эту переменную только с литералами (а не с другими переменными). 
+
+```c#
+int num = 3;
+switch (num) { // The variable in parentheses (num) is the one being compared
+case (0): // Each case is a literal number that is compared against num
+    print( "The number is zero." );
+    break; // Each case must end with a break statement.
+case (1):
+    print( "The number is one." );
+    break;
+case (2):
+    print( "The number is two." );
+    break;
+default: // If none of the other cases are true, default will happen
+    print( "The number is more than a couple." );
+    break;
+} // The switch statement ends with a closing brace.
+// The output of this code is:
+// The number is more than a couple.
+```
+
+Если в одном из вариантов (case) содержится литерал, значение которого совпадает со значением проверяемой переменной, код в этом варианте выполняется до достижения оператора break. Когда компьютер достигает break, он выходит из switch и не оценивает остальные варианты. 
+
+Также возможно, чтобы один случай «переходил» в следующий, но только если между двумя случаями нет строк кода:
+
+```c#
+int num = 4;
+switch (num) {
+case (0):
+    print( "The number is zero." );
+    break;
+case (1):
+    print( "The number is one." );
+    break;
+case (2):
+    print( "The number is a couple." );
+    break;
+case (3):
+case (4):
+case (5):
+    print( "The number is a few." );
+    break;
+default:
+    print( "The number is more than a few." );
+    break;
+}
+// The output of this code is:
+// The number is a few.
+```
+
+В приведенном выше коде, если `num` равно 3, 4 или 5, вывод будет следующим: `The number is a few`.  
+
+Зная то, что вы теперь знаете о сочетании условий и операторов `if`, вы можете задаться вопросом, когда используются операторы `switch`, ведь у них так много ограничений. Они довольно часто используются для работы с различными возможными состояниями переменной. Например, если бы вы создали игру, в которой игрок мог бы превращаться в человека, птицу, рыбу или росомаху, там мог бы быть кусок кода, выглядящий примерно так:
+
+```c#
+string species = "fish";
+bool onLand = false;
+
+// Each different species type will move differently
+switch ( species ) {
+case ( "person" ):
+    Run();// Calls a function named Run()
+    break;
+case ( "bird" ):
+    Fly();
+    break;
+case ( "fish" ):
+    if ( !onLand ) { Swim(); } else { FlopAroundPainfully(); }
+    break;
+case ( "wolverine" ):
+    Scurry();
+    break;
+default:
+    print( "Unexpected species type: " + species );
+    break;
+}
+```
+
+В приведенном выше коде наш пример (как рыба, которая не находится на суше) вызвал бы функцию `Swim()`. Важно отметить, что случай по умолчанию здесь используется для перехвата любого значения вида, к которому оператор `switch` не готов, и он выведет информацию о любом неожиданном виде, с которым он столкнется. Например, если бы вид был установлен на «lion», вывод был бы следующим: 
+
+```
+Unexpected species type: lion
+```
+
+В приведенном выше коде вы также видите названия нескольких функций, которые еще не определены (например, `Run()`, `Fly()`, `Swim()`). В следующей главе рассказывается о создании собственных функций.  
+
+>По некоторым довольно эзотерическим причинам наличие отдельной функции с именем для каждого вида движения, как в данном случае, на самом деле не является хорошим стилем программирования. Однако это выходит далеко за рамки данных материалов. После прочтения данных статей, посетите веб-сайт Роберта Нистрома и ознакомьтесь с его книгой «Game Programming Patterns» (http://gameprogrammingpatterns.com), чтобы получить информацию о хороших стратегиях объектно-ориентированного программирования. 
+
+### Вывод
+
+Хотя булевы операции могут показаться немного скучными, они составляют значительную часть ядра программирования. Компьютерные программы полны сотен, даже тысяч точек ветвления, где компьютер может выполнить то одно, то другое действие, и все это в той или иной степени сводится к булевым значениям, сравнениям и условным операторам.

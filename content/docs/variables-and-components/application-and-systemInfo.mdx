@@ -1,0 +1,33 @@
+---
+title: Application & SystemInfo
+description: Application — это еще одна библиотека, а SystemInfo предоставляет конкретную информацию об устройстве.
+---
+
+## Application: информация о контексте Unity
+
+Application — это еще одна библиотека, которая может предоставить вам
+информацию о контексте, в котором работает Unity. Сюда входит
+информация о том, запущена ли ваша игра в Unity Editor или в сборке, о
+семействе операционных систем, на которых запущена игра, о языке, на
+который настроена система пользователя, а также о версии Unity,
+использованной для сборки или запуска игры:
+
+```c#
+print( Application.isEditor ); // true if currently running in the Unity Editor
+print( Application.platform ); // e.g., RuntimePlatform.WebGLPlayer
+print( Application.systemLanguage ); // e.g., SystemLanguage.English
+print( Application.unityVersion ); // returns the version of Unity used
+```
+
+## SystemInfo: информация об устройстве
+SystemInfo предоставляет конкретную информацию об устройстве, на
+котором запущена игра. Она включает в себя доступную только для чтения
+информацию о версии операционной системы (используйте
+`Application.platform` для получения более общей информации),
+уровне заряда батареи, количестве процессоров, графическом
+оборудовании и многом другом.
+
+```c#
+print( SystemInfo.operatingSystem ); // "Mac OS X 11.5.1", for example
+print( SystemInfo.batteryLevel ); // Returns the level of the device battery
+```

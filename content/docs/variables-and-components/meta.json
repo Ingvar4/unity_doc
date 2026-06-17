@@ -1,0 +1,15 @@
+{
+  "pages": [ 
+    "important-variable-types",
+    "naming-conventions",
+    "important-unity-variable-types",
+    "vector-3",
+    "color",
+    "quaternion",
+    "mathf",
+    "screen",
+    "application-and-systemInfo",
+    "gameobject",
+    "gameobjects-and-components"
+  ]
+}

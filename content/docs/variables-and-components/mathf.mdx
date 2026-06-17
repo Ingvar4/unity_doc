@@ -1,0 +1,24 @@
+---
+title: Mathf - библиотека математических функций
+description: Mathf — это не столько тип переменной, сколько невероятно полезная библиотека математических функций.
+---
+
+Все переменные и функции,
+связанные с Mathf, являются статическими; создать экземпляр Mathf
+невозможно. В библиотеке Mathf слишком много полезных функций,
+чтобы перечислить их все здесь, но вот некоторые из них:
+
+```c#
+Mathf.Sin( x ); // Computes the sine of x
+Mathf.Cos( x ); // .Tan(), .Asin(), .Acos(), & .Atan() are also available
+Mathf.Atan2( y, x ); // Gives you the angle to rotate around the z-axis to
+// change something facing along the xaxis to face
+// instead toward the point x, y.
+print( Mathf.PI ); // ≈3.141593; the ratio of circumference to diameter
+Mathf.Min( 2, 3, 1 ); // 1, the smallest of the three numbers (float or int)
+Mathf.Max( 2, 3, 1 ); // 3, the largest of the three numbers (float or int)
+Mathf.Round( 1.75f ); // 2, rounds up or down to the nearest number
+Mathf.Ceil( 1.75f ); // 2, rounds _up_ to the next highest integer number
+Mathf.Floor( 1.75f ); // 1, rounds _down_ to the next lowest integer number
+Mathf.Abs( -25 ); // 25, the absolute value of -25
+```

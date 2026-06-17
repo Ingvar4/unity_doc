@@ -1,0 +1,117 @@
+---
+title: Зачем использовать функции?
+description: Функции — это идеальный способ инкапсулировать код и функциональность в форме, пригодной для повторного использования.
+---
+
+Как правило, всякий раз, когда вам приходится писать одни и те же строки
+кода более пары раз, рекомендуется вместо этого определить функцию.
+Начнем с листинга кода, в котором есть повторяющийся код.  
+
+Функция `AlignX()` в листинге кода принимает три GameObject в
+качестве параметров, вычисляет среднее значение их положения по оси X
+и устанавливает для всех их среднее положение по оси X:
+
+```c#
+public class FunctionsEx : MonoBehaviour {
+    public GameObject goOne, goTwo, goThree;// a
+
+    void Start() {
+        AlignX( goOne, goTwo, goThree );
+    }
+
+    void AlignX( GameObject go0, GameObject go1, GameObject go2 ) {
+        float avgX = go0.transform.position.x;
+        avgX += go1.transform.position.x;
+        avgX += go2.transform.position.x;
+        avgX = avgX /3.0f;
+
+        Vector3 tempPos;
+        tempPos = go0.transform.position;// b
+        tempPos.x = avgX;// b
+        go0.transform.position = tempPos;// b
+
+        tempPos = go1.transform.position;
+        tempPos.x = avgX;
+        go1.transform.position = tempPos;
+
+        tempPos = go2.transform.position;
+        tempPos.x = avgX;
+        go2.transform.position = tempPos;
+    }
+}
+```
+
+a. Если вы хотите протестировать этот код, вам нужно создать три
+GameObject в `_Scene_Functions` и присвоить каждому из них одно из
+этих общедоступных полей GameObject в инспекторе. Я рекомендую
+использовать GameObjects типа *Sphere*, чтобы отличать их от куба, к
+которому прикреплен скрипт *FunctionsEx*.  
+
+b. В строках 19–21 показано, как обойти ограничение C#, не позволяющее
+напрямую устанавливать значение `position.x` трансформации.
+
+<Callout>
+### Установка The Position.X of A Transform[!toc]
+
+Вы можете задаться вопросом, почему нельзя просто установить
+`go0.transform.position.x = avgX` в функции `AlignX()`
+из листинга кода. Вместо этого необходимо сначала
+скопировать `transform.position` в переменную `Vector3`
+(например, `Vector3 tempPos`), затем изменить значение
+`tempPos.x` и, наконец, скопировать весь `Vector3` обратно в
+`transform.position`.  
+
+Причина заключается в том, что `transform.position` — это
+свойство, а не фактическое поле (поле — это переменная класса).
+Свойства — это функции, маскирующиеся под поля. Таким образом,
+когда вы устанавливаете значение `transform.position`, вы не
+просто задаете значение поля, а фактически передаете `Vector3` в
+функцию, которая выполняет некоторую работу «за кулисами»,
+чтобы переместить этот объект Transform в мировые координаты,
+соответствующие значениям `x`, `y` и `z` данного `Vector3`. Вы не можете
+напрямую установить значение `transform.position.x` из-за
+особенностей работы свойств в C#.
+</Callout>
+
+Из-за ограничений на прямую настройку значений `x`, `y` или `z` в
+`transform.position` в функции `AlignX()` много повторяющегося
+кода в строках с 19 по 29. Вводить этот код в Visual Studio может быть
+очень утомительно, и если вам понадобится что-то изменить позже, это
+потребует изменения одного и того же места три раза в этой функции
+`AlignX()`. Всякий раз, когда ваш код содержит очень похожие строки,
+повторяющиеся несколько раз, вам следует подумать о замене этих
+повторяющихся строк функцией.  
+
+```c#
+public class FunctionsEx : MonoBehaviour {
+    public GameObject goOne, goTwo, goThree; 
+    private void Start() {
+        AlignX( goOne, goTwo, goThree );
+    }
+
+    void AlignX( GameObject go0, GameObject go1, GameObject go2 ) {
+        float avgX = go0.transform.position.x;
+        avgX += go1.transform.position.x;
+        avgX += go2.transform.position.x;
+        avgX = avgX / 3.0f;
+
+        SetX ( go0, avgX );
+        SetX ( go1, avgX );
+        SetX ( go2, avgX );
+    }
+
+    void SetX( GameObject go, float newX ) {
+        Vector3 tempPos = go.transform.position;
+        tempPos.x = newX;
+        go.transform.position = tempPos;
+    }
+}
+```
+
+В этом улучшенном листинге кода удаленные строки из предыдущего листинга были
+заменены определением новой функции `SetX()` (строки 23–27) и тремя вызовами этой функции (строки 18–20). Если понадобится изменить способ установки значения `x`, потребуется внести изменение
+только один раз в `SetX()`, а не три раза, как в старом коде. Хотя это
+простой пример, я надеюсь, что он поможет продемонстрировать мощь функций.  
+
+В оставшейся части этой главы рассматриваются более сложные и
+интересные способы написания функций на C#.

@@ -1,0 +1,47 @@
+---
+title: GameObject - тип любого объекта в сцене
+description: GameObject — это класс для всех объектов в сценах Unity.
+---
+
+Все, что вы видите на экране в игре Unity, является экземпляром класса GameObject.
+GameObjects могут содержать любое количество различных компонентов,
+включая все те, о которых говорится в следующем разделе: «GameObjects и
+компоненты Unity». Однако у GameObjects есть также несколько важных
+переменных и методов, не описанных там:
+
+```c#
+GameObject gObj = new GameObject("MyGO"); // Creates a new GameObject named MyGO
+print( gObj.name ); // "MyGO", the GameObject’s name
+Transform trans = gObj.GetComponent<Transform>(); // Defines trans to be a
+    // reference to the Transform
+    // Component of gObj
+Transform trans2 = gObj.transform; // A shortcut to access the same Transform
+gObj.SetActive(false); // Makes gObj inactive, rendering it invisible and
+    // preventing it from running code.
+```
+
+Метод `gObj.GetComponent<__>()` имеет особое значение, поскольку предоставляет доступ к любому из компонентов, прикрепленных к GameObject. См. панель «Общие методы».
+
+<Callout>
+### Общие методы [!toc]
+
+Иногда вы будете встречать методы с угловыми скобками `<>`,
+например `GetComponent<>()`. Их называют общими методами,
+поскольку это один метод, предназначенный для использования со
+многими различными типами данных. В случае
+`GetComponent<Transform>()`, тип данных — это Transform,
+что указывает `GetComponent<>()` найти компонент Transform
+объекта GameObject и вернуть его вам. Это также можно
+использовать для получения любого другого компонента объекта
+GameObject, поместив тип этого компонента в угловые скобки
+(вместо Transform). Примеры приведены ниже:
+
+```c#
+Renderer rend = gObj.GetComponent<Renderer>(); // Get the Renderer component
+Collider coll = gObj.GetComponent<Collider>(); // Get the Collider component
+HelloWorld hwInstance = gObj.GetComponent<HelloWorld>();
+```
+
+В строке 3 кода показано, как с помощью `GetComponent<>()` можно вернуть экземпляр любого класса C#, который вы написали и присоединили к GameObject. Если бы к gObj был присоединен экземпляр класса скрипта C# HelloWorld, то `gObj.GetComponent<HelloWorld>()` вернет ссылку на него.
+Эта техника используется несколько раз в этой книге.
+</Callout>

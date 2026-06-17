@@ -1,0 +1,101 @@
+---
+title: Ключевое слово params
+description: Ключевое слово params можно использовать, чтобы функция могла принимать любое количество параметров одного и того же типа.
+---
+
+Эти параметры преобразуются в массив
+этого типа. Следующий код демонстрирует
+использование ключевого слова params, позволяющего суммировать
+любое количество целых чисел с помощью одной функции `Add()`.
+
+```c#
+public class FunctionsEx : MonoBehaviour {
+    void Start() {
+        print( Add( 1 ) ); // Outputs: "1"
+        print( Add( 1, 2 ) ); // Outputs: "3"
+        print( Add( 1, 2, 3 ) ); // Outputs: "6"
+        print( Add( 1, 2, 3, 4 ) ); // Outputs: "10"
+    }
+
+    int Add( params int[] ints ) {
+        int sum = 0;
+        foreach (int i in ints) {
+            sum += i;
+        }
+        return( sum );
+    }
+}
+```
+Эта версия `Add()` может принимать любое количество целых чисел и
+возвращать их сумму. Как и в случае с необязательными параметрами,
+список params должен идти после всех других параметров в
+определении вашей функции (то есть перед списком params могут быть
+другие обязательные параметры).  
+
+В следующем листинге кода показана переработка функции `AlignX()` для выравнивания любого количества
+GameObjects.  
+
+Чтобы протестировать этот код, вам нужно создать несколько новых
+GameObjects и разместить их в случайных позициях. После ввода кода попробуйте
+присвоить нулевое, одно, два или более GameObjects массиву
+gameObjectsToAlign в инспекторе для Cube, а затем запустите проект.
+
+```c#
+public class FunctionsEx : MonoBehaviour {
+    public GameObject[] gameObjectsToAlign; // a
+
+    void Start() {
+        AlignX( gameObjectsToAlign ); // b
+    }
+
+    void AlignX( params GameObject[] goArray ) { // c
+        if ( goArray.Length < 1 ) return; // d
+        float sumX = 0;
+        foreach (GameObject go in goArray) { // e
+            sumX += go.transform.position.x; // f
+        }
+        float avgX = sumX / goArray.Length; // g
+
+        foreach (GameObject go in goArray) { // h
+            SetX ( go, avgX );
+        }
+    }
+
+    void SetX( GameObject go, float newX ) {
+        Vector3 tempPos = go.transform.position;
+        tempPos.x = newX;
+        go.transform.position = tempPos;
+    }
+}
+```
+
+a. GameObjects должны быть присвоены этому массиву в инспекторе Unity.  
+
+b. Ключевое слово params также позволяет передавать массив
+напрямую (вместо передачи отдельных параметров), как показано
+здесь.  
+
+c. Ключевое слово params создает массив `GameObject[]`
+`goArray` из любых переданных параметров GameObject (или из
+переданного массива `GameObject[]`).  
+
+d. Эта строка обеспечивает защиту от ошибки деления на ноль, которая
+возникла бы в строке 18, если бы `goArray.Length` равнялось нулю.
+Добавление подобных мер защиты — это всегда хорошая идея.  
+
+e. `foreach` может проходить по каждому GameObject в `goArray`.
+Переменная GameObject go имеет область действия в цикле
+`foreach` в строках 15–17, поэтому она не конфликтует с
+переменной GameObject go в цикле `foreach` в строках 20–22.
+Другими словами, это две отдельные, не связанные между собой
+переменные, которые просто имеют одинаковые имена.  
+
+f. Координата `X` текущего GameObject добавляется к `sumX`.  
+
+g. Среднее значение координаты `X` получается путем деления
+суммы всех значений координаты `X` на количество
+GameObjects.  
+
+h. Еще один цикл `foreach` проходит по всем GameObjects в
+`goArray` и вызывает `SetX()` с каждым GameObject в качестве
+параметра.

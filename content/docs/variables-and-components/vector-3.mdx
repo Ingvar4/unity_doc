@@ -1,0 +1,41 @@
+---
+title: Vector3 - набор из трех чисел с плавающей запятой
+description: Vector3 — очень распространенный тип данных для работы в 3D.
+---
+
+Чаще всего он используется для хранения трехмерного положения объектов в Unity.
+
+```c#
+Vector3 position = new Vector3( 0.0f, 3.0f, 4.0f ); // Sets the x, y, & z values
+```
+
+**Переменные и функции экземпляра Vector3**  
+Как класс, каждый экземпляр Vector3 также содержит ряд полезных
+встроенных значений и функций:
+
+```c#
+print( position.x ); // 0.0, The x value of the Vector3 position from above
+print( position.y ); // 3.0, The y value of the Vector3 position
+print( position.z ); // 4.0, The z value of the Vector3 position
+print( position.magnitude ); // 5.0, The distance of position from 0,0,0
+    // Magnitude is another word for "length".
+position.Normalize(); // Sets the magnitude of position to 1, in this case
+    // setting the x, y, & z values to [0.0, 0.6, 0.8]
+```
+
+**Статические переменные и функции класса Vector3**  
+Кроме того, с самим классом Vector3 связаны несколько статических
+переменных и функций класса:
+
+```c#
+print( Vector3.zero ); // (0,0,0), Shorthand for: new Vector3( 0, 0, 0 )
+print( Vector3.one ); // (1,1,1), Shorthand for: new Vector3( 1, 1, 1 )
+print( Vector3.right ); // (1,0,0), Shorthand for: new Vector3( 1, 0, 0 )
+print( Vector3.up ); // (0,1,0), Shorthand for: new Vector3( 0, 1, 0 )
+print( Vector3.forward ); // (0,0,1), Shorthand for: new Vector3( 0, 0, 1 )
+Vector3.Cross( v3a, v3b ); // Computes the cross product of the two Vector3s
+Vector3.Dot( v3a, v3b ); // Computes the dot product of the two Vector3s
+```
+
+Это лишь небольшой пример полей и методов, связанных с Vector3. Чтобы
+узнать больше о , ознакомьтесь с документацией Unity.
