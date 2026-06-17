@@ -11,7 +11,7 @@ const config = {
 
   output: 'export',
   trailingSlash: true,
-  basePath: '/react_doc',
+  basePath: '/unity_doc',
   images: {
     unoptimized: true,
   },
