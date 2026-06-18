@@ -1,0 +1,132 @@
+---
+title: Скрипт Neighborhood
+description: Скрипт Neighborhood — это компонент, который отслеживает, какие другие Boids находятся рядом с этим, и предоставляет нам информацию о них, включая среднее положение и среднюю скорость всех близлежащих Boids, а также информацию о том, какие Boids находятся слишком близко.
+---
+
+1. Создайте новый скрипт на C# с именем Neighborhood и прикрепите его к префабу Boid на
+панели Project. Теперь к префабу Boid прикреплены оба скрипта: Boid и Neighborhood.
+2. Откройте скрипт Neighborhood в Visual Studio и введите код из листинга
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Neighborhood : MonoBehaviour {
+    [Header("Dynamic")]
+    public List<Boid> neighbors;
+    private SphereCollider coll;
+
+    void Start() { //a
+        neighbors = new List<Boid>();
+        coll = GetComponent<SphereCollider>();
+        coll.radius = Spawner.SETTINGS.neighborDist / 2;
+    }
+
+    void FixedUpdate() { //b 
+        float nearRadius = Spawner.SETTINGS.neighborDist * 0.5f;
+        if ( !Mathf.Approximately( coll.radius, nearRadius ) ) {
+            coll.radius = nearRadius;
+        }
+    }
+
+    void OnTriggerEnter(Collider other) { // c 
+        Boid b = other.GetComponent<Boid>();
+        if (b != null) {
+            if ( !neighbors.Contains(b) ) {
+                neighbors.Add(b);
+            }
+        }
+    }
+
+    void OnTriggerExit(Collider other) { // d 
+        Boid b = other.GetComponent<Boid>();
+        if (b != null) {
+            neighbors.Remove(b);
+        }
+    }
+
+    public Vector3 avgPos { // e 
+        get {
+            Vector3 avg = Vector3.zero;
+            if (neighbors.Count == 0) return avg;
+            for (int i=0; i<neighbors.Count; i++) {
+                avg += neighbors[i].pos;
+            }
+            avg /= neighbors.Count;
+            return avg;
+        }
+    }
+
+    public Vector3 avgVel { // f 
+        get {
+            Vector3 avg = Vector3.zero;
+            if (neighbors.Count == 0) return avg;
+            for (int i=0; i<neighbors.Count; i++) {
+                avg += neighbors[i].vel;
+            }
+            avg /= neighbors.Count;
+            return avg;
+        }
+    }
+
+    public Vector3 avgNearPos { // g 
+        get {
+            Vector3 avg = Vector3.zero;
+            Vector3 delta;
+            int nearCount = 0;
+            for (int i=0; i<neighbors.Count; i++) {
+                delta = neighbors[i].pos - transform.position;
+                if (delta.magnitude <= Spawner.SETTINGS.nearDist) {
+                    avg += neighbors[i].pos;
+                    nearCount++;
+                }
+            }
+            // If there were no neighbors too close, return Vector3.zero
+            if (nearCount == 0) return Vector3.zero;
+
+            // Otherwise, average their locations
+            avg /= nearCount;
+            return avg;
+        }
+    }
+    // void Update() {…} // Please delete the unused Update() method
+}
+```
+
+- a. Этот метод `Start()` создает экземпляр списка соседей, получает ссылку на
+SphereCollider данного GameObject (напомним, что это GameObject типа Boid, к которому
+прикреплен SphereCollider) и устанавливает радиус SphereCollider равным половине
+значения neighborsDist в Spawner.SETTINGS.neighborDist. Это половина, потому
+что neighborDist — это расстояние, на котором мы хотим, чтобы эти GameObjects
+видели друг друга, и если у каждого радиус равен половине этого расстояния, они будут
+едва касаться друг друга ровно на расстоянии neighborDist.
+- b. Каждый раз при `FixedUpdate()` Neighborhood проверяет, изменилось ли значение
+neighborDist, и если да, то изменяет радиус SphereCollider. Поскольку вычисления с
+плавающей запятой неточны, мы используем метод `Mathf.Approximately()`, чтобы
+определить, равны ли эти два значения в пределах точности числа с плавающей запятой.
+Установка радиуса SphereCollider может вызвать много пересчетов PhysX, поэтому мы
+устанавливаем его только при необходимости.
+- c. `OnTriggerEnter()` вызывается, когда что-то попадает в зону действия триггера
+SphereCollider (триггер — это коллайдер, который позволяет другим объектам проходить
+через него). На других Boid должны быть только коллайдеры, но для уверенности мы
+вызываем `GetComponent<Boid>()` на другом коллайдере и продолжаем только в том
+случае, если результат не равен null. В этот момент, если Boid, который переместился в
+пределы соседства, еще не находится в нашем списке соседей, мы добавляем его.
+- d. Аналогично, когда другой Boid больше не соприкасается с триггером этого Boid,
+вызывается `OnTriggerExit()`, и мы удаляем Boid из нашего списка соседей. Можно
+передавать в `neighbors.Remove()` объект, которого нет в списке, поэтому нет
+необходимости вызывать `neighbors.Contains(b)` перед вызовом
+`neighbors.Remove(b)`.
+- e. Свойство `avgPos`, доступное только для чтения, просматривает все Boids в списке
+соседей и вычисляет среднее значение их положения. Обратите внимание, как оно
+использует общедоступное свойство pos каждого Boid. Если соседей нет,
+возвращается `Vector3.zero`.
+- f. Аналогично, свойство `avgVel` возвращает среднюю скорость всех соседних Boid.
+- g. Свойство `avgNearPos`, доступное только для чтения, ищет соседей, которые
+находятся в пределах `nearDist` (из Spawner.SETTINGS), и вычисляет среднее
+значение их положения. Это другие Boids, которые находятся слишком близко к
+данному Boid.
+
+3. Обязательно сохраните скрипт Neighborhood и вернитесь в Unity, чтобы дать ему
+возможность перекомпилироваться и показать вам возможные ошибки.

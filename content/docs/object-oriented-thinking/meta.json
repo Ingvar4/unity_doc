@@ -2,6 +2,11 @@
   "pages": [ 
     "boids-implementation",
     "attractor-gameobject",
-    "the-c-scripts"
+    "the-c-scripts",
+    "script-boid",
+    "script-spawner1",
+    "script-boid2",
+    "neighborhood-script",
+    "script-boid3"
   ]
 }

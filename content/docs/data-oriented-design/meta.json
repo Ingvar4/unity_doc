@@ -1,0 +1,8 @@
+{
+  "pages": [ 
+    "dots-tutorial",
+    "image-creation",
+    "improving-perlin-noise",
+    "data-oriented-image-creation"
+  ]
+}

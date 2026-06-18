@@ -1,0 +1,156 @@
+---
+title: Скрипт Spawner — Часть 1
+description: Скрипт Spawner будет прикреплен к Main Camera, и, следовательно, вы сможете редактировать общедоступные поля Spawner в инспекторе Unity.
+---
+
+Это даст вам единое место для настройки всех
+параметров, влияющих на движение Boids.  
+
+1. Выберите *Main Camera* в иерархии.
+2. Используйте любой из методов, с которыми вы уже знакомы, чтобы создать скрипт на C# с
+именем *Spawner* и прикрепить его к Main Camera.
+3. Откройте скрипт Spawner в Visual Studio и введите код из примера (Обратите внимание,
+что в примере на нескольких связанных строках присутствует комментарий // e note.)  
+
+Листинг кода Spawner.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+[System.Serializable]
+public class BoidSettings { // a
+    // These fields allow you to adjust the flocking behavior of the Boids
+    public int velocity = 32;
+    public int neighborDist = 10;
+    public int nearDist = 4;
+    public int attractPushDist = 5;
+
+    [Header("These \"influences\" are floats, usually from [0…4]")] // b
+    public float velMatching = 1.5f;
+    public float flockCentering = 1f;
+    public float nearAvoid = 2f;
+    public float attractPull = 1f;
+    public float attractPush = 20f; // Very strong to spread out the Boids
+
+    [Header("This determines how quickly Boids can turn and is [0…1]")]
+    public float velocityEasing = 0.03f;
+}
+
+public class Spawner : MonoBehaviour {
+    // SETTINGS and BOIDS are both static to allow easy access
+    static public BoidSettings SETTINGS; // c
+    static public List<Boid> BOIDS; // d
+
+    // These fields allow you to adjust the spawning behavior of the Boids
+    [Header("Inscribed: Settings for Spawning Boids")]
+    public GameObject boidPrefab; // e
+    public Transform boidAnchor; // e
+    public int numBoids = 100;
+    public float spawnRadius = 100f;
+    public float spawnDelay = 0.1f;
+
+    [Header("Inscribed: Settings for Spawning Boids")]
+    public BoidSettings boidSettings; // f
+
+    void Awake () {
+    // Assign the boidSettings of this instance to the static SETTINGS
+    Spawner.SETTINGS = boidSettings; // g
+    // Start instantiation of the Boids
+    BOIDS = new List<Boid>();
+    InstantiateBoid(); // h
+}
+
+public void InstantiateBoid() {
+    GameObject go = Instantiate<GameObject>(boidPrefab);
+    go.transform.position = Random.insideUnitSphere * spawnRadius; // i
+    Boid b = go.GetComponent<Boid>();
+    b.transform.SetParent(boidAnchor); // j
+
+    BOIDS.Add( b );
+    if (BOIDS.Count < numBoids) {
+        Invoke( "InstantiateBoid", spawnDelay ); // k
+    }
+  }
+}
+```
+
+- a. Здесь я создал отдельный класс BoidSettings, который будет определять
+поведение каждого Boid. Следует обратить внимание на несколько моментов,
+касающихся этого класса:
+    - Класс BoidSettings не расширяет MonoBehaviour, поэтому его нельзя прикрепить
+в качестве компонента к GameObject. Это также означает, что он может находиться в
+одном файле скрипта (Spawner.cs) с другими классами (ограничение Unity заключается в
+том, что в одном файле .cs может существовать только один класс, расширяющий
+MonoBehaviour).
+    - BoidSettings имеет атрибут [System.Serializable]. Когда вы делаете класс
+сериализуемым, это позволяет просматривать и редактировать класс в инспекторе Unity
+
+    >Точнее говоря, это позволяет отображать в инспекторе любое поле, которое инспектор может сериализовать.
+Сериализация — это процесс преобразования исходных данных поля в более общий текст, и он используется как
+Unity Inspector, так и версией JSON (JavaScript Object Notation) от Unity, чтобы поля различных типов могли
+храниться в виде обычного текста. Примером сериализации может служить преобразование красного цвета в его
+шестнадцатеричную спецификацию цвета: #FF0000. Вы будете широко использовать JSON в проекте Prospector
+Solitaire  
+
+- b. Символ `\"` показывает, как ввести “ (т. е. двойную кавычку) в строковый литерал. В
+инспекторе `\"` будет отображаться как “. Экранирующий символ обратная косая черта ( `\`
+) позволяет вводить в строковые литералы несколько символов, в том числе: `\t`
+(табуляция), `\n` (новая строка) и т. д.
+- c. Поле SETTINGS является одновременно статическим (одна переменная, общая для
+всех экземпляров Spawner) и общедоступным (к нему может обратиться любой класс),
+что означает, что любой Boid может легко получить доступ к BoidSettings, которые
+будут храниться в SETTINGS, через Spawner.SETTINGS. Поле
+`Spawner.boidSettings` присваивается SETTINGS в строке // g.
+- d. `static public List<Boid> BOIDS` будет содержать ссылки
+на все Boids, созданные Spawner, и доступен через Spawner.BOIDS.
+- e. Чтобы этот скрипт работал, необходимо задать оба поля — boidPrefab и boidAnchor
+— в инспекторе Unity (в шагах 6 и 7, которые следуют далее).
+- f. boidSettings — это публичный экземпляр класса BoidSettings. Поскольку
+класс BoidSettings сериализуем и публичен (а все его поля также являются
+`public`), вы сможете редактировать значения boidSettings в инспекторе.
+- g. Здесь общедоступное поле boidSettings присваивается статическому
+Spawner.SETTINGS. Это необходимо, поскольку в инспекторе Unity невозможно
+задавать статические переменные. (На самом деле не обязательно предварять SETTINGS
+словом Spawner., но я сделал это здесь, чтобы подчеркнуть статический характер
+SETTINGS.
+Поскольку BoidSettings является классом, он присваивается по ссылке, а не по типу, что
+означает, что и boidSettings, и Spawner.SETTINGS указывают на один и тот же
+экземпляр класса BoidSettings в памяти, поэтому любые изменения, внесенные в
+boidSettings в компоненте «Настройки» инспектора главной камеры, также
+применяются к Spawner.SETTINGS.
+- h. InstantiateBoid() изначально вызывается один раз функцией Awake(), а затем
+InstantiateBoid() использует функцию Invoke() (в строке // k), чтобы
+вызывать себя снова, пока количество созданных Boids не станет равным numBoids.
+- i. Эта строка устанавливает положение нового Boid в любом месте в пределах
+spawnRadius единиц от начала координат (т. е. в пределах 100 единиц от [ 0, 0, 0 ]).
+Статическое свойство insideUnitSphere класса Random является свойством только
+для чтения, которое генерирует случайный Vector3, расположенный где-то внутри сферы с
+радиусом 1 единицы. Затем мы умножаем это на spawnRadius, чтобы присвоить
+данному экземпляру Boid случайное положение где-то на расстоянии spawnRadius от
+начала координат (позиция [ 0, 0, 0 ]).
+- j. Сделав всех Boids дочерними элементами одного и того же Transform GameObject,
+можно сохранить порядок в панели «Иерархия». Эта строка помещает их всех под один
+родительский Transform boidAnchor (Transform GameObject BoidAnchor в иерархии).
+Если вы хотите увидеть всех Boids, перечисленных в иерархии, вам просто нужно
+щелкнуть треугольник раскрытия рядом с GameObject BoidAnchor, который является их
+родителем.
+- k. Два аргумента, которые принимает Invoke, — это имя вызываемого метода (в виде
+строки: «InstantiateBoid») и время ожидания перед его вызовом (spawnDelay,
+или 0,1 секунды).  
+
+4. Сохраните скрипт Spawner и вернитесь в Unity.
+5. Выберите «Main Camera» в панели «Hierarchy», и в инспекторе появятся общедоступные
+поля компонента «Spawner», в том числе треугольник раскрытия, с помощью которого
+можно просматривать и редактировать значения boidSettings (в нижней части
+компонента «Spawner (Script)»).
+6. Присвойте префаб Boid из панели «Проект» полю boidPrefab в инспекторе
+компонента Main Camera Spawner (Script).
+7. Назначьте GameObject BoidAnchor из панели «Иерархия» полю boidAnchor
+в инспекторе компонента Main Camera Spawner (Script).  
+
+Попробуйте нажать Play в Unity. Вы увидите, что Spawner создает новый экземпляр Boid в
+качестве дочернего объекта BoidAnchor каждые десять сотых секунды в течение десяти секунд,
+и Boids распределяются в пределах сферы радиусом 100 м, но пока ничего не делают. Вернёмся
+к скрипту Boid.

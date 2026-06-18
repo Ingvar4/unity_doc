@@ -1,0 +1,264 @@
+---
+title: Скрипт Boid - Часть 2
+description: Выполните следующие шаги, чтобы инициализировать цвет и движение Boid -
+---
+
+1. Откройте скрипт Boid в Visual Studio и введите код:  
+
+**Листинг кода Boid.cs**
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Boid : MonoBehaviour {
+
+    private Rigidbody rigid; // a
+
+    // Use this for initialization
+    void Awake () {
+        rigid = GetComponent<Rigidbody>(); // a
+
+        // Set a random initial velocity
+        vel = Random.onUnitSphere * Spawner.SETTINGS.velocity; // b
+
+        LookAhead(); // c
+        Colorize(); // d
+    }
+
+    // Orients the Boid to look at the direction it’s flying
+    void LookAhead() { // c
+        transform.LookAt(pos + rigid.velocity);
+    }
+
+    // Give the Boid a random color, but make sure it’s not too dark
+    void Colorize() { // d
+        // Choose a random color
+        Color randColor = Random.ColorHSV( 0, 1, 0.5f, 1, 0.5f, 1 ); // e
+
+        // Assign the color to the Renderers of both the Fuselage and Wing
+        Renderer[] rends = gameObject.GetComponentsInChildren<Renderer>(); // f
+        foreach ( Renderer r in rends ) {
+            r.material.color = randColor;
+        }
+
+        // Also assign the color to the TrailRenderer
+        TrailRenderer trend = GetComponent<TrailRenderer>(); // g
+
+        trend.startColor = randColor;
+        randColor.a = 0;
+        trend.endColor = randColor;
+        trend.endWidth = 0;
+    }
+
+    // Property used to easily get and set the position of this Boid
+    public Vector3 pos { // h
+        get { return transform.position; }
+        private set { transform.position = value; }
+    }
+
+    // Property used to easily get and set the velocity of this Boid
+    public Vector3 vel { // h
+        get { return rigid.velocity; }
+        private set { rigid.velocity = value; }
+    }
+}
+
+```
+
+- a. Частное поле `rigid` будет содержать компонент Rigidbody этого Boid. Любой вызов
+`GetComponent<>()` относительно медленен, поэтому для обеспечения
+производительности важно кэшировать ссылку на компонент Rigidbody (т. е. сохранить
+способ быстрого доступа к нему). Поле `rigid` позволяет нам избежать вызова
+`GetComponent<>()` в каждом кадре.  
+
+- b. Свойство `Random.onUnitSphere` генерирует Vector3 где-то на поверхности сферы с
+радиусом 1. Другими словами, оно создает Vector3 длиной 1 единица, указывающий в
+случайном направлении. Мы умножаем его на поле скорости, заданное в
+`Spawner.SETTINGS`, а затем присваиваем его скорости компонента Rigidbody Boid с
+помощью свойства `vel`, определённого в // h.  
+
+- c. `LookAhead()` ориентирует Boid так, чтобы он смотрел в направлении своего
+`rigid.velocity`.  
+
+- d. Весь метод `Colorize()` не является строго необходимым, но он делает сцену более
+приятной на вид.  
+
+- e. Статический метод `Random.ColorHSV( 0, 1, 0.5f, 1, 0.5f, 1 )` создаёт
+случайный цвет на основе минимальных и максимальных значений параметров
+оттенка (Hue), насыщенности (Saturation) и яркости (Value), которые в данном случае
+определяют любой оттенок (0–1) с насыщенностью и яркостью в диапазоне от 0.5f
+до 1; другими словами, любой цвет радуги, при условии, что он достаточно яркий и
+насыщенный.12
+12. Документацию по методу `Random.ColorHSV()` см. в документации Unity по адресу
+https://docs.unity3d.com/2020.3/Documentation/ScriptReference/Random.ColorHSV.html.  
+
+- f. Вызов `gameObject.GetComponentsInChildren<Renderer>()` возвращает массив
+всех компонентов Renderer, прикрепленных к данному GameObject Boid и любому из его
+дочерних объектов. В результате возвращаются компоненты Renderer кубов под Fuselage и
+Wing. Этот вызов работает особенно медленно (например, может занять несколько
+миллисекунд), но мы выполняем его только один раз на каждый Boid, а Boids появляются
+лишь раз в десятую долю секунды, так что это не проблема производительности, о которой
+нам стоит беспокоиться.  
+
+- g. Класс TrailRenderer позволяет напрямую из кода получить доступ к начальному и
+конечному цвету своего градиента (мы вручную задавали прозрачность этих цветов при
+настройке TrailRenderer для Attractor). Здесь мы присваиваем randColor в startColor,
+затем делаем randColor полностью прозрачным (устанавливая его прозрачность равной 0) и присваиваем эту прозрачную версию randColor в endColor. В результате след
+будет затухать к концу. Значение endWidth, равное 0, приведет к тому, что след также будет сужаться
+(что вы также делали вручную в Инспекторе для следа Attractor).  
+
+- h. Оба свойства pos и vel являются публичными, но у них есть частное условие set, что
+означает, что любой другой класс может получить значение этих свойств, но только класс
+Boid может их устанавливать.  
+
+2. Сохраните скрипт, вернитесь в Unity и нажмите «Play».  
+
+Теперь Boids летают в разных направлениях и имеют разные цвета, но по-прежнему не реагируют
+ни на что в мире.
+
+<Callout>
+### Примечание [!toc]
+Стоит отметить, что когда вы задаете цвет материала в коде - как мы делаем в
+строках // f и // g листинга кода - Unity фактически создает новую копию
+материала с новым цветом. К сожалению, каждая копия материала требует
+собственного вызова рисования при рендеринге, а это означает, что графический
+процессор (GPU) компьютера будет вынужден запускать отдельный процесс для
+каждого цветного Boid и следа, вместо того чтобы рендерить их все за один проход.
+Это должно сработать для всего 100 Boids, но если у вас возникнут проблемы со слишком большим количеством
+вызовов рисования в будущих проектах, вам следует ознакомиться со следующим
+разделом в документации Unity:  
+
+- **GPU Instancing**: позволяет одному шейдеру рендерить несколько мешей за
+один проход, даже если некоторые свойства (например, цвет) различаются. https://docs.unity3d.com/2020.3/Documentation/Manual/GPUInstancing.html.
+- **MaterialPropertyBlock**: позволяет изменять свойства материала, такие как цвет,
+без создания нового материала. https://docs.unity3d.com/2020.3/Documentation/ScriptReference/MaterialPropertyBlock.html
+- **Frame Debugger**: позволяет точно видеть, что делает каждый проход при рендеринге
+кадра вашей игры на .
+</Callout>
+
+3. Вернитесь в Visual Studio и добавьте в скрипт Boid следующие строки. Обратите внимание, что в листинге кода пропущено несколько строк.
+На протяжении всех статей я использую многоточие ( … ) для обозначения всех мест, где
+пропущены строки. Пожалуйста, не удаляйте ни одну из строк, обозначенных
+многоточием.  
+
+```c#
+public class Boid : MonoBehaviour {
+    … // a
+    void Awake () { … } // b
+
+    // FixedUpdate is called once per physics update (i.e., 50x/second)
+    void FixedUpdate () { // c
+        BoidSettings bSet = Spawner.SETTINGS; // d
+
+        // sumVel sums all the influences acting to change the Boid’s direction
+        Vector3 sumVel = Vector3.zero;
+
+        // ____ATTRACTOR____ - Move towards or away from the Attractor
+        Vector3 delta = Attractor.POS - pos; // e
+
+        // Check whether we’re attracted or avoiding the Attractor
+        if (delta.magnitude > bSet.attractPushDist) {
+            sumVel += delta.normalized * bSet.attractPull; // f
+        } else {
+            sumVel -= delta.normalized * bSet.attractPush;
+        }
+
+        // In Code Listing 27.8, we’ll add additional influences to sumVel here
+
+        // ____INTERPOLATE VELOCITY____ - Between normalized vel & sumVel
+        sumVel.Normalize(); // g
+        vel = Vector3.Lerp(vel.normalized, sumVel, bSet.velocityEasing); // h
+        // Set the magnitude of vel to the velocity set on Spawner.SETTINGS
+        vel *= bSet.velocity; // i
+
+        // Look in the direction of the new velocity
+        LookAhead();
+    }
+
+    // Orients the Boid to look at the direction it’s flying
+    void LookAhead() { … } // b
+    …
+}
+```  
+
+- a. Многоточие ( … ) здесь обозначает несколько строк, которые мы пропустили в этом
+листинге, поскольку они не изменились по сравнению с предыдущим листингом Boid.
+Вы также заметите, что мы пропустили все строки using в начале скрипта;
+пожалуйста, не удаляйте их.  
+
+- b. Вот еще один вариант использования многоточий, который вы будете часто встречать на
+протяжении всей книги. `void Awake () { … }` означает, что метод `Awake()`
+присутствует в коде, но вам не нужно изменять его содержимое. Вы заметите это снова в
+конце листинга с методом `LookAhead()`. Моя цель здесь — чтобы вы вставили новый
+метод `FixedUpdate()` между `Awake()` и `LookAhead()`. Я хочу, чтобы
+`FixedUpdate()` находился здесь, потому что я обычно размещаю все методы
+сообщений, которые Unity вызывает в подклассах MonoBehaviour, ближе к началу моих
+скриптов.  
+
+>Под методами сообщений я имею в виду все методы, которые Unity вызывает как часть движка, и которые
+вы можете найти в разделе «Сообщения» на странице документации по MonoBehaviours: https://docs.unity3d.com/2020.3/Documentation/ScriptReference/MonoBehaviour.html  
+
+- c. Как упоминалось ранее в боковом блоке, `FixedUpdate()` вызывается
+непосредственно перед каждым обновлением физического движка.  
+
+- d. Из-за ограниченного объема страниц в этой книге я создал здесь локальную
+переменную `bSet` для хранения ссылки на экземпляр `Spawner.SETTINGS` класса
+BoidSettings.  
+
+- e. Здесь мы получаем положение Attractor, считывая статическое общедоступное поле
+`Attractor.POS`. Вычитая pos (положение этого Boid) из положения Attractor, мы
+получаем Vector3, указывающий от Boid к Attractor. Затем, в зависимости от того,
+насколько близко этот Boid находится к Attractor, он будет либо притягиваться, либо
+отталкиваться. Величина вектора — это другое название его длины.  
+
+>Мнемоника, которую я использую, чтобы запомнить, в какую сторону будет указывать вектор при вычитании
+одного положения из другого: «A минус B смотрит на A». Это означает, что если вы вычтете положение точки B
+из точки A, то результирующий вектор будет указывать от B к A. Например, [ 10, 5, 0 ] − [ 4, 3, 0 ] = [ 6, 2, 0 ], и
+наоборот, [ 4, 3, 0 ] + [ 6, 2, 0 ] = [ 10, 5, 0 ].  
+
+- f. Вектор дельта к аттрактору нормируется до единичной длины (т. е. длины 1) и
+умножается на `bSet.attractPull`, что придаст ему вес относительно других сил,
+пытающихся повернуть Boid. (Примечание: я называю их влияниями, потому что они
+совсем не то же самое, что реальные силы ускорения, подобные тем, которые могут
+прилагаться к Rigidbody.)  
+
+- g. После того как `sumVel` собрал все взвешенные влияния, которые хотят воздействовать
+на Boid, в один Vector3, `sumVel` нормализуется, что устанавливает его длину равной 1,
+сохраняя при этом направление.  
+
+- h. Далее вызывается `Lerp()` для нормализованной версии `vel`, чтобы линейно
+интерполировать его в направлении нормализованного `sumVel`.
+`bSet.velocityEasing` — это весовое значение, определяющее, насколько `vel`
+должен измениться в направлении `sumVel`. Поскольку это происходит при каждом `FixedUpdate()`, значение
+плавности следует держать небольшим (по умолчанию я указал 0.03f).  
+
+- i. Работая все это время с векторами одинаковой величины, мы задавали направление vel
+с определенной скоростью. В этой строке vel нормализуется и умножается на
+bSet.velocity из синглатона Spawner, чтобы получить окончательную скорость для
+этого Boid.  
+
+4. Сохраните скрипт, вернитесь в Unity и нажмите «Play».  
+
+Теперь вы можете видеть, что все боиды притягиваются к аттрактору. Когда аттрактор меняет
+направление, боиды пролетают мимо и вынуждены разворачиваться, чтобы снова лететь к нему.
+Это уже неплохо, но мы можем сделать ещё лучше. Для этого нам нужно будет получить
+информацию о других боидах, находящихся поблизости, чтобы они могли реагировать на них и
+объединяться в стаю.  
+
+<Callout>
+### Линейная интерполяция [!toc]
+Линейная интерполяция принимает два Vector3 в качестве входных данных и создает новый
+Vector3, который представляет собой взвешенную смесь этих двух. В статическом методе
+`Vector3.Lerp()` величина каждого исходного Vector3, который используется, зависит от третьего аргумента.
+Предполагая, что `vecA` и `vecB` являются Vector3:
+
+```c#
+Vector3 vecRes = Vector3.Lerp(vecA, vecB, 0.5f);
+```
+
+Если третий аргумент равен `0`, `vecRes` будет равен `vecA`; если третий аргумент равен `1`,
+`vecRes` будет равен `vecB`. А если третий аргумент равен `0.5f`, то `vecRes` будет
+находиться ровно посередине между `vecA` и `vecB`. 
+</Callout>

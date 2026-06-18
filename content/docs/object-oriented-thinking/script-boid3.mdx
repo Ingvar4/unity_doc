@@ -1,0 +1,168 @@
+---
+title: Скрипт Boid — Часть 3
+description: Теперь, когда компонент Neighborhood существует и прикреплен к GameObject Boid, пришло время завершить работу над классом Boid.
+---
+
+Этот код добавит следующие влияния, все из которых основаны на других Boids в окрестностях отдельного Boid:  
+
+- Избегание столкновений: Boids будут стараться не сталкиваться с другими Boids, которые
+находятся слишком близко.
+- Согласование скорости: Boids пытаются согласовать свою скорость и направление с
+средней скоростью и направлением Boids, которых они видят.
+- Центрирование стаи: Boids пытаются двигаться к среднему положению Boids, которые они
+могут видеть.  
+
+1. Откройте скрипт Boid в Visual Studio и введите новые строки. Для наглядности я включил весь скрипт Boid.  
+
+Листинг кода Boid.cs
+
+```c#
+public class Boid : MonoBehaviour {
+
+    private Neighborhood neighborhood; // a
+    private Rigidbody rigid;
+
+    // Use this for initialization
+    void Awake () {
+        neighborhood = GetComponent<Neighborhood>(); // a
+        rigid = GetComponent<Rigidbody>();
+
+        // Set a random initial velocity
+        vel = Random.onUnitSphere * Spawner.SETTINGS.velocity;
+
+        LookAhead();
+        Colorize();
+    }
+
+    // FixedUpdate is called once per physics update (i.e., 50x/second)
+    void FixedUpdate () {
+        BoidSettings bSet = Spawner.SETTINGS;
+        // Time.fixedDeltaTime wouldn’t fit on the page, so I store it in fdt
+        float fdt = Time.fixedDeltaTime;
+
+        // sumVel sums all of the forces acting to change the Boid’s direction
+        Vector3 sumVel = Vector3.zero;
+
+        // ____ATTRACTOR____ - Move towards or away from the Attractor
+        Vector3 delta = Attractor.POS - pos;
+        // Check whether we’re attracted or avoiding the Attractor
+        if (delta.magnitude > bSet.attractPushDist) {
+            sumVel += delta.normalized * bSet.attractPull;
+        } else {
+            sumVel -= delta.normalized * bSet.attractPush;
+        }
+
+        // ____COLLISION_AVOIDANCE____ – Avoid neighbors who are too near
+        Vector3 velAvoid = Vector3.zero;
+        Vector3 tooNearPos = neighborhood.avgNearPos;
+        // If the response is Vector3.zero, then no need to react
+        if (tooNearPos != Vector3.zero) {
+            velAvoid = pos - tooNearPos;
+            velAvoid.Normalize();
+            sumVel += velAvoid * bSet.nearAvoid;
+        }
+
+        // ____VELOCITY_MATCHING____ – Try to match velocity with neighbors
+        Vector3 velAlign = neighborhood.avgVel;
+        // Only do more if the velAlign is not Vector3.zero
+        if (velAlign != Vector3.zero) {
+
+            // We’re really interested in direction, so normalize the velocity
+            velAlign.Normalize();
+            // and then set it to the speed we chose
+            sumVel += velAlign * bSet.velMatching;
+        }
+
+        // ____FLOCK_CENTERING____ – Move towards the center of local neighbors
+        Vector3 velCenter = neighborhood.avgPos;
+        if (velCenter != Vector3.zero) {
+            velCenter -= transform.position;
+            velCenter.Normalize();
+            sumVel += velCenter * bSet.flockCentering;
+        }
+
+        // ____INTERPOLATE VELOCITY____ - Between normalized vel & sumVel
+        sumVel.Normalize();
+        vel = Vector3.Lerp(vel.normalized, sumVel, bSet.velocityEasing);
+        // Set the magnitude of vel to the velocity set on Spawner.SETTINGS
+        vel *= bSet.velocity;
+
+        // Look in the direction of the new velocity
+        LookAhead();
+    }
+
+    // Orients the Boid to look at the direction it’s flying
+    void LookAhead() {
+        transform.LookAt(pos + rigid.velocity);
+    }
+
+    // Give the Boid a random color, but make sure it’s not too dark
+    void Colorize() {
+        // Choose a random color
+        Color randColor = Random.ColorHSV( 0, 1, 0.5f, 1, 0.5f, 1 );
+
+        Renderer[] rends = gameObject.GetComponentsInChildren<Renderer>();
+        foreach ( Renderer r in rends ) {
+            r.material.color = randColor;
+        }
+
+        // Also assign the color to the TrailRenderer
+        TrailRenderer trend = GetComponent<TrailRenderer>();
+        trend.startColor = randColor;
+        randColor.a = 0;
+        trend.endColor = randColor;
+        trend.endWidth = 0;
+    }
+
+    // Property used to easily get and set the position of this Boid
+    public Vector3 pos {
+        get { return transform.position; }
+        private set { transform.position = value; }
+    }
+
+    // Property used to easily get and set the velocity of this Boid
+    public Vector3 vel {
+        get { return rigid.velocity; }
+        private set { rigid.velocity = value; }
+    }
+}
+```
+
+2. Обязательно сохраните все свои скрипты, вернитесь в Unity и нажмите «Play».  
+
+Теперь боиды должны вести себя более как стая. Если оставить их работать на некоторое время,
+вы увидите, что боиды в конечном итоге образуют группы, которые движутся вместе и могут
+объединяться и разделяться.  
+
+Вы можете выбрать Main Camera в иерархии и поэкспериментировать с различными
+значениями BoidSettings в инспекторе Spawner. В таблице перечислены некоторые
+интересные варианты значений, которые стоит попробовать. Вы можете использовать кнопку
+пресетов (между значками ? и ⋮ в правом верхнем углу
+компонента Spawner (Script) в инспекторе Main Camera), чтобы сохранить каждую из них в
+качестве
+предустановки для компонента Spawner.
+
+**Boids values**
+
+<img src="/images/ex31.png" alt="1" style={{  height: 'auto' }} />
+
+## Вывод
+
+В этой главе вы узнали об объектной ориентации — концепции, которая проходит красной нитью
+через всю остальную часть книги. Благодаря своей структуре GameObjects с компонентами Unity
+идеально подходит для объектно-ориентированного мышления. Вы также узнали о компонентно-
+ориентированном проектировании — шаблоне проектирования, который очень хорошо работает
+с Unity и, хотя его реализация немного сложнее, может сделать ваш код проще и удобнее в
+управлении.  
+
+Вместе с идеей компонентно-ориентированного ООП приходит концепция модульности. Во
+многих отношениях модульный код — это противоположность монолитному коду. Модульное
+программирование сосредоточено на создании небольших, повторно используемых функций и
+классов, которые выполняют одну задачу действительно хорошо. Поскольку модульные классы и функции небольшие (обычно менее 500 строк), их легче отлаживать и понимать. Модульный код
+также разработан с расчетом на повторное использование.  
+
+В следующей главе вы узнаете о данных-ориентированном проектировании и новом стеке
+технологий Unity, ориентированном на данные (DOTS). DOTS включает в себя несколько новых
+технологий, к которым стремится Unity, которые способны значительно повысить
+производительность наших игр на Unity, но требуют совершенно иного подхода, чем ООП (и на
+момент Unity 2020.3 еще не полностью реализованы).  
