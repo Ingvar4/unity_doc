@@ -1,0 +1,138 @@
+---
+title: Burst Compiler
+description: Burst Compiler спасает ситуацию!
+---
+
+Теперь пришло время посмотреть, как Burst Compiler помогает системе
+заданий.  
+
+1. Откройте *Perlin_DOTS* в Visual Studio и добавьте одну строку над определением
+`PerlinImageJob`, как показано в листинге
+
+```c#
+[BurstCompile]
+public struct PerlinImageJob : IJobParallelFor { … }
+```
+
+Этот атрибут `[BurstCompile]` указывает компилятору Burst применить
+свои возможности ко всем экземплярам структуры `PerlinImageJob`.  
+
+2. Сохраните скрипт *Perlin_DOTS* в Visual Studio, вернитесь в Unity и нажмите
+«Play».  
+
+Вот это уже больше похоже на то, что нужно! На моем ноутбуке простое
+включение Burst Compile для структуры PerlinImageJob увеличило
+скорость с менее чем 3 кадров в секунду до 60 кадров в секунду. Это в 20 раз
+быстрее благодаря одной строке кода, что демонстрирует мощь Burst
+Compiler. Это также более чем в 6 раз быстрее, чем версия на ООП до
+добавления октав. (Если вы не видите этого
+увеличения скорости, в главной панели меню Unity выберите *«Jobs» > «Burst»* и
+убедитесь, что установлен флажок *«Enable Compilation»*).  
+
+Unity уделила огромное количество времени компилятору Burst и тому, чтобы
+он творил такую магию. Если говорить кратко, то обычный C# имеет
+некоторые специфические особенности, которые упрощают написание кода,
+но значительно затрудняют его эффективную компиляцию. Компилятор Burst
+не позволяет нам использовать эти специфические особенности, что дает ему
+возможность компилировать чрезвычайно эффективный код.
+В ходе тестирования Unity обнаружила, что машинный код, скомпилированный
+компилятором Burst, работает быстрее и эффективнее, чем аналогичный
+машинный код, скомпилированный из C++ с помощью компилятора.
+
+### Добавление октав шума в DOTS
+
+Теперь, когда версия DOTS работает нормально, давайте добавим октавы шума,
+которые есть в версии OOP. Из-за ограничений кода, налагаемых DOTS, нам
+придется использовать немного другой подход к вычислению октав.  
+
+1. Откройте файл *Perlin_DOTS* в Visual Studio и внесите изменения,
+выделенные жирным шрифтом, как показано в листинге:
+
+```c#
+public struct PerlinImageJob : IJobParallelFor {
+    …
+    [ReadOnly] public float noiseMult;
+    [ReadOnly] public float minusHalf;
+    [ReadOnly] public float numOctaves, lacunarity, persistence; // a
+
+    public void Execute( int ndx ) {
+        …
+        loc.x = ( ( minusHalf + h ) * noiseMult ) + noiseOffset[0];
+        loc.y = ( ( minusHalf + v ) * noiseMult ) + noiseOffset[1];
+        // float u = noise.cnoise( loc ); // returns [-1..1], not [0..1]! // b
+        // This loop adds octaves to the DOTS version
+        float u=0, lacu=1, pers=1, noiseAmt=0;
+        for ( int i = 0; i < numOctaves; i++ ) {
+            if ( i != 0 ) { // c
+                lacu *= lacunarity;
+                pers *= persistence;
+            }
+
+            noiseAmt = noise.cnoise( loc * lacu ) * pers;// returns [-1..1]*pers
+            u += noiseAmt;
+        }
+
+        u = ( u + 1 ) * 0.5f;
+        if ( u < 0 ) u = 0;
+        …
+    }
+}
+
+[RequireComponent( typeof(MeshRenderer) )]
+public class Perlin_DOTS : MonoBehaviour {
+    …
+    [Header( "Inscribed / Dynamic" )]
+    public float noiseScale = 10;
+    public Vector2 noiseOffset = Vector2.zero;
+    public Vector2 offsetVel = new Vector2( 1, 0 );
+    public PerlinVars perlinVars; // d
+
+    Material _mat;
+    …
+
+    void UpdateTex() {
+        …
+        jobData.noiseMult = noiseScale / (float) textureSize;
+        jobData.minusHalf = -textureSize * 0.5f;
+
+        jobData.numOctaves = perlinVars.numOctaves; // e
+        jobData.lacunarity = perlinVars.lacunarity;
+        jobData.persistence = perlinVars.persistence;
+
+        // Schedule the job
+        JobHandle handle = jobData.Schedule( jobData.pixels.Length, 1080 );
+        …
+    }
+}
+```
+
+- a. Эти общедоступные поля `[ReadOnly]` передают данные об
+октавах в `PerlinImageJob`. Поскольку все они объявлены в одной
+строке, атрибут `[ReadOnly]` public float применяется ко
+всем из них.
+- b. Обязательно закомментируйте эту строку, иначе вам придется вычислять
+`cnoise()`
+дополнительный раз.
+- c. Здесь мы используем тот же прием, чтобы избежать вызова метода
+`DOTS math.pow()`, что и для обхода вызова `Mathf.Pow()` в
+ООП-версии. Как и в ООП-версии, скорость DOTS-версии, вызывавшей
+`math.pow()`, была примерно в два раза ниже.
+- d. Опять же, мы будем использовать класс PerlinVars для настройки
+numOctaves, lacunarity и persistence в инспекторе Unity. Здесь нет
+проблем с использованием экземпляра класса, поскольку класс
+Perlin_DOTS является стандартным OOP-классом Unity C#. Только
+структура `PerlinImageJob` должна быть blittable.
+- e. Здесь поля `perlinVars` присваиваются `[ReadOnly]`
+float-типам `PerlinImageJob`.  
+
+2. Сохраните скрипт *Perlin_DOTS* в Visual Studio, вернитесь в Unity и нажмите
+«Play». Теперь к DOTS-версии изображения добавлены октавы шума, как
+показано на рисунке
+
+<img src="/images/ex42.jpeg" alt="1" style={{  height: 'auto' }} />
+
+Вторая версия процедурно сгенерированного изображения шума Перлина в DOTS  
+
+Частота кадров теперь колеблется в районе 40 кадров в секунду, а изображение
+в оттенках серого выглядит великолепно. А теперь давайте немного
+развлечёмся с ним.
