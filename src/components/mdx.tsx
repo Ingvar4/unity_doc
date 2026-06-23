@@ -17,8 +17,9 @@ import defaultMdxComponents from 'fumadocs-ui/mdx';
 import type { MDXComponents } from 'mdx/types';
 
 function withBasePath(src?: string) {
-  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-
+  // const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  const basePath = '/unity_doc';
+  
   if (!src) return src;
   if (!src.startsWith('/')) return src;
   if (!basePath) return src;
