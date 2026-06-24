@@ -20,11 +20,11 @@ description: Массивы и списки очень похожи, поэто�
 гораздо чаще, чем массивы. Это особенно актуально при прототипировании игр,
 поскольку прототипирование требует большой гибкости.
 
-### Вывод
+### Вывод [!toc]
 
 Теперь, когда вы освоили списки, словари и массивы, вы можете легко работать с большим количеством объектов в своих играх. Например, вы можете вернуться к проекту "Hello World" из главы "Hello World: Ваша первая программа" и добавить в код *CubeSpawner* список `List<GameObject>`, содержащий все новые кубы, добавленные в него в момент создания куба. Это даст вам ссылку на каждый куб, позволяя манипулировать им после его создания. Следующее упражнение покажет вам, как это сделать.  
 
-### Итоговое упражнение
+### Итоговое упражнение [!toc]
 
 В этом упражнении вы вернетесь к проекту "Hello World" и напишете
 скрипт, который будет добавлять каждый новый созданный куб в список
@@ -89,8 +89,7 @@ public class CubeSpawnerListEx : MonoBehaviour {
         foreach ( GameObject goTemp in gameObjectList ) {                         // h
             // Get the scale of the Cube
             float scale = goTemp.transform.localScale.x;                          // i
-            scale *= scalingFactor; // Shrink it by the
-            scalingFactor
+            scale *= scalingFactor; // Shrink it by the scalingFactor
             goTemp.transform.localScale = Vector3.one * scale;
 
             if ( scale <= 0.1f ) { // If scale is less than 0.1f...               // j
