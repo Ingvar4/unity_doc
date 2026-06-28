@@ -1,5 +1,5 @@
 ---
-title: Скрипт Spawner — Часть 1
+title: Скрипт Spawner - Часть 1
 description: Скрипт Spawner будет прикреплен к Main Camera, и, следовательно, вы сможете редактировать общедоступные поля Spawner в инспекторе Unity.
 ---
 
@@ -55,24 +55,24 @@ public class Spawner : MonoBehaviour {
     public BoidSettings boidSettings; // f
 
     void Awake () {
-    // Assign the boidSettings of this instance to the static SETTINGS
-    Spawner.SETTINGS = boidSettings; // g
-    // Start instantiation of the Boids
-    BOIDS = new List<Boid>();
-    InstantiateBoid(); // h
-}
-
-public void InstantiateBoid() {
-    GameObject go = Instantiate<GameObject>(boidPrefab);
-    go.transform.position = Random.insideUnitSphere * spawnRadius; // i
-    Boid b = go.GetComponent<Boid>();
-    b.transform.SetParent(boidAnchor); // j
-
-    BOIDS.Add( b );
-    if (BOIDS.Count < numBoids) {
-        Invoke( "InstantiateBoid", spawnDelay ); // k
+        // Assign the boidSettings of this instance to the static SETTINGS
+        Spawner.SETTINGS = boidSettings; // g
+        // Start instantiation of the Boids
+        BOIDS = new List<Boid>();
+        InstantiateBoid(); // h
     }
-  }
+    
+    public void InstantiateBoid() {
+        GameObject go = Instantiate<GameObject>(boidPrefab);
+        go.transform.position = Random.insideUnitSphere * spawnRadius; // i
+        Boid b = go.GetComponent<Boid>();
+        b.transform.SetParent(boidAnchor); // j
+
+        BOIDS.Add( b );
+        if (BOIDS.Count < numBoids) {
+            Invoke( "InstantiateBoid", spawnDelay ); // k
+        }
+    }
 }
 ```
 
@@ -88,7 +88,7 @@ MonoBehaviour).
 сериализуемым, это позволяет просматривать и редактировать класс в инспекторе Unity
 
     >Точнее говоря, это позволяет отображать в инспекторе любое поле, которое инспектор может сериализовать.
-Сериализация — это процесс преобразования исходных данных поля в более общий текст, и он используется как
+Сериализация - это процесс преобразования исходных данных поля в более общий текст, и он используется как
 Unity Inspector, так и версией JSON (JavaScript Object Notation) от Unity, чтобы поля различных типов могли
 храниться в виде обычного текста. Примером сериализации может служить преобразование красного цвета в его
 шестнадцатеричную спецификацию цвета: #FF0000. Вы будете широко использовать JSON в проекте Prospector
@@ -105,9 +105,9 @@ Solitaire
 `Spawner.boidSettings` присваивается SETTINGS в строке // g.
 - d. `static public List<Boid> BOIDS` будет содержать ссылки
 на все Boids, созданные Spawner, и доступен через Spawner.BOIDS.
-- e. Чтобы этот скрипт работал, необходимо задать оба поля — boidPrefab и boidAnchor
-— в инспекторе Unity (в шагах 6 и 7, которые следуют далее).
-- f. boidSettings — это публичный экземпляр класса BoidSettings. Поскольку
+- e. Чтобы этот скрипт работал, необходимо задать оба поля - boidPrefab и boidAnchor
+- в инспекторе Unity (в шагах 6 и 7, которые следуют далее).
+- f. boidSettings - это публичный экземпляр класса BoidSettings. Поскольку
 класс BoidSettings сериализуем и публичен (а все его поля также являются
 `public`), вы сможете редактировать значения boidSettings в инспекторе.
 - g. Здесь общедоступное поле boidSettings присваивается статическому
@@ -136,7 +136,7 @@ spawnRadius единиц от начала координат (т. е. в пре
 Если вы хотите увидеть всех Boids, перечисленных в иерархии, вам просто нужно
 щелкнуть треугольник раскрытия рядом с GameObject BoidAnchor, который является их
 родителем.
-- k. Два аргумента, которые принимает Invoke, — это имя вызываемого метода (в виде
+- k. Два аргумента, которые принимает Invoke, - это имя вызываемого метода (в виде
 строки: «InstantiateBoid») и время ожидания перед его вызовом (spawnDelay,
 или 0,1 секунды).  
 
