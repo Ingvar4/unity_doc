@@ -15,7 +15,7 @@ description: Мы возьмем имеющийся у нас шум в отте
 - **Окрашивание изображения**: преобразование значения u из диапазона
 [0..1] в различные цвета.
 
-### Добавление виньетки к изображению
+### Добавление виньетки к изображению [!toc]
 
 Самой сложной частью виньетки было вычисление эффективной
 математической формулы для преобразования значений `h` и `v` в `Execute()`
@@ -37,8 +37,7 @@ description: Мы возьмем имеющийся у нас шум в отте
 public struct PerlinImageJob : IJobParallelFor {
 …
     [ReadOnly] public float minusHalf;
-    [ReadOnly] public float numOctaves,
-    lacunarity, persistence;
+    [ReadOnly] public float numOctaves, lacunarity, persistence;
     [ReadOnly] public bool vignette; // a
 
     public void Execute( int ndx ) {
@@ -124,7 +123,7 @@ public class Perlin_DOTS : MonoBehaviour {
 Всегда проводите тестирование, чтобы выяснить, что на
 самом деле вызывает проблемы с производительностью.
 Одним из лучших инструментов для этого является Profiler от
-Unity. В этой книге нет места для его подробного
+Unity. В этих статьях нет места для его подробного
 рассмотрения, но вы можете найти несколько учебных
 материалов в Интернете, выполнив поиск по запросу «Unity
 profiler tutorial»
