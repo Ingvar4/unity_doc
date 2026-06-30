@@ -1,0 +1,117 @@
+---
+title: Создание экземпляров корзин
+description: Чтобы корзины работали, я введу концепцию, которая будет повторяться на протяжении всех этих уроков по созданию прототипов
+---
+
+Хотя объектно-ориентированное мышление поощряет
+разработчиков создавать отдельный класс для каждого GameObject (как мы только что сделали
+для AppleTree и Apple), часто бывает полезно иметь скрипт, управляющий игрой в целом.  
+
+1. Создайте новый скрипт на C# с именем ApplePicker.
+2. Откройте скрипт ApplePicker в Visual Studio и введите код из листинга
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class ApplePicker : MonoBehaviour {
+    [Header("Inscribed")]
+    public GameObject basketPrefab;
+    public int numBaskets = 3;
+    public float basketBottomY = -14f;
+    public float basketSpacingY = 2f;
+
+    void Start () {
+        for (int i=0; i <numBaskets; i++) {
+            GameObject tBasketGO = Instantiate<GameObject>( basketPrefab );
+            Vector3 pos = Vector3.zero;
+            pos.y = basketBottomY + ( basketSpacingY * i );
+            tBasketGO.transform.position = pos;
+        }
+    }
+}
+```
+
+Этот код создает три экземпляра префаба Basket, расположенных вертикально, но он не будет
+работать, пока мы не прикрепим его к GameObject в сцене.  
+
+3. Прикрепите скрипт ApplePicker из панели Project к Main Camera в иерархии. Я часто
+прикрепляю эти скрипты управления игрой к Main Camera, потому что я уверен, что Main
+Camera есть в каждой сцене, и это дает мне общее место, где я смогу их найти позже.
+4. Щелкните *Main Camera* в панели Hierarchy и в Inspector установите для параметра
+`basketPrefab` *Basket GameObject prefab* из панели Project. Нажмите Play, и вы увидите,
+что этот код создает три корзины внизу экрана.
+
+### Перемещение корзин с помощью мыши [!toc]
+
+Теперь вам нужно написать код, чтобы каждая корзина двигалась вместе с мышью.  
+
+1. Создайте новый скрипт C# с именем *Basket* и прикрепите его к префабу *Basket* в панели
+Project. Для этого вы можете либо выбрать префаб Basket и использовать кнопку Add
+Component, либо создать скрипт Basket, а затем прикрепить его к префабу Basket (как вы только что делали со скриптом ApplePicker).
+2. Откройте скрипт Basket на C# в Visual Studio и введите код из листинга:  
+
+**Листинг Basket.cs**
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Basket : MonoBehaviour {
+    void Start () {…} // We’ll add code to Start() in Code Listing 29.12
+
+    void Update () {
+        // Get the current screen position of the mouse from Input
+        Vector3 mousePos2D = Input.mousePosition; // a
+
+        // The Camera’s z position sets how far to push the mouse into 3D
+        // If this line causes a NullReferenceException, select the Main Camera
+        // in the Hierarchy and set its tag to MainCamera in the Inspector.
+        mousePos2D.z = -Camera.main.transform.position.z; // b
+
+        // Convert the point from 2D screen space into 3D game world space
+        Vector3 mousePos3D = Camera.main.ScreenToWorldPoint( mousePos2D ); // c
+
+        // Move the x position of this Basket to the x position of the Mouse
+        Vector3 pos = this.transform.position;
+        pos.x = mousePos3D.x;
+        this.transform.position = pos;
+    }
+}
+```
+
+- a. `Input.mousePosition` присваивается переменной `mousePos2D`. Это значение
+выражается в координатах экрана, то есть оно показывает, на каком расстоянии в
+пикселях находится курсор мыши от левого верхнего угла экрана. Координата `z` для
+`Input.mousePosition` всегда равна `0`, поскольку это, по сути, двумерное измерение.
+- b. Эта строка устанавливает координату `z` `mousePos2D` равной отрицательному значению
+координаты `Z` главной камеры. В игре главная камера находится на Z = -10, поэтому
+`mousePos2D.z` устанавливается на `10`. Это указывает последующей функции
+`ScreenToWorldPoint()`, на какое расстояние нужно сдвинуть `mousePos3D` в 3D-
+пространство (от положения главной камеры), помещая конечную точку мира на плоскость
+Z=0.  
+
+>В большинстве версий Unity 2018 существовала ошибка, из-за которой эта строка вызывала исключение
+NullReference Ex ception (NRE) при выполнении. Это было исправлено в Unity 2019, но на всякий случай, если проблема вдруг вновь возникнет: NRE возникало из-за того, что Main Camera не была помечена как Main Camera в своём инспекторе. Чтобы исправить это NRE, выберите Main Camera в иерархии и установите для нее тег MainCamera (справа под полем имени Main Camera в инспекторе).  
+
+c. `ScreenToWorldPoint()` преобразует mousePos2D в точку в 3D-пространстве внутри
+сцены. Если бы mousePos2D.z равнялось 0, результирующая точка mousePos3D
+находилась бы на оси z с координатами -10 (так же, как и Main Camera). Установив
+mousePos2D.z равным 10, мы смещаем mousePos3D в 3D-пространстве на 10 метров
+от положения Main Camera, в результате чего mousePos3D.z становится равным 0. В
+Apple Picker это не имеет большого значения, но станет гораздо важнее в будущих играх.
+Если это вызывает затруднения, рекомендую ознакомиться с
+`Camera.ScreenToWorldPoint()` в справочнике Unity Scripting.  
+
+Строка в `// b` также важна, поскольку это первый случай использования Camera.main,
+который вы видите в этой части книги. Поскольку Main Camera в нашей иерархии имеет тег
+MainCamera, Unity автоматически присваивает ей статическое публичное поле Camera.main.
+Поскольку Camera.main является публичным и статическим, любой другой скрипт может
+получить к нему доступ, что позволяет нам выполнять вызовы в строках // b и // c из этого
+скрипта Basket. Для получения дополнительной информации о
+static и public см. главу «Переменные и компоненты».  
+
+Теперь, когда корзины движутся, вы можете использовать их для столкновения с яблоками, хотя
+яблоки пока не ловится по-настоящему; вместо этого они просто падают на корзины.

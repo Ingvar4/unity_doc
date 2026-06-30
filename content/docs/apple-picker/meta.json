@@ -1,0 +1,17 @@
+{
+  "pages": [ 
+    "simple-materials",
+    "apple",
+    "basket",
+    "camera-setup",
+    "game-panel-settings",
+    "coding-apple-picker",
+    "basic-movement",
+    "dropping-apples",
+    "setting-physics-layers",
+    "stopping-apples",
+    "instantiating-baskets",
+    "catching-apples",
+    "tuning-appletree"
+  ]
+}
