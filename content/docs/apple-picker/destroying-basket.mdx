@@ -1,0 +1,102 @@
+---
+title: Уничтожение корзины при промахе
+description: Следующие изменения в коде будут управлять удалением одной из корзин каждый раз, когда яблоко промахивается, и сбрасывать игру, когда все корзины будут уничтожены.
+---
+
+Это потребует более сложного кода, чем мы делали ранее в этой игре.  
+
+Скрипту ApplePicker потребуется список `List<GameObject> basketList` для
+отслеживания всех корзин, чтобы он мог уничтожить одну из корзин при вызове
+`AppleMissed()`. Если уничтожена последняя корзина (т. е. basketList.Count теперь
+равен 0), мы сбросим игру, перезагрузив текущую сцену.  
+
+1. Откройте скрипт ApplePicker в Visual Studio и внесите изменения в код
+
+```c#
+using System.Collections;
+using System.Collections.Generic; // a
+using UnityEngine;
+using UnityEngine.SceneManagement; // b
+
+public class ApplePicker : MonoBehaviour {
+    [Header("Inscribed")]
+    public GameObject basketPrefab;
+    public int numBaskets = 3;
+    public float basketBottomY = -14f;
+    public float basketSpacingY = 2f;
+    public List<GameObject> basketList; // c
+
+    void Start () {
+        basketList = new List<GameObject>(); // d
+        for (int i=0; i <numBaskets; i++) {
+            GameObject tBasketGO = Instantiate<GameObject>( basketPrefab );
+            Vector3 pos = Vector3.zero;
+            pos.y = basketBottomY + ( basketSpacingY * i );
+            tBasketGO.transform.position = pos;
+            basketList.Add( tBasketGO ); // e
+        }
+    }
+
+    public void AppleMissed() {
+        // Destroy all of the falling Apples
+        GameObject[] appleArray=GameObject.FindGameObjectsWithTag("Apple");
+        foreach ( GameObject tempGO in appleArray ) {
+            Destroy( tempGO );
+        }
+
+        // Destroy one of the Baskets // f 
+        // Get the index of the last Basket in basketList
+        int basketIndex = basketList.Count -1;
+        // Get a reference to that Basket GameObject
+        GameObject basketGO = basketList[basketIndex];
+        // Remove the Basket from the list and destroy the GameObject
+        basketList.RemoveAt( basketIndex );
+        Destroy( basketGO );
+
+        // If there are no Baskets left, restart the game
+        if ( basketList.Count == 0 ) {
+            SceneManager.LoadScene( "_Scene_0" ); // g
+        }
+    }
+}
+
+```
+
+- a. Хотя использование System.Collections.Generic было в начале этого
+скрипта с момента его создания, вы на самом деле будете использовать его сейчас,
+потому что мы будем сохранять ссылки на все корзины в общедоступном списке
+`List<GameObject> basketList`, который объявлен в начале класса и определен и
+инициализирован в строке // d функции `Start()`. (Для получения дополнительной
+информации о списках см. главу, «Коллекции».)
+- b. Включение using UnityEngine.SceneManagement; позволяет этому коду
+перезагрузить сцену, когда все корзины будут потеряны (см. // g).
+- c. Не забудьте эту строку.
+- d. Эта строка инициализирует basketList как новый `List<GameObject>()`. Хотя он
+уже был объявлен в предыдущей строке `public List<GameObject> basketList;`,
+значение basketList после объявления равно null. Инициализация превращает его в
+реальный, готовый к использованию список.
+- e. Эта строка в конце цикла `for` добавляет каждую корзину в basketList. Корзины
+добавляются в том порядке, в котором они создаются, то есть снизу вверх, поэтому 0-
+я корзина в basketList — самая нижняя.
+- f. Этот новый раздел метода `AppleMissed()` уничтожает одну из корзин. Поскольку
+корзины добавляются снизу вверх, важно, чтобы последняя корзина в списке уничтожалась
+первой (чтобы уничтожать корзины сверху вниз).
+- g. SceneManager.LoadScene( "_Scene_0" ) перезагрузит _Scene_0, фактически
+сбрасывая игру в начальное состояние. Однако это не сработает без строки using
+UnityEngine.SceneManagement; в // b. Конечно, ваша сцена должна называться
+«_Scene_0», и она должна быть добавлена в список сцен в разделе «Build» в настройках
+сборки, чтобы этот код работал.  
+
+>Существует известная ошибка Unity, которая часто возникает при перезагрузке уровня и приводит к тому, что
+перезагруженная сцена выглядит гораздо темнее. В этой игре вы сталкиваетесь с этой ошибкой, если видите, что
+яблоня становится гораздо темнее при перезагрузке сцены. Чтобы исправить это, в главной панели меню Unity
+выберите *Window > Rendering > Lighting*. Затем нажмите кнопку «Generate Lighting» в появившемся окне «Lighting».
+Эта ошибка должна возникать только в редакторе Unity и не должна влиять на сборки WebGL или автономных
+приложений.  
+
+2. Сохраните все скрипты в Visual Studio, затем вернитесь в Unity и сохраните сцену.  
+
+Теперь, когда вы внесли эти изменения (и сохранили все), игра должна выглядеть гораздо более
+похожей на игру. Если вы пропустите яблоко, корзина будет уничтожена, а остальные яблоки
+исчезнут. Если все три корзины будут уничтожены, игра должна сброситься, вернув вам три
+корзины и обнулив текущий счет.

@@ -12,6 +12,13 @@
     "stopping-apples",
     "instantiating-baskets",
     "catching-apples",
-    "tuning-appletree"
+    "tuning-appletree",
+    "game-management",
+    "accumulating-points",
+    "notifying-applepicker",
+    "destroying-basket",
+    "adding-high-score",
+    "preserving-highscore",
+    "next-steps"
   ]
 }

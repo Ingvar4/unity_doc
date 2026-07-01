@@ -1,0 +1,110 @@
+---
+title: Сохранение рекорда в PlayerPrefs
+description: Теперь мы будем использовать PlayerPrefs Unity для хранения нашего рекорда в течение нескольких игр и сохранения его в течение месяцев или даже лет.
+---
+
+Переменные PlayerPrefs сохраняют данные из скриптов Unity на компьютере, благодаря чему эту информацию можно использовать впоследствии - она не теряется при остановке воспроизведения. Система PlayerPrefs работает как в редакторе Unity, так и в скомпилированных сборках (включая WebGL), поэтому рекорд, установленный в одной версии, сохранится и в других, если они запущены на том же компьютере.  
+
+>Я не рекомендую использовать PlayerPrefs в любых играх, выпущенных в продажу, если вы опасаетесь, что люди могут
+взломать файлы сохранений. Если вы поищете в Интернете «Unity Hack PlayerPrefs», то найдете множество примеров того,
+как это делается, а также информацию о лучших практиках хранения данных игроков. Однако ни один из них не так прост
+в использовании и не так широко распространен, как PlayerPrefs, поэтому я решил все же использовать его в этой главе и
+для большинства прототипов.  
+
+1. Откройте скрипт HighScore на C# и добавьте изменения
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI; // We need this line for uGUI to work.
+
+public class HighScore : MonoBehaviour {
+    static private Text _UI_TEXT;
+    static private int _SCORE = 1000;
+
+    private Text txtCom; // txtCom is a reference to this GO’s Text component
+
+    void Awake () {
+        _UI_TEXT = this.GetComponent<Text>();
+
+        // If the PlayerPrefs HighScore already exists, read it
+        if (PlayerPrefs.HasKey("HighScore")) { // a
+            SCORE = PlayerPrefs.GetInt("HighScore");
+        }
+        // Assign the high score to HighScore
+        PlayerPrefs.SetInt("HighScore", SCORE); // b
+    }
+
+    static public int SCORE {
+        get { return _SCORE; }
+            private set {
+            _SCORE = value;
+            PlayerPrefs.SetInt("HighScore", value); // c
+            if ( _UI_TEXT != null ) {
+                _UI_TEXT.text = "High Score: " + value.ToString( "#,0" );
+            }
+        }
+    }
+
+    static public void TRY_SET_HIGH_SCORE( int scoreToTry ) {
+        if ( scoreToTry <= SCORE ) return; // If scoreToTry is too low, return
+        SCORE = scoreToTry;
+    }
+
+    // The following code allows you to easily reset the PlayerPrefs HighScore
+    [Tooltip( "Check this box to reset the HighScore in PlayerPrefs" )]
+    public bool resetHighScoreNow = false; // d
+
+    void OnDrawGizmos() { // e
+        if ( resetHighScoreNow ) {
+            resetHighScoreNow = false;
+            PlayerPrefs.SetInt( "HighScore", 1000 );
+            Debug.LogWarning( "PlayerPrefs HighScore reset to 1,000." );
+        }
+    }
+}
+```
+
+- a. PlayerPrefs - это словарь значений, на которые ссылаются через строковые ключи
+(т. е. уникальные строки). В данном случае вы ссылаетесь на ключ «HighScore». Эта
+строка проверяет, существует ли HighScore в PlayerPrefs, а следующая строка считывает
+значение HighScore, если оно существует.
+PlayerPrefs хранятся отдельно для каждого проекта/приложения, поэтому название
+HighScore - это нормально; это не приведет к конфликту с HighScore, сохраненным в
+PlayerPrefs другим проектом.
+- b. Эта строка присваивает текущее значение HighScore.SCORE ключу HighScore в
+PlayerPrefs. Если HighScore в PlayerPrefs уже существует, это перезапишет значение
+обратно в PlayerPrefs; однако, если ключ еще не существует, это гарантирует, что
+ключ HighScore будет создан.
+- c. Теперь при каждом вызове оператора set для SCORE также устанавливается значение
+HighScore в PlayerPrefs.
+- d. Одна из проблем с PlayerPrefs заключается в том, что во время тестирования вам может
+понадобиться сбросить значение HighScore в PlayerPrefs. Приведенный здесь код позволяет
+это сделать. Благодаря этой строке в Инспекторе появится общедоступный флажок типа
+bool с именем resetHighScoreNow.
+- e. `OnDrawGizmos()` вызывается редактором Unity практически каждый раз, когда
+GameObject отображается на экране, и вызывается как во время работы игры, так и в
+режиме ожидания! Это означает, что редактор постоянно вызывает метод
+`OnDrawGizmos()`, даже когда игра остановлена. Из-за этого установка флажка
+resetHighScoreNow немедленно приведет к выполнению условия if здесь и
+выполнит несколько действий:  
+
+    - Установит resetHighScoreNow обратно в false.
+    - Установит значение PlayerPrefs HighScore обратно на 1000.
+    - Отобразит предупреждающее сообщение в консоли, сообщая нам, что все сработало. Предупреждающее сообщение аналогично сообщению `print()` или `Debug.Log()`, но отображается с желтым значком, чтобы быть более заметным.  
+
+Такое использование PlayerPrefs позволяет сохранить рекорд ApplePicker на этом компьютере, и он
+останется даже после остановки воспроизведения, закрытия Unity и даже перезагрузки
+компьютера.  
+
+2. На всякий случай снова нажмите «Сохранить все» в Visual Studio. Вернитесь в Unity и
+нажмите «Play».  
+
+Вы должны иметь возможность играть в игру с полным набором очков и рекордом. Если вы
+установите новый рекорд, попробуйте остановить игру и перезапустить ее, и вы увидите, что ваш
+рекорд сохранен. (Текст HighScore по-прежнему будет отображать стандартный текст «High
+Score: 1,000», когда игра не запущена.)  
+
+Затем попробуйте установить флажок рядом с `resetHighScoreNow` в инспекторе HighScore
+(Script) и снова запустить игру - вы увидите, что рекорд сброшен до 1 000.
