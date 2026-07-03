@@ -60,7 +60,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class Basket : MonoBehaviour {
-    void Start () {…} // We’ll add code to Start() in Code Listing 29.12
+    void Start () {…} // We’ll add code soon
 
     void Update () {
         // Get the current screen position of the mouse from Input
@@ -106,7 +106,7 @@ Apple Picker это не имеет большого значения, но ст
 `Camera.ScreenToWorldPoint()` в справочнике Unity Scripting.  
 
 Строка в `// b` также важна, поскольку это первый случай использования Camera.main,
-который вы видите в этой части книги. Поскольку Main Camera в нашей иерархии имеет тег
+который вы видите. Поскольку Main Camera в нашей иерархии имеет тег
 MainCamera, Unity автоматически присваивает ей статическое публичное поле Camera.main.
 Поскольку Camera.main является публичным и статическим, любой другой скрипт может
 получить к нему доступ, что позволяет нам выполнять вызовы в строках // b и // c из этого
@@ -115,3 +115,19 @@ static и public см. главу «Переменные и компоненты
 
 Теперь, когда корзины движутся, вы можете использовать их для столкновения с яблоками, хотя
 яблоки пока не ловится по-настоящему; вместо этого они просто падают на корзины.
+
+<Callout type='error'>
+### Ошибка [!toc]
+
+*InvalidOperationException: You are trying to read Input using the UnityEngine.Input class, but you have switched active Input handling to Input System package in Player Settings. UnityEngine.Input.get_mousePosition () (at `<98d790dd21cd450e86ad05334e7b44ab>:0) Basket.Update () (at Assets/Basket.cs:17)`*  
+
+Для исправления этой ошибки необходимо заменить устаревший код Input.mousePosition на новый синтаксис системы ввода в вашем скрипте Basket.cs или включить обе системы ввода в настройках Unity Player.  
+
+Ошибка возникает из-за того, что ваш проект настроен на использование более нового пакета Input System, но строка 17 в файле Basket.cs по-прежнему пытается использовать старый, устаревший класс UnityEngine.Input.  
+
+**Вариант решения:**  
+
+- добавить в шапку `using UnityEngine.InputSystem;`
+- заменить `Vector3 mousePos2D = Input.mousePosition;`  на   
+`Vector3 mousePos2D = Mouse.current.position.ReadValue();`
+</Callout>
