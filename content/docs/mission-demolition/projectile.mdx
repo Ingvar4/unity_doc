@@ -1,0 +1,22 @@
+---
+title: Снаряд
+description: Далее следует снаряд, который будет выпущен из рогатки.
+---
+
+1. Создайте сферу в сцене (*GameObject > 3D Object > Sphere*) и назовите его
+Projectile.
+2. Выберите Projectile в иерархии и прикрепите к нему компонент Rigidbody (*Component >
+Physics > Rigidbody*). Этот компонент Rigidbody позволяет моделировать физику
+снаряда, аналогично яблокам в Apple Picker.
+    - a. Установите значение Mass равным 5 в инспекторе Projectile Rigidbody.
+3. Создайте новый материал и назовите его *Mat_Projectile*.
+    - a. Сделайте альбедо Mat_Projectile темно-серым.
+    - b. Установите значение параметра Metallic равным 0,5 и Smoothness - 0,65, чтобы объект
+больше походил на металлический шар.
+    - c. Примените *Mat_Projectile* к *Projectile* в иерархии.
+4. Перетащите *Projectile* из панели Hierarchy в панель Project, чтобы сделать его префабом.
+5. Удалите экземпляр *Projectile*, оставшийся в панели Hierarchy.  
+
+В итоге панели «Project» и «Hierarchy» должны выглядеть так, как показано на рисунке
+
+<img src="/unity_doc/images/70.jpeg" alt="1" style={{  height: 'auto' }} />

@@ -1,0 +1,174 @@
+---
+title: Создание экземпляра снаряда
+description: Следующим шагом будет создание экземпляра снаряда, когда игрок нажмет кнопку мыши 0 (ноль).
+---
+
+<Callout>
+### Предупреждение [!toc]
+НЕ ИЗМЕНЯЙТЕ БЛОКИ `OnMouseEnter()` И `OnMouseExit()` В
+ПРИВЕДЕННОМ НИЖЕ ФРАГМЕНТЕ КОДА!   
+
+Об этом уже говорилось в
+предыдущих главах, но я повторю это здесь на всякий случай.
+В блоках `OnMouseEnter()` и `OnMouseExit()` листинга кода для Slingshot
+вы увидите символ `{ … }` (фигурные скобки вокруг многоточия). По мере того как
+мы будем писать все более сложные игры, скрипты будут становиться все длиннее и
+длиннее. Всякий раз, когда вы видите имя уже существующей функции, за которым
+следует `{ … }`, это означает, что весь код из предыдущего листинга должен остаться неизменным между этими фигурными скобками. В листинге кода функции `OnMouseEnter()` и `OnMouseExit()` должны остаться:
+
+```c#
+void OnMouseEnter() {
+    //print("Slingshot:OnMouseEnter()");
+    launchPoint.SetActive( true );
+}
+void OnMouseExit() {
+    //print("Slingshot:OnMouseExit()");
+    launchPoint.SetActive( false );
+}
+```
+Обязательно обращайте на это внимание. Везде, где вы видите многоточия в коде, это
+означает, что я использовал их, чтобы сократить приведенные в этой книге фрагменты
+кода и исключить то, что вы уже набрали. `{ … }` — это не настоящий код C#.
+</Callout>
+
+**Листинг Slingshot**
+
+```c#
+public class Slingshot : MonoBehaviour {
+    // fields set in the Unity Inspector pane
+    [Header("Inscribed")] // a
+    public GameObject projectilePrefab;
+
+    // fields set dynamically
+    [Header("Dynamic")] // a
+    public GameObject launchPoint;
+    public Vector3 launchPos; // b
+    public GameObject projectile; // b
+    public bool aimingMode; // b
+
+    void Awake() {
+        Transform launchPointTrans = transform.Find("LaunchPoint");
+        launchPoint = launchPointTrans.gameObject;
+        launchPoint.SetActive( false );
+        launchPos = launchPointTrans.position; // c
+    }
+
+    void OnMouseEnter() { … } // Do not change OnMouseEnter()
+
+    void OnMouseExit() { … } // Do not change OnMouseExit()
+
+    void OnMouseDown() { // d
+        // The player has pressed the mouse button while over Slingshot
+        aimingMode = true;
+        // Instantiate a Projectile
+        projectile = Instantiate( projectilePrefab ) as GameObject;
+        // Start it at the launchPoint
+        projectile.transform.position = launchPos;
+        // Set it to isKinematic for now
+        projectile.GetComponent<Rigidbody>().isKinematic = true; // e
+    }
+}
+```
+
+    - a. Код, заключенный в такие скобки, называется атрибутом компилятора и содержит
+конкретные инструкции для Unity или компилятора. В данном случае атрибут `Header`
+указывает Unity создать заголовок в окне Inspector для этого скрипта. После сохранения этого
+кода выберите Slingshot в панели Hierarchy и посмотрите на компонент Slingshot (Script). Вы
+увидите заголовки, разделяющие общедоступные поля на два раздела:
+        - Раздел «Inscribed» содержит поля, которые необходимо настроить в инспекторе.
+        - Раздел «Dynamic» содержит поля, которые будут настраиваться динамически во время
+работы игры.  
+
+В этом примере вы установите `projectilePrefab` (ссылку на префаб GameObject для всех
+снарядов) в инспекторе Unity перед запуском игры, тогда как все остальные поля будут
+устанавливаться динамически с помощью кода во время работы игры. Заголовки позволяют
+легко увидеть разницу между ними в инспекторе.
+
+    - b. Теперь рассмотрим другие новые поля:
+          - launchPos хранит 3D-координаты launchPoint в игровом мире.
+          - projectile — это ссылка на новый экземпляр Projectile, который создается.
+          - aimingMode обычно имеет значение false, но устанавливается в true, когда игрок нажимает
+кнопку мыши 0 над Slingshot. Эта переменная состояния позволяет остальному коду понять,
+как себя вести. В следующем разделе мы напишем код для Update() Slingshot, который
+запускается только тогда, когда aimingMode == true.
+
+    - c. В методе `Awake()` мы добавили одну строку для установки launchPos.
+    - d. Метод `OnMouseDown()` содержит основную часть изменений в этом листинге.
+    - e. Здесь стоит отметить, что если к префабу Projectile не прикреплен компонент Rigidbody, эта
+строка вызовет в Unity красную ошибку NullReferenceException. Это произойдет потому, что
+вызов `GetComponent<Rigidbody>()` вернет `null`, а затем остальная часть строки
+попытается установить поле isKinematic равным null (что невозможно). Подобные
+строки не являются самой безопасной практикой программирования — поэтому я бы не стал
+использовать их в коде для игры, которую планирую продавать, — но для простого прототипа
+это обычно допустимо.  
+
+`OnMouseDown()` будет вызван только в том единственном кадре, когда игрок нажмет кнопку
+мыши над компонентом Collider GameObject Slingshot, поэтому этот метод может быть вызван
+только в том случае, если мышь находится в допустимом начальном положении в пределах
+Collider GameObject Slingshot. Создается экземпляр projectilePrefab и присваивается
+projectile. Затем projectile помещается в положение launchPos. Наконец, для
+Rigidbody снаряда устанавливается значение true для isKinematic. Когда Rigidbody
+находится в кинематическим, он не перемещается автоматически под действием физики, но по-прежнему
+является частью симуляции (то есть кинематический Rigidbody не будет двигаться в результате
+столкновения или под действием силы тяжести, но по-прежнему может вызывать движение
+других некинематических Rigidbody).
+
+2. Выберите Slingshot на панели Hierarchy и установите для projectilePrefab префаб Projectile
+на панели Project (либо щелкнув по мишени справа от projectilePrefab в инспекторе и
+выбрав Projectile на вкладке Assets, либо перетащив
+префаб Projectile из панели Project в поле projectilePrefab в окне Inspector).
+3. Нажмите «Play», наведите указатель мыши на активную область рогатки и щелкните.
+Появится экземпляр Projectile.
+4. Давайте добавим ему больше возможностей. Добавьте поле velocityMult и метод
+`Update()` из листинга кода в код класса Slingshot:
+
+**Листинг кода Slingshot.cs**
+
+```c#
+public class Slingshot : MonoBehaviour {
+    // Inscribed fields are set in the Unity Inspector pane
+    [Header("Inscribed")]
+    public GameObject projectilePrefab;
+    public float velocityMult = 10f; // a
+
+    …
+
+    void OnMouseDown() { … }
+
+    void Update() {
+        // If Slingshot is not in aimingMode, don’t run this code
+        if (!aimingMode) return; // b
+
+        // Get the current mouse position in 2D screen coordinates
+        Vector3 mousePos2D = Input.mousePosition; // c
+        mousePos2D.z = -Camera.main.transform.position.z;
+        Vector3 mousePos3D = Camera.main.ScreenToWorldPoint( mousePos2D );
+
+        // Find the delta from the launchPos to the mousePos3D
+        Vector3 mouseDelta = mousePos3D -launchPos;
+        // Limit mouseDelta to the radius of the Slingshot SphereCollider // d
+        float maxMagnitude = this.GetComponent<SphereCollider>().radius;
+        if (mouseDelta.magnitude > maxMagnitude) {
+            mouseDelta.Normalize();
+            mouseDelta *= maxMagnitude;
+        }
+        // Move the projectile to this new position
+        Vector3 projPos = launchPos + mouseDelta;
+        projectile.transform.position = projPos;
+
+        if ( Input.GetMouseButtonUp(0) ) { // This 0 is a zero, not an o // e
+            // The mouse has been released
+            aimingMode = false;
+            Rigidbody projRB = projectile.GetComponent<Rigidbody>();
+            projRB.isKinematic = false; // f
+            projRB.collisionDetectionMode = CollisionDetectionMode.Continuous;
+            projRB.velocity = -mouseDelta * velocityMult;
+            projectile = null; // g
+        }
+    }
+}
+```
+
+    - a. Не забудьте добавить эту строку.
+    - b. Если Slingshot не находится в режиме aimingMode, то вернитесь и не выполняйте остальную
+часть этого кода.
