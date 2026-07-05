@@ -1,0 +1,271 @@
+---
+title: Расширение возможностей управления игрой
+description: Вам нужно расположить камеру так, чтобы она охватывала как рогатку, так и замок.
+---
+
+1. Создайте новый скрипт на C# в папке *__Scripts* с именем *MissionDemolition*.
+    - a. Прикрепите скрипт *MissionDemolition* к объекту _MainCamera. Он будет выступать в роли
+менеджера состояния игры.
+    - b. Откройте скрипт MissionDemolition в Visual Studio:  
+
+
+Листинг кода MissionDemolition.cs  
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI; // a
+
+public enum GameMode { // b
+    idle,
+    playing,
+    levelEnd
+}
+
+public class MissionDemolition : MonoBehaviour {
+    static private MissionDemolition S; // a private Singleton // c
+
+    [Header("Inscribed")]
+    public Text uitLevel; // The UIText_Level Text
+    public Text uitShots; // The UIText_Shots Text
+    public Vector3 castlePos; // The place to put castles
+    public GameObject[] castles; // An array of the castles
+
+    [Header("Dynamic")]
+    public int level; // The current level
+    public int levelMax; // The number of levels
+    public int shotsTaken;
+    public GameObject castle; // The current castle
+    public GameMode mode = GameMode.idle;
+    public string showing = "Show Slingshot"; // FollowCam mode
+
+    void Start() {
+        S = this; // Define the Singleton // c
+
+        level = 0;
+        shotsTaken = 0;
+        levelMax = castles.Length;
+        StartLevel();
+    }
+
+    void StartLevel() {
+        // Get rid of the old castle if one exists
+        if (castle != null) {
+            Destroy( castle );
+        }
+
+        // Destroy old projectiles if they exist (the method is not yet written)
+        Projectile.DESTROY_PROJECTILES(); // This will be underlined in red // d
+
+        // Instantiate the new castle
+        castle = Instantiate<GameObject>( castles[level] );
+        castle.transform.position = castlePos;
+
+        // Reset the goal
+        Goal.goalMet = false;
+
+        UpdateGUI();
+
+        mode = GameMode.playing;
+    }
+
+    void UpdateGUI() {
+        // Show the data in the GUITexts
+        uitLevel.text = "Level: "+(level+1)+" of "+levelMax;
+        uitShots.text = "Shots Taken: "+shotsTaken;
+    }
+
+    void Update() {
+        UpdateGUI();
+
+        // Check for level end
+        if ( (mode == GameMode.playing) && Goal.goalMet ) {
+            // Change mode to stop checking for level end 
+            mode = GameMode.levelEnd;
+
+            // Start the next level in 2 seconds
+            Invoke("NextLevel", 2f); // e
+        }
+    }
+
+    void NextLevel() { // e
+        level++;
+        if (level == levelMax) {
+            level = 0;
+            shotsTaken = 0;
+        }
+        StartLevel();
+    }
+
+    // Static method that allows code anywhere to increment shotsTaken
+    static public void SHOT_FIRED() { // f
+        S.shotsTaken++;
+    }
+
+    // Static method that allows code anywhere to get a reference to S.castle
+    static public GameObject GET_CASTLE() { // g
+        return S.castle;
+    }
+}
+```
+
+- a. Чтобы использовать любой из классов uGUI, таких как Text и Button, необходимо
+добавить оператор using UnityEngine.UI;.
+- b. Это первый пример перечисления. Дополнительную информацию см. в боковом блоке «Enum».
+- c. static private MissionDemolition S - это частный синглтон. Синглтон - это шаблон
+программирования, при котором всегда существует только один экземпляр класса, и он
+должен быть публичным. Здесь мы изменили синглтон MissionDemolition.S, сделав
+его частным. Это позволяет нам реализовывать статические публичные методы, такие как
+`SHOT_FIRED()`, которые могут вызываться любым другим классом, не позволяя при этом
+другим классам получать доступ к полям MissionDemolition классов.
+- d. DESTROY_PROJECTILES() - это статический публичный метод, который мы
+добавим в класс Projectile в следующем шаге. Visual Studio не скомпилирует ваш код,
+пока мы этого не сделаем.
+- e. NextLevel() вызывается через две секунды после того, как Projectile соприкасается с
+Goal. Вскоре мы более активно используем эти две секунды. Обратите внимание, что
+оператор if приводит к повторению уровней игры и сбрасывает shotsTaken в 0 после
+того, как вы увидели все замки.
+- f. SHOT_FIRED() - это статический публичный метод, который Slingshot
+будет вызывать, чтобы сообщить MissionDemolition о том, что был
+произведен выстрел.
+- g. GET_CASTLE() - это статический публичный метод, который позволит другим скриптам
+получить ссылку на поле castle объекта Singleton S. Позже он будет использоваться
+FollowCam.
+
+<Callout>
+### Enum [!toc]
+Enum (или перечисление) - это способ определения конкретных именованных чисел в
+C#. Определение enum в начале скрипта MissionDemolition на C# объявляет тип enum
+GameMode с тремя возможными значениями: idle, playing и levelEnd.
+После определения перечисления можно объявить переменную, использующую
+данное перечисление в качестве своего типа.  
+
+```c#
+public GameMode mode = GameMode.idle;
+```
+
+Предыдущая строка создает новую переменную с именем mode, которая имеет тип
+GameMode и имеет значение GameMode.idle.  
+
+Перечисления часто используются в коде, когда для переменной существует лишь
+несколько конкретных вариантов и вы хотите, чтобы эти варианты были легко
+читаемыми для человека. В качестве альтернативы можно передать тип режима игры в
+виде строки (например, «idle», «playing» или «levelEnd»), но перечисление - это гораздо
+более чистый способ, который не так подвержен ошибкам в написании и позволяет
+использовать автозаполнение при вводе.
+</Callout>
+
+2. Добавьте метод `DESTROY_PROJECTILES()` в класс Projectiles, чтобы наш код снова
+компилировался. Откройте скрипт Projectiles в Visual Studio и добавьте:  
+
+Листинг Projectile.cs  
+
+```c#
+public class Projectile : MonoBehaviour {
+    const int LOOKBACK_COUNT = 10;
+    static List<Projectile> PROJECTILES = new List<Projectile>(); // a
+
+    [SerializeField]
+    private bool _awake = true;
+
+    void Start() {
+        …
+        deltas.Add( 1000 );
+
+        PROJECTILES.Add( this ); // b
+    }
+
+    void FixedUpdate() { … }
+
+    private void OnDestroy() {
+        PROJECTILES.Remove( this ); // c
+    }
+
+    static public void DESTROY_PROJECTILES() { // d
+        foreach ( Projectile p in PROJECTILES ) {
+            Destroy( p.gameObject );
+        }
+    }
+}
+```
+
+- a. Так же, как мы сделали с PROJ_LINES в классе ProjectileLine, этот статический
+список будет хранить ссылки на все снаряды в игре.
+- b. Здесь снаряд добавляется в PROJECTILES.
+- c. `OnDestroy()` вызывается для каждого GameObject и компонента при его
+уничтожении. Здесь этот Projectile удалит себя из PROJECTILES.
+- d. `DESTROY_PROJECTILES()` проходит по всем существующим Projectiles и уничтожает
+их gameObjects.  
+
+Если вы попытаетесь изменить список во время его прохождения, C# будет очень недоволен. Вы
+можете опасаться, что это произойдет здесь, потому что при уничтожении p.gameObject
+экземпляр Projectile также будет уничтожен, и это вызовет OnDestroy(), что удалит Projectile
+из списка PROJECTILES. К счастью, вызов Destroy(p.gameObject) не уничтожает
+GameObject сразу, а ставит его в очередь на уничтожение чуть позже в этом же кадре, так что
+нам не нужно беспокоиться об этой проблеме.  
+
+Теперь, когда MissionDemolition и Projectile готовы, давайте добавим вызов SHOT_FIRED()
+из скрипта Slingshot.  
+
+3. Добавьте строку из листинга кода в скрипт Slingshot на
+C#:  
+
+Листинг кода Slingshot.cs  
+
+```c#
+public class Slingshot : MonoBehaviour {
+    …
+
+    void Update() {
+        …
+
+        if ( Input.GetMouseButtonUp(0) ) { // This 0 is a zero, not an o
+            …
+            // Add a ProjectileLine to the Projectile
+            Instantiate<GameObject>(projLinePrefab, projectile.transform);
+            projectile = null;
+            MissionDemolition.SHOT_FIRED(); // a
+        }
+    }
+}
+``` 
+
+- a. Поскольку метод `ShotFired()` в классе MissionDemolition является статическим,
+вы можете получить к нему доступ через сам класс MissionDemolition, а не через
+конкретный экземпляр MissionDemolition. Когда Slingshot вызывает
+MissionDemolition.SHOT_FIRED(), это приводит к увеличению значения
+MissionDemolition.S.shotsTaken.  
+
+4. Сохраните все свои скрипты и вернитесь в Unity. Прежде чем эти изменения в скриптах начнут работать, вам нужно настроить несколько
+параметров в Unity:  
+
+5. Выберите MainCamera в иерархии. В инспекторе компонента MissionDemolition (Script)
+необходимо настроить несколько переменных (см. рис.). 
+
+<img src="/unity_doc/images/ex79.jpeg" alt="1" style={{  height: 'auto' }} />
+Окончательные настройки (с массивом Castles) для
+_MainCamera:MissionDemolition  
+
+        - a. Чтобы настроить uitLevel, щелкните цель в инспекторе справа от uitLevel и
+выберите UITex t Level на вкладке Scene во всплывающем диалоговом окне.
+        - b. Щелкните цель рядом с измен. измен. в инспекторе и выберите UITex t Shots на
+вкладке Scene.
+        - c. Установите для castlePos значение [ 50, - 9.5, 0 ], что позволит разместить замки на
+удобном расстоянии от вашей рогатки.
+        - d. Щелкните треугольник раскрытия рядом с castles и установите для параметра Size
+количество замков, которые вы создали ранее.
+        - e. Перетащите каждый из пронумерованных префабов «Castle», которые вы создали, в элемент
+массива «castles», чтобы задать уровни для вашей игры. Постарайтесь расположить их
+от самого простого к самому сложному (это не обязательно должен быть тот порядок, в
+котором вы их создавали).
+6. Сохраните сцену!  
+
+Теперь игра может проходить различные уровни и отслеживать, сколько выстрелов вы
+произвели! Единственное, чего не хватает, - это немного лучший вид на новые замки и более
+четкое указание игроку о том, что он прошел уровень.  
+
+>На данный момент камера может отходить от замка немного раньше, чем вам хотелось бы. Пока что, пожалуйста,
+продолжайте работу с главой. Затем, в конце, если камера по-прежнему отходит слишком быстро, вы можете вернуться и
+установить в настройках проекта (Project Settings > Physics > Sleep Threshold) немного более низкое значение или добавить
+задержку перед отходом, чтобы посмотреть, станет ли так лучше.

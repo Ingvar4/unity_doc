@@ -4,6 +4,19 @@
     "slingshot",
     "projectile",
     "coding-prototype",
-    "instantiating-projectile"
+    "instantiating-projectile",
+    "making-follow-camera",
+    "providing-vection",
+    "organizing-project-pane",
+    "building-castle",
+    "making-castle",
+    "making-goal",
+    "fixing-rigidbody",
+    "adding-projectileline",
+    "dimming-projectilelines",
+    "hitting-goal",
+    "adding-more-castles",
+    "game-management",
+    "showing-different-views"
   ]
 }

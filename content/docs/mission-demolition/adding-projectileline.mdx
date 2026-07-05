@@ -1,0 +1,152 @@
+---
+title: Добавление следа ProjectileLine
+description: Хотя в Unity и есть встроенный эффект TrailRenderer, он не подойдет для наших целей в Mission Demolition
+---
+
+Так как нам требуется больший контроль над следом, чем он позволяет. Вместо
+этого мы воспользуемся LineRenderer, на котором построен TrailRenderer.  
+
+Сначала мы создадим отдельный GameObject ProjectileLine, который будет содержать
+компонент LineRenderer, а затем с помощью Slingshot создадим экземпляр префаба ProjectileLine
+в качестве дочернего объекта каждого запускаемого Projectile.  
+
+1. Начните с создания пустого GameObject (*GameObject > Create Empty*) и назовите его
+ProjectileLine.
+    - a. Сбросьте трансформацию ProjectileLine до P:[ 0, 0, 0 ] R:[ 0, 0, 0 ] S:[ 1, 1, 1 ].
+    - b. Добавьте компонент Line Renderer (*Components > Effects > Line Renderer*).
+    - c. В инспекторе LineRenderer для ProjectileLine разверните треугольник раскрытия для
+параметра «Materials» (показанный справа на рисунке). Щелкните по кружку справа
+от элемента 0 в списке «Materials» и выберите «Default-Line» из списка «Assets». «Default-
+Line» — это встроенный материал Unity, поэтому вам не нужно создавать его
+самостоятельно.
+
+<img src="/unity_doc/images/ex76.jpeg" alt="1" style={{  height: 'auto' }} />
+Настройки LineRenderer для ProjectLine, разделённого на две половины  
+
+- d. В разделе с сеткой и красной линией обязательно установите общую ширину линии равной
+0,25 (в поле в левом верхнем углу).  
+
+Чтобы добавить точку на красную кривую, дважды щелкните по линии. Координаты 0,099,
+1,000 для верхней точки являются приблизительными. Просто выберите значение, близкое к
+ним, и всё будет выглядеть нормально. Высота красной линии задает визуальную ширину
+следа относительно установленной нами максимальной ширины 0,25, поэтому такая кривая
+сначала будет очень узкой (т. е. очень близко к снаряду), а затем станет широкой и останется
+широкой на протяжении всего времени существования.  
+
+- e. Установите все остальные настройки компонента Line Renderer, выделенные на рисунке, в соответствии с показанными на рисунке 
+
+2. Создайте скрипт на C# (*Asset > Create >C# Script*) в папке « Scripts».
+    - a. Назовите скрипт *ProjectileLine*.
+    - b. Прикрепите скрипт ProjectileLine к GameObject ProjectileLine в иерархии.
+    - c. Откройте скрипт ProjectileLine в Visual Studio и введите код из листинга:  
+
+Листинг кода ProjectileLine.cs
+
+```c#
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+[RequireComponent( typeof(LineRenderer) )]
+public class ProjectileLine : MonoBehaviour {
+    private LineRenderer _line; // a
+    private bool _drawing = true;
+    private Projectile _projectile;
+
+    void Start() {
+        _line = GetComponent<LineRenderer>();
+        _line.positionCount = 1; // b
+        _line.SetPosition( 0, transform.position );
+
+        _projectile = GetComponentInParent<Projectile>(); // c
+    }
+
+    void FixedUpdate() {
+        if ( _drawing ) {
+            _line.positionCount++; // d
+            _line.SetPosition( _line.positionCount - 1, transform.position );
+            // If the Projectile Rigidbody is sleeping, stop drawing
+            if ( _projectile != null ) { // e
+                if ( !_projectile.awake ) {
+                    _drawing = false;
+                    _projectile = null;
+                }
+            }
+        }
+    }
+
+    // void Update() {…} // Please delete the unused Update() method
+}
+```
+
+    - a. Имена этих частных полей начинаются с подчеркивания, чтобы напомнить нам, что они
+являются частными.
+    - b. Получите ссылку на LineRenderer и присвойте ему первую позицию (т. е. точку).
+    - c. `GetComponentInParent<>()` позволяет нам просматривать иерархию вверх от этого
+GameObject в поисках компонентов (в данном случае, компонента Projectile (Script)
+GameObject Projectile, который является родителем данного GameObject ProjectileLine). Было
+бы точнее назвать эту функцию GetComponentInThisOrAnyParent, поскольку при поиске
+проверяется не только этот GameObject, но и его прародители, прапрародители и т. д.
+ProjectileLine в конечном итоге будет прикреплен к Projectile, чтобы следовать за его
+полетом, поэтому нам нужно иметь возможность получить компонент Projectile (скрипт) от
+родителя.
+    - d. В каждом кадре, в котором существует этот ProjectileLine, он увеличивает positionCount
+LineRenderer (т. е. количество точек в линии) и добавляет текущее положение этого
+трансформатора в мире к линии. Это заставит ProjectileLine следовать за Projectile во
+время его полета.
+    - e. Пока компонент Projectile найден в иерархии, этот ProjectileLine будет продолжать рисовать,
+пока _projectile.awake не станет false, после чего он не только прекратит рисование,
+но и разорвет связь с _projectile (просто для чистоты).  
+
+3. Сохраните скрипт ProjectileLine и вернитесь в Unity.
+4. Сделайте GameObject ProjectileLine префабом:
+    - a. Перетащите GameObject ProjectileLine из иерархии в папку _Prefabs на панели Project.
+    - b. Удалите оставшийся экземпляр ProjectileLine из иерархии.
+5. Измените скрипт Slingshot, чтобы добавить ProjectileLine к каждому Projectile сразу после
+его запуска, открыв скрипт Slingshot в Visual Studio и добавив код:  
+
+Листинг кода Slingshot.cs
+
+```c#
+public class Slingshot : MonoBehaviour {
+    // fields set in the Unity Inspector pane
+    [Header("Inscribed")]
+    public GameObject projectilePrefab;
+    public float velocityMult = 10f;
+    public GameObject projLinePrefab; // a
+
+    // fields set dynamically
+    [Header("Dynamic")]
+    public GameObject launchPoint;
+    …
+
+    void Update() {
+        …
+
+        if ( Input.GetMouseButtonUp(0) ) { // This 0 is a zero, not an o
+            …
+            FollowCam.POI = projectile; // Set the _MainCamera POI
+            // Add a ProjectileLine to the Projectile
+            Instantiate<GameObject>(projLinePrefab, projectile.transform); // b
+            projectile = null;
+        }
+    }
+}
+```
+
+    - a. Это поле позволяет нам задать префаб для projectileLine (назвать его
+projectileLinePrefab было бы немного лучше, но это не поместилось бы на
+странице позже в строке `// b`).
+    - b. Эта перегрузка метода `Instantiate<>()` принимает трансформацию родителя в
+качестве второго параметра, поэтому экземпляр projLinePrefab будет создан как
+дочерний элемент projectile, избавляя нас от необходимости задавать родитель в отдельной
+команде.  
+
+6. Сохраните этот скрипт и вернитесь в Unity.
+7. Выберите Slingshot в иерархии сцены. Присвойте префаб ProjectileLine из папки
+папки _Prefabs на панели Project к полю projLinePrefab компонента скрипта Slingshot в
+Inspector.
+8. Сохраните сцену и нажмите «Play».  
+
+Теперь каждый Projectile оставляет за собой линию, но было бы лучше, если бы линии немного
+тускнели с каждым последующим выстрелом.
