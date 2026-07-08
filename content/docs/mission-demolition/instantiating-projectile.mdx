@@ -168,7 +168,28 @@ public class Slingshot : MonoBehaviour {
     }
 }
 ```
+<Callout type='error'>
+### ERROR [!toc]
+Система отслеживания ввода устарела в данном коде.  
+Поэтому замена строк:
+```c#
+using UnityEngine.InputSystem; //добавляется в шапку
 
+//{...}
+
+void Update() {
+//{...}
+    // Vector3 mousePos2D = Input.mousePosition; // c
+    Vector3 mousePos2D = Mouse.current.position.ReadValue(); //замена Input.mousePosition на Mouse.current.position.ReadValue();
+
+    //{...}
+
+    // if ( Input.GetMouseButtonUp(0) ) { // This 0 is a zero, not an o // e
+    if(Mouse.current.leftButton.wasReleasedThisFrame){ //замена Input.GetMouseButtonUp(0) на Mouse.current.leftButton.wasReleasedThisFrame
+}
+
+```
+</Callout>
     - a. Не забудьте добавить эту строку.
     - b. Если Slingshot не находится в режиме aimingMode, то осуществляется `return`, и остальная часть кода не выполняется.
     - c. Преобразование положения мыши из экранных координат в координаты мира.
