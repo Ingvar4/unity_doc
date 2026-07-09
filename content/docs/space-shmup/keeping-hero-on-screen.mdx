@@ -1,0 +1,189 @@
+---
+title: Удержание _Hero на экране
+description: Движение вашего корабля _Hero теперь должно выглядеть довольно хорошо, и вращающийся щит выглядит красиво, но на данном этапе вы можете легко вылететь за пределы экрана.
+---
+
+Чтобы решить
+эту проблему, вы создадите повторно используемый компонент script. Вы можете узнать больше о
+шаблоне компонентов в проектировании программного обеспечения в главе «Объектно-
+ориентированное мышление» и в разделе «Шаблоны объектно-ориентированного проектирования
+программного обеспечения». Вкратце, компонент - это
+небольшой фрагмент кода, предназначенный для работы вместе с другими, чтобы добавлять
+функциональность к GameObject, не вступая в конфликт с другим кодом на объекте. Все встроенные
+компоненты Unity, с которыми вы работали в Инспекторе (например, Renderer, Transform и т. д.) следуют шаблону. Теперь вы сделаете то же самое с помощью небольшого скрипта, чтобы
+удержать _Hero на экране. Обратите внимание, что этот скрипт работает только с ортогональными
+камерами.  
+
+>Конечно, любой скрипт в Unity, прикрепленный к GameObject, является «скриптовым компонентом», но это не означает, что он следует шаблону компонента, что мы и пытаемся сделать здесь.  
+
+1. Выберите Hero в иерархии.
+    - a. Используя кнопку «Add Component» в инспекторе, выберите «Add Component» > New Script.
+    - b. Назовите скрипт *BoundsCheck* и нажмите «Создать и добавить».
+    - c. На панели Project перетащите скрипт *BoundsCheck* в папку *__Scripts*.
+2. Откройте скрипт *BoundsCheck* и добавьте код:  
+
+    Листинг кода BoundsCheck.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+// If you type /// in Visual Studio, it will automatically expand to a <summary>
+/// <summary>
+/// Keeps a GameObject on screen.
+/// Note that this ONLY works for an orthographic Main Camera.
+/// </summary>
+public class BoundsCheck : MonoBehaviour { // a
+
+    [Header("Dynamic")]
+    public float camWidth;
+    public float camHeight;
+
+    void Awake() {
+        camHeight = Camera.main.orthographicSize; // b
+        camWidth = camHeight * Camera.main.aspect; // c
+    }
+
+    void LateUpdate () { // d
+        Vector3 pos = transform.position;
+
+        // Restrict the X position to camWidth
+        if (pos.x > camWidth) { // e
+            pos.x = camWidth; // e
+        }
+        if (pos.x < -camWidth) { // e
+            pos.x = -camWidth; // e
+        }
+
+        // Restrict the Y position to camHeight
+        if (pos.y > camHeight) { // e
+            pos.y = camHeight; // e
+        }
+        if (pos.y < -camHeight) { // e
+            pos.y = -camHeight; // e
+        }
+
+        transform.position = pos;
+    }
+}
+```
+
+    - a. Поскольку этот фрагмент кода предназначен для повторного использования, полезно
+добавить к нему некоторую внутреннюю документацию. Строки над объявлением класса,
+которые все начинаются с
+`///` являются частью встроенной системы документации C#. После ввода этого текста
+система интерпретирует текст между тегами `<summary>` как краткое описание назначения
+класса. Если затем навести курсор мыши на имя класса в строке, помеченной `// a`, вы
+увидите всплывающее окно с этим кратким описанием класса. Выполните поиск в Интернете по запросу «документация XML на C#», чтобы узнать больше.
+    - b. Camera.main предоставляет доступ к первой камере с тегом MainCamera в вашей сцене.
+Затем, если камера ортографическая, .orthographicSize возвращает значение Size из
+инспектора камеры (в данном случае 40). Таким образом, camHeight представляет собой
+расстояние от начала координат мира (позиция 0,0,0) до верхнего или нижнего края экрана в
+мировых координатах.
+    - c. Camera.main.aspect - это соотношение сторон камеры по ширине/высоте, определяемое
+соотношением сторон панели Game (в настоящее время установлено на 3 : 4 Portrait (768 x 1024)), что
+делает aspect равным 0.75f. Умножив camHeight на .aspect, можно получить расстояние от
+начала координат до левого или правого края экрана.
+    - d. `LateUpdate()` вызывается в каждом кадре после того, как `Update()` был вызван для всех
+GameObjects. Если бы этот код находился в функции `Update()`, он мог бы выполняться либо
+до, либо после вызова `Update()` в скрипте Hero. Размещение этого кода в `LateUpdate()`
+позволяет избежать возникновения условия гонки между двумя функциями `Update()` и
+гарантирует, что `Hero.Update()` перемещает GameObject _Hero в новое положение в каждом
+кадре, прежде чем эта функция сохранит его на экране.
+    - e. Обязательно дважды проверьте все символы `>`, `<`, -, x и y в этих строках, а также
+соотношение camHeights и camWidths во всем коде. Именно здесь читатели часто
+сталкиваются с опечатками.  
+
+*Условие гонки* (race condition) - это ситуация, когда порядок выполнения двух фрагментов кода (т. е. A перед B или
+B перед A) имеет значение, но вы не можете контролировать этот порядок. Например, в этом коде,
+если `BoundsCheck.LateUpdate()` будет выполнена раньше `Hero.Update()`, GameObject
+_Hero потенциально может выйти за пределы границ (поскольку сначала будут ограничены границы,
+а затем будет перемещен корабль). Выполнение ограничения в виде `LateUpdate()` в
+BoundsCheck обеспечивает соблюдение порядка выполнения двух скриптов (где `Update()`
+всегда предшествует `LateUpdate()`), предотвращая условие гонки.  
+
+3. Сохраните скрипт BoundsCheck, вернитесь в Unity, нажмите «Play» и попробуйте полетать на своем
+корабле.  
+
+Теперь корабль действительно останавливается у края экрана, но останавливается тогда, когда
+центр корабля касается края экрана. Вместо этого мы хотим сместить корабль внутрь экрана,
+заставляя его останавливаться, когда внешняя часть щита касается края экрана. Аналогично, позже нам понадобится выводить вражеские
+корабли за пределы экрана, что позволит нам определять, когда враг полностью покинул экран, чтобы
+мы могли удалить GameObject врага из иерархии.  
+
+4. Снова откройте файл BoundsCheck в Visual Studio и введите код, чтобы добавить значение радиуса и возможность устанавливать тип BoundsCheck как center, inset или outset:  
+
+    Листинг кода BoundsCheck.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+// If you type /// in Visual Studio, it will automatically expand to a <summary>
+/// <summary>
+/// Keeps a GameObject on screen.
+/// Note that this ONLY works for an orthographic Main Camera.
+/// </summary>
+public class BoundsCheck : MonoBehaviour {
+    public enum eType { center, inset, outset }; // a
+
+    [Header("Inscribed")]
+    public eType boundsType = eType.center; // a
+    public float radius = 1f;
+
+    [Header("Dynamic")]
+    …
+
+    void Awake() { … }
+
+    void LateUpdate () {
+        // Find the checkRadius that will enable center, inset, or outset // b
+        float checkRadius = 0;
+        if (boundsType == eType.inset) checkRadius = -radius;
+        if (boundsType == eType.outset) checkRadius = radius;
+
+        Vector3 pos = transform.position;
+
+        // Restrict the X position to camWidth
+        if (pos.x > camWidth + checkRadius) { // c
+            pos.x = camWidth + checkRadius; // c
+        }
+        if (pos.x < -camWidth - checkRadius) { // c
+            pos.x = -camWidth - checkRadius; // c
+        }
+
+        // Restrict the Y position to camHeight
+        if (pos.y > camHeight + checkRadius) { // c
+            pos.y = camHeight + checkRadius; // c
+        }
+        if (pos.y < -camHeight - checkRadius) { // c
+            pos.y = -camHeight - checkRadius; // c
+        }
+
+        transform.position = pos;
+    }
+}
+```
+
+    - a. Этот `enum eType` позволяет нам контролировать, будет ли BoundsCheck
+центрированным, смещенным внутрь или наружу, а общедоступный eType boundsType
+можно установить в Инспекторе.
+    - b. checkRadius добавляется к camWidth и camHeight экрана во всех проверках в `// c`.
+Существует три варианта для boundsType:  
+        - eType.center - checkRadius устанавливается в 0, и этот код работает точно так же, как
+и после листинга кода.
+        - eType.inset - checkRadius устанавливается в -radius, уменьшая размер границ
+экрана на величину radius.
+        - eType.outset - checkRadius устанавливается в положительное значение radius, что
+фактически увеличивает размер границ экрана.  
+
+    - c. Опять же, пожалуйста, обязательно дважды проверьте все символы «+» и «-» в этих строках.
+
+5. Сохраните скрипт BoundsCheck и вернитесь в Unity.
+6. Выберите GameObject _Hero в инспекторе и в компоненте BoundsCheck:
+    - a. Установите для параметра boundsType значение Inset.
+    - b. Установите радиус равным 4 (это радиус щита корабля _Hero).
+7. Нажмите «Play» и направьте корабль _Hero к краям экрана.
+8. Остановите режим воспроизведения и сохраните сцену.

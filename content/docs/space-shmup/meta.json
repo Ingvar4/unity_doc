@@ -1,0 +1,12 @@
+{
+  "pages": [ 
+    "setting-the-scene",
+    "making-hero-ship",
+    "hero-shield",
+    "keeping-hero-on-screen",
+    "adding-enemies",
+    "enemy-script",
+    "deleting-enemy",
+    "spawning-enemies-random"
+  ]
+}

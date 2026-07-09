@@ -1,0 +1,110 @@
+---
+title: Hero Shield
+description: Щит для _Hero представляет собой комбинацию прозрачного текстурированного четырехугольника (для визуализации) и сферического коллайдера (для обработки столкновений).
+---
+
+Чтобы создать щит:
+
+1. Создайте новый четырехугольник (*GameObject > 3D Object > Quad*).
+    - a. Переименуйте четырехугольник в *Shield*.
+    - b. Сделайте *Shield* дочерним объектом *_Hero* (перетащив Shield на _Hero в иерархии).
+    - c. Установите трансформацию *Shield* на P:[ 0, 0, 0 ], R:[ 0, 0, 0 ], S:[ 8, 8, 8 ]. (Теперь в панели
+«Игра» вы должны увидеть белый прямоугольник, окружающий модель heroShip.)
+2. Выберите *Shield* в иерархии и удалите существующий компонент Mesh Collider, нажав на
+три точки (⋮) справа от названия Mesh Collider в инспекторе и выбрав «Remove
+Component» из всплывающего меню.
+3. Добавьте компонент Sphere Collider к Shield (*Component > Physics > Sphere Collider*).
+Если вы выделите Shield в панели Scene, то увидите светло-зеленую сферу с каркасом,
+окружающую heroShip. (Настройки Sphere Collider мы настроим позже.)
+4. Создайте новый материал (*Assets >Create > Material*).
+    - a. Назовите новый материал *Mat_Shield*.
+    - b. Поместите его в папку *_Materials* на панели Project.
+    - c. Перетащите *Mat_Shield* на Shield под _Hero в иерархии, чтобы привязать его к квадранту
+Shield.
+5. Выберите Shield в иерархии, и теперь вы увидите *Mat_Shield* в нижней части инспектора
+для Shield.
+    - a. Установите для шейдера *Mat_Shield* значение *ProtoTools > UnlitAlpha*. (Этот шейдер -
+простой шейдер, который я написал и который был импортирован как часть стартового
+UnityPackage.)
+    - b. Раскройте треугольник, чтобы отобразить остальные настройки *Mat_Shield* (или просто
+щелкните один раз по имени *Mat_Shield* в инспекторе, и настройки должны появиться).
+6. Под всплывающим окном выбора шейдера для *Mat_Shield* вы увидите область, в которой можно
+выбрать основной цвет материала, а также текстуру.
+    - a. Нажмите «Select» в правом нижнем углу квадрата текстуры и выберите текстуру с именем
+Shields.
+    - b. Щелкните по образцу цвета рядом с Main Color и выберите ярко-зеленый (RGBA: [ 0, 255, 0, 255
+]).
+    - c. В настоящее время вы можете видеть все пять состояний щита одновременно. Чтобы отображать
+только одно за раз, мы изменим значения Tiling и Offset:  
+
+        - Tiling.x на 0,2 (что показывает только 20% от полной ширины текстуры за раз)
+        - Offset.x - 0,4 (что показывает одно полное кольцо щита)
+        - Tiling.y должен остаться равным 1,0
+        - Offset.y должен остаться равным 0
+
+Текстура щита была разработана так, чтобы делиться на пять секций по горизонтали. Значение X
+Tiling равное 0,2 заставляет Mat_Shield использовать только 1/5 от общей текстуры щита в
+направлении X, а X Offset выбирает, какую именно пятую часть. Попробуйте значения X Offset
+равные 0, 0,2, 0,4, 0,6 и 0,8, чтобы увидеть различные уровни прочности щита.  
+
+7. Создайте новый скрипт C# с именем *Shield* (*Asset > Create > C# Script*).
+    - a. Поместите скрипт *Shield* в папку __Scripts на панели Project.
+8. Перетащите скрипт Shield на объект Shield в иерархии (под _Hero), чтобы назначить его
+в качестве компонента GameObject Shield.
+9. Откройте скрипт Shield в Visual Studio и введите код:  
+
+    Листинг Shield.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Shield : MonoBehaviour {
+    [Header("Inscribed")]
+    public float rotationsPerSecond = 0.1f;
+
+    [Header("Dynamic")]
+    public int levelShown = 0; // This is set between lines // c & d
+
+    // This non-public variable will not appear in the Inspector
+    Material mat; // a
+
+    void Start() {
+        mat = GetComponent<Renderer>().material; // b
+    }
+
+    void Update () {
+        // Read the current shield level from the Hero Singleton
+        int currLevel = Mathf.FloorToInt( Hero.S.shieldLevel ); // c
+        // If this is different from levelShown...
+        if (levelShown != currLevel) {
+            levelShown = currLevel;
+            // Adjust the texture offset to show different shield level
+            mat.mainTextureOffset = new Vector2( 0.2f*levelShown, 0 ); // d
+        }
+        // Rotate the shield a bit every frame in a time-based way
+        float rZ = -(rotationsPerSecond*Time.time*360) % 360f; // e
+        transform.rotation = Quaternion.Euler( 0, 0, rZ );
+    }
+}
+```
+
+    - a. Поле Material mat не объявлено как public, поэтому оно не будет отображаться в
+инспекторе и к нему не будет доступа за пределами класса Shield.
+    - b. В `Start()` mat определяется как материал компонента Renderer на этом GameObject (т. е.
+компонента Renderer Shield в иерархии). Это позволяет быстро установить смещение текстуры
+в строке, помеченной `// d`.
+    - c. currLevel устанавливается на целое значение текущего числа Hero.S.shieldLevel.
+Округление shieldLevel к меньшему значению гарантирует, что щит переместится на новое
+смещение по оси X, а не покажет смещение между двумя участками текстуры щита.
+    - d. Эта строка настраивает смещение по оси X Mat_Shield, чтобы отобразить правильный уровень
+щита.
+    - e. Эта строка и следующая за ней заставляют GameObject Shield медленно вращаться вокруг оси z.  
+
+10. Сохраните скрипт Shield, вернитесь в Unity и нажмите Play.  
+
+Теперь вы должны увидеть щит 1-го уровня, вращающийся вокруг heroShip. Попробуйте выбрать
+_Hero и настроить ползунок Hero.shieldLevel в инспекторе (от 0 до 4) во время воспроизведения
+игры. Вы должны увидеть, как щит переключается между различными уровнями по мере изменения
+значения.
