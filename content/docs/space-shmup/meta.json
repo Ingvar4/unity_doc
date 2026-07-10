@@ -7,6 +7,10 @@
     "adding-enemies",
     "enemy-script",
     "deleting-enemy",
-    "spawning-enemies-random"
+    "spawning-enemies-random",
+    "setting-tags-layers",
+    "making-enemies-damage",
+    "restarting-game",
+    "shooting-finally"
   ]
 }

@@ -1,0 +1,195 @@
+---
+title: Создание игрового объекта оружия для стрельбы снарядами
+description: Начнем с графического представления нового игрового объекта Weapon.
+---
+
+Одно из преимуществ выбранного нами способа реализации класса Weapon заключается в том, что к объекту _Hero можно прикрепить множество игровых объектов Weapon; каждый из них сможет подписаться на событие fireEvent класса Hero и затем срабатывать одновременно с остальными при вызове этого события.  
+
+1. В окне Hierarchy создайте пустой объект (GameObject), назовите его Weapon и задайте ему следующие параметры компонента Transform, а также добавьте пустой дочерний объект с именем ShotPoint. У объекта Weapon пока нет привязанных графических элементов, поэтому он будет невидимым.  
+  Weapon (Empty) P:[ 0, 0, 0 ] R:[ 0, 0, 0 ] S:[ 1, 1, 1 ]  
+  ShotPoint (Empty) P:[ 0, 0, 1 ] R:[ 0, 0, 0 ] S:[ 1, 1, 1 ]  
+
+2. Прикрепите C#-скрипт Weapon к игровому объекту Weapon в окне Hierarchy.
+3. Перетащите игровой объект Weapon в папку _Prefabs в окне Project, чтобы превратить его в префаб.
+4. Удалите оставшийся экземпляр Weapon из окна Hierarchy.
+5. Перетащите префаб Weapon из папки _Prefabs на объект hardpoint_0 (путь: _Hero > heroShip > hardpoint_0) в окне Hierarchy, сделав его дочерним по отношению к hardpoint_0. Чтобы увидеть hardpoint_0, вам потребуется раскрыть иерархию объектов _Hero и heroShip (нажав на треугольники рядом с их именами).
+6. Убедитесь, что в окне Inspector позиция (Position) объекта Weapon установлена ​​в [ 0, 0, 0 ], а масштаб (Scale) - в [ 1, 1, 1 ]. Это должно разместить Weapon в носовой части корабля _Hero, как показано на рисунке.
+
+<img src="/unity_doc/images/ex95.jpeg" alt="1" style={{  height: 'auto' }} />
+Оружие на своем месте в иерархии как дочерний объект hardpoint_0.  
+
+Причина, по которой вы удалили исходный экземпляр Weapon из иерархии (Hierarchy) и перетащили новый из папки _Prefabs, связана с позицией и масштабом объекта hardpoint_0 внутри иерархии _Hero. Если бы вы просто перетащили уже имеющийся в иерархии экземпляр Weapon на hardpoint_0, Unity попыталась бы скорректировать позицию, поворот и масштаб Weapon так, чтобы объект остался на том же месте, где находился до перемещения. Обычно это полезно, но в данном случае параметры Weapon установились бы как P:[ 0, -45, -235 ], R:[ 90, 0, 0 ] и S: [ 100, 100, 100 ], что совсем не соответствовало нашей цели. Перетаскивание нового экземпляра префаба Weapon непосредственно на hardpoint_0 позволяет избежать такого автоматического изменения параметров со стороны Unity.  
+
+7. Сохраните сцену! Не забываете ли вы сохраняться постоянно?  
+
+### Добавление стрельбы в скрипт оружия на C# [!toc]
+Чтобы добавить функцию стрельбы в скрипт оружия, выполните следующие действия:  
+
+1. Начните с отключения вызова метода `TempFire()` в классе Hero. Откройте
+скрипт Hero (на языке C#) в Visual Studio и закомментируйте строку.    
+  Листинг кода Hero.cs
+
+```c#
+public class Hero : MonoBehaviour {
+    …
+    void Awake() {
+        if (S == null) {
+            S = this; // Set the Singleton
+        } else {
+            Debug.LogError("Hero.Awake() - Attempted to assign second Hero.S!");
+        }
+        // fireEvent += TempFire; // Comment out this line
+    }
+    …
+    // void TempFire() { … } // Please also comment out or delete all of TempFire
+    …
+}
+```
+
+Если закомментировать эту строку, fireEvent перестанет вызывать `TempFire()` - и это хорошо, поскольку самой функции `TempFire()` теперь тоже не существует. Если теперь нажать Play и щелкнуть по кнопке стрельбы, корабль героя не будет стрелять.  
+
+2. Откройте скрипт Weapon (на языке C#) в Visual Studio и добавьте код (заменив им текущее пустое определение класса Weapon), чтобы окончательно сформировать этот класс. Листинг содержит довольно много кода, но после его добавления оба типа оружия - «Бластер» (Blaster) и «Дробовик» (Spread) - начнут работать!  
+  Листинг Weapon.cs
+
+```c#
+public class Weapon : MonoBehaviour {
+    static public Transform PROJECTILE_ANCHOR;
+
+    [Header("Dynamic")] // a
+    [SerializeField] // a
+    [Tooltip("Setting this manually while playing does not work properly.")] // a
+    private eWeaponType _type = eWeaponType.none;
+    public WeaponDefinition def;
+    public float nextShotTime; // Time the Weapon will fire next
+
+    private GameObject weaponModel;
+    private Transform shotPointTrans;
+
+    void Start() {
+        // Set up PROJECTILE_ANCHOR if it has not already been done
+        if (PROJECTILE_ANCHOR == null) { // b
+            GameObject go = new GameObject("_ProjectileAnchor");
+            PROJECTILE_ANCHOR = go.transform;
+        }
+
+        shotPointTrans = transform.GetChild( 0 ); // c
+
+        // Call SetType() for the default _type set in the Inspector
+        SetType( _type ); // d
+
+        // Find the fireEvent of a Hero Component in the parent hierarchy
+        Hero hero = GetComponentInParent<Hero>(); // e
+        if ( hero != null ) hero.fireEvent += Fire;
+    }
+
+    public eWeaponType type {
+        get { return( _type ); }
+        set { SetType( value ); }
+    }
+
+    public void SetType( eWeaponType wt ) {
+        _type = wt;
+        if (type == eWeaponType.none) { // f
+            this.gameObject.SetActive(false);
+            return;
+        } else {
+            this.gameObject.SetActive(true);
+        }
+        // Get the WeaponDefinition for this type from Main
+        def = Main.GET_WEAPON_DEFINITION(_type);
+        // Destroy any old model and then attach a model for this weapon // g
+        if ( weaponModel != null ) Destroy( weaponModel );
+        weaponModel = Instantiate<GameObject>(def.weaponModelPrefab, transform);
+        weaponModel.transform.localPosition = Vector3.zero;
+        weaponModel.transform.localScale = Vector3.one;
+
+        nextShotTime = 0; // You can fire immediately after _type is set. // h
+    }
+
+    private void Fire() {
+        // If this.gameObject is inactive, return
+        if ( !gameObject.activeInHierarchy ) return; // i
+        // If it hasn’t been enough time between shots, return
+        if ( Time.time < nextShotTime ) return; // j
+
+        ProjectileHero p;
+        Vector3 vel = Vector3.up * def.velocity;
+
+        switch (type) { // k
+            case eWeaponType.blaster:
+            p = MakeProjectile();
+            p.vel = vel;
+            break;
+
+            case eWeaponType.spread: // l
+            p = MakeProjectile();
+            p.vel = vel;
+            p = MakeProjectile();
+            p.transform.rotation = Quaternion.AngleAxis( 10, Vector3.back );
+            p.vel = p.transform.rotation * vel;
+            p = MakeProjectile();
+            p.transform.rotation = Quaternion.AngleAxis(-10, Vector3.back );
+            p.vel = p.transform.rotation * vel;
+            break;
+        }
+    }
+    private ProjectileHero MakeProjectile() { // m
+        GameObject go;
+        go = Instantiate<GameObject>(def.projectilePrefab,PROJECTILE_ANCHOR); // n
+        ProjectileHero p = go.GetComponent<ProjectileHero>();
+
+        Vector3 pos = shotPointTrans.position;
+        pos.z = 0; // o
+        p.transform.position = pos;
+
+        p.type = type;
+        nextShotTime = Time.time + def.delayBetweenShots; // p
+        return( p );
+    }
+}
+```
+
+    - a. Все три этих атрибута компилятора применяются к приватному полю `eWeaponType _type`.
+    - b. `PROJECTILE_ANCHOR` - это статический компонент `Transform`, созданный для выполнения роли родительского объекта в иерархии для всех игровых объектов `ProjectileHero`, создаваемых скриптами оружия. Если `PROJECTILE_ANCHOR` равен `null` (поскольку он еще не был создан), данный скрипт создает новый игровой объект с именем `_ProjectileAnchor` и присваивает его `Transform` переменной `PROJECTILE_ANCHOR`.
+    - c. Мы знаем, что на момент вызова метода `Start()` у игрового объекта оружия есть только один дочерний объект («ShotPoint»), поэтому вместо вызова `transform.Find("ShotPoint")` мы можем просто получить нулевой дочерний объект из `Transform` игрового объекта оружия. (Этот подход меняет проблему возможной опечатки в имени «ShotPoint» (в самом объекте или в коде) на проблему того, что произойдет, если в префаб игрового объекта оружия будет добавлен еще один дочерний объект.)
+    - d. При запуске класса `Weapon` вызывается метод `SetType()` с текущим значением поля `eWeaponType _type`. Это гарантирует, что игровой объект оружия либо исчезнет (если `_type` равен `eWeaponType.none`), либо отобразит правильную модель оружия (если `_type` равен `eWeaponType.blaster` или `eWeaponType.spread`). Ручное изменение поля `_type` во время работы игры не дает нужного результата, так как при этом пропускается вызов `SetType()`; однако метод `SetType()` вызывается через блок `set` свойства `type`, поэтому присвоение нового значения `eWeaponType` свойству `type` обеспечит назначение правильной модели игровому объекту.
+    - e. В рамках метода `Start()` эта строка выполняет поиск вверх по иерархии (над данным игровым объектом оружия) компонента класса `Hero`, прикрепленного к одному из родительских игровых объектов в Unity. Этот поиск должен всегда возвращать экземпляр класса `Hero`, прикрепленный к игровому объекту `_Hero` на сцене.  
+
+        >Класс Weapon во втором издании этой книги был рассчитан на использование как Героем, так и врагами, однако в текущем издании я упростил его реализацию, ориентировав исключительно на Героя: теперь он всегда ищет скрипт Hero у родительского объекта. Если вы хотите, чтобы оружие могло использоваться и тем, и другим, можно создать интерфейс IWeaponHolder и реализовать его в классах Hero и Enemy. См. раздел «Интерфейсы» в приложении Б («Полезные концепции»).  
+
+        На следующей строке, если был найден экземпляр класса Hero, метод `Fire()` данного объекта Weapon добавляется к событию fireEvent этого экземпляра. В дальнейшем событие fireEvent класса Hero сможет вызывать метод `Fire()` данного объекта Weapon. Вас может удивить, что это возможно, ведь метод `Fire()` является закрытым (private). Однако скрипт Weapon имеет доступ к `Fire()` и поэтому может добавить этот метод к событию fireEvent.  
+
+        >В этом заключается как преимущество, так и недостаток использования делегатов: функция помечена как private, поэтому при взгляде на неё неочевидно, что она будет вызываться другими классами.
+
+    - f. Если тип равен eWeaponType.none, данный GameObject переводится в неактивное состояние. Когда GameObject неактивен, он не получает вызовов методов MonoBehaviour (например, Update(), LateUpdate(), FixedUpdate(), OnCollisionEnter() и т. д.), не участвует в физической симуляции и визуально исчезает со сцены. Однако вызов функций и изменение переменных в скриптах, прикрепленных к неактивному GameObject, по-прежнему возможны; поэтому, если что-либо вызовет SetType() или установит свойство type в значение eWeaponType.blaster или eWeaponType.spread, метод SetType() сработает и повторно активирует GameObject, к которому он привязан.
+    - g. Эти строки извлекают соответствующий объект WeaponDefinition из Main и создают экземпляр weaponModel как дочерний объект для данного GameObject (оружия). Если weaponModel уже был прикреплен, он предварительно уничтожается. Параметры localPosition и localScale настраиваются так, чтобы обеспечить правильное выравнивание модели.
+    - h. Установка nextShotTime в значение 0 позволяет произвести выстрел из этого оружия немедленно (см. // j).
+    - i. Свойство gameObject.activeInHierarchy будет иметь значение false, если сам GameObject оружия неактивен либо если GameObject _Hero (корневой родительский объект для этого оружия) неактивен или уничтожен. В любом случае, когда gameObject.activeInHierarchy равно false, выполнение функции прекращается, и выстрел не производится.
+    - j. Если текущее время меньше nextShotTime, выполнение метода прекращается, и выстрел не производится. Это предотвращает слишком частую стрельбу.
+    - k. Оператор switch содержит варианты для каждого из двух типов оружия (WeaponType), реализованных в этой главе. Тип eWeaponType.blaster создает один GameObject типа ProjectileHero путем вызова MakeProjectile() (который возвращает ссылку на экземпляр класса ProjectileHero, прикрепленный к новому GameObject снаряда), а затем задает скорость (velocity) его компоненту Rigidbody в направлении вектора vel.
+    - l. Если _type равен eWeaponType.spread, создаются три различных снаряда (Projectile). Направление двух из них поворачивается на 10 градусов вокруг оси Vector3.back (то есть оси -Z, направленной от экрана в вашу сторону). Затем свойству `Rigidbody.velocity` присваивается результат умножения этого кватерниона (вращения) на вектор `vel`. При умножении кватерниона на `Vector3` происходит поворот этого вектора, в результате чего итоговый вектор скорости оказывается направленным туда, куда ориентирован объект `ProjectileHero`.
+    - m. Метод `MakeProjectile()` создает экземпляр (клонирует) префаба, хранящегося в `WeaponDefinition`, и возвращает ссылку на прикрепленный к нему экземпляр класса `ProjectileHero`.
+    - n. Игровой объект `ProjectileHero` создается как дочерний объект `PROJECTILE_ANCHOR` с использованием второго параметра метода `Instantiate()`; это эффективнее, чем назначать родительский объект для `transform` позднее. Благодаря этому объект размещается в иерархии сцены (Hierarchy) внутри `_ProjectileAnchor`, что позволяет избежать загромождения списка иерархии множеством клонов `ProjectileHero`.
+    - o. Координата Z объекта ProjectileHero устанавливается равной 0, чтобы учесть поворот корабля Hero и любые другие факторы, способные сместить объект относительно плоскости Z=0.
+    - p. Переменной nextShotTime присваивается значение, равное текущему времени плюс def.delayBetweenShots; это предотвращает стрельбу из данного оружия в течение def.delayBetweenShots секунд.  
+
+Пришлось немало потрудиться, но очень скоро это окупится!
+
+3. Сохраните скрипт Weapon в Visual Studio и вернитесь в Unity.
+4. Выберите объект Weapon, прикрепленный к *_Hero > heroShip > hardpoint_0* в окне Hierarchy, и установите тип в компоненте Weapon (Script) равным Blaster.
+5. Нажмите кнопку Play. Теперь, удерживая клавишу пробела, вы сможете стрелять белыми зарядами из бластера с интервалом 0,2 секунды (как задано в массиве weaponDefinitions компонента Main (Script) объекта _MainCamera).
+6. Остановите воспроизведение в Unity. Снова выберите объект Weapon в окне Hierarchy и на этот раз установите тип в компоненте Weapon (Script) равным Spread. (Как указано в комментарии `// d` к листингу кода, если просто изменить поле _type компонента Weapon в окне Inspector во время работы Unity, метод `SetType()` не будет вызван, и новый объект WeaponDefinition не будет назначен корректно.)
+7. Нажмите кнопку Play. Теперь должна появиться другая модель оружия, и при удержании пробела будут выпускаться три синих заряда веером с интервалом 0,4 секунды.
+8. Остановите воспроизведение в Unity. В последний раз выберите объект Weapon в окне Hierarchy и верните тип в компоненте Weapon (Script) к значению Blaster. Это подготовит сцену к тестированию следующих изменений.
+9. И, как всегда, не забудьте сохранить сцену.
+
+<Callout type='idea'>
+### Внимание [!toc]
+Если объекты ProjectileHeroes отображаются в окне Hierarchy, но не видны на экране, это, скорее всего, вызвано тем, что у цветов projectileColors, выбранных в разделе weaponDefinitions компонента Main (Script) объекта _MainCamera, значение альфа-канала (alpha) равно 0, из-за чего они становятся невидимыми. В этом случае выполните следующие действия:  
+
+1. Выберите объект _MainCamera в окне Hierarchy.
+2. В окне Inspector найдите компонент Main (Script) и раздел WeaponDefinitions; проверьте каждый цвет powerUpColor и projectileColor и убедитесь, что в нижней части всех образцов цвета имеется белая линия (см. рис. 32.4).
+3. Если в нижней части какого-либо из этих цветов видна черная линия, щелкните по образцу цвета и установите значение A (Alpha) на максимально допустимый уровень (обычно 255).  
+
+Теперь попробуйте снова запустить игру - объекты ProjectileHeroes должны стать видимыми.
+</Callout>

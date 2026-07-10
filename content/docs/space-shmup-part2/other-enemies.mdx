@@ -1,0 +1,160 @@
+---
+title: Программирование других врагов
+description: Один из важнейших аспектов этой главы - расширение разнообразия врагов, с которыми предстоит столкнуться герою.
+---
+
+Позже у вашего героя появится больше возможностей дать отпор этим всё более опасным противникам. К счастью, я уже подготовил префабы для четырех новых врагов, так что вам не придется повторять все те действия, которые вы выполняли для Enemy_0.  
+
+1. В папке *Assets by Peter Burroughs > Other Prefabs* находятся четыре Enemy_ prefabs.
+    - a. Переместите префабы *Enemy_1*, *Enemy_2*, *Enemy_3* и *Enemy_4* в папку *_Prefabs* в панели Project (где сейчас находятся Enemy_0 и ProjectileHero).
+
+2. Создайте четыре новых скрипта C# с именами *Enemy_1*, *Enemy_2*, *Enemy_3* и *Enemy_4*. (Из
+главного меню Unity, *Assets > Create > C# Script*, или щелкните правой кнопкой мыши на папке __Scripts
+и выберите *Create > C# Script*.)
+3. Поместите эти скрипты в папку *__Scripts* в панели Project.
+
+4. Назначьте каждый из этих четырех скриптов соответствующему префабу Enemy_# в панели Project.(Например, назначьте скрипт Enemy_1 префабу Enemy_1.)  
+
+5. Выберите каждый префаб Enemy_# в папке _Prefabs на панели Project и установите для его слоя значение
+Enemy. Всегда выбирайте «Да, изменить дочерние элементы», когда вас об этом спросят.  
+
+Мы будем работать над скриптом для каждого врага по очереди.  
+
+### Enemy_1 [!toc]
+
+Enemy_1 перемещается вниз по экрану, двигаясь из стороны в сторону по синусоиде. Как и
+Enemy_0, Enemy_1 расширяет класс Enemy и наследует все его поля,
+функции и свойства, за исключением тех, что имеют модификатор доступа private.
+
+1. Откройте скрипт Enemy_1 в Visual Studio и введите код, выделенный жирным шрифтом в листинге.  
+    Листинг Enemy_1.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Enemy_1 : Enemy { // Enemy_1 also extends the Enemy class // a
+    [Header("Enemy_1 Inscribed Fields")]
+    [Tooltip("# of seconds for a full sine wave")] // b
+    public float waveFrequency = 2;
+    [Tooltip("Sine wave width in meters")]
+    public float waveWidth = 4;
+    [Tooltip("Amount the ship will roll left and right with the sine wave")]
+    public float waveRotY = 45;
+
+    private float x0; // The initial x value of pos
+    private float birthTime;
+
+    void Start() {
+        // Set x0 to the initial x position of Enemy_1
+        x0 = pos.x; // c
+
+        birthTime = Time.time;
+    }
+
+    // Override the Move function on Enemy
+    public override void Move() { // d
+        // Because pos is a property, you can’t directly set pos.x
+        // so get the pos as an editable Vector3
+        Vector3 tempPos = pos;
+        // theta adjusts based on time
+        float age = Time.time - birthTime;
+        float theta = Mathf.PI * 2 * age / waveFrequency;
+        float sin = Mathf.Sin(theta);
+        tempPos.x = x0 + waveWidth * sin;
+        pos = tempPos; // rotate a
+        bit about y
+        Vector3 rot = new Vector3(0, sin *waveRotY, 0);
+        this.transform.rotation = Quaternion.Euler(rot);
+
+        // base.Move() still handles the movement down in y
+        base.Move(); // e
+
+        // print( bndCheck.isOnScreen ); // Leave this line commented out // f
+    }
+
+    // void Update() {…} // Please delete the unused Update() method
+}
+```
+
+    - a. Класс Enemy_1, являющийся расширением класса Enemy, наследует открытые (public) поля speed, fireRate, health и score, а также открытое свойство pos и открытый метод `Move()`. Однако он не наследует закрытое (private) поле bndCheck; подробнее об этом я расскажу на следующем этапе.
+    - b. Этот атрибут компилятора `[Tooltip()]` указывает Unity отображать соответствующую подсказку, когда пользователь наводит курсор мыши на имя поля в окне Inspector. Он часто используется при командной разработке, когда другие участники могут не знать точного назначения всех ваших открытых полей.
+    - c. См. врезку «Различия между `Awake()` и `Start()`», чтобы узнать, почему эта строка работает в методе `Start()`, но не будет работать корректно в `Awake()`.
+    - d. В обычных методах C# (таких как `Move()`) необходимо объявить метод как virtual в суперклассе и переопределить его (override) в подклассе, чтобы версия из подкласса корректно замещала версию, унаследованную от суперкласса. Поскольку метод `Move()` в суперклассе Enemy помечен как virtual, вы можете переопределить его здесь, заменив на реализацию `Move()`, специфичную для данного подкласса.
+    - e. Вызов `base.Move()` обращается к методу `Move()` суперкласса Enemy. В данном случае метод `Move()` в подклассе Enemy_1 отвечает за горизонтальное перемещение по синусоиде, тогда как метод `Move()` в суперклассе Enemy перемещает игровой объект (GameObject) Enemy_1 вниз по экрану.
+    - f. К этой строке мы вернемся совсем скоро.
+
+<Callout>
+### Различия между `Awake()` и `Start()` [!toc]
+Я хотел бы немного пояснить, почему строка `x0 = pos.x;` в методе `Start()` работает так, как нам нужно, но не сработала бы так же, если бы находилась в `Awake()`. Для начала давайте взглянем на код в файле `Main.cs`, отвечающий за появление врагов.
+
+```c#
+public void SpawnEnemy() {
+    // Pick a random Enemy prefab to instantiate
+    int ndx = Random.Range(0, prefabEnemies.Length);
+    GameObject go = Instantiate<GameObject>( prefabEnemies[ ndx ] );
+    // This is when Awake() is called on the instantiated Enemy
+    // Position the Enemy above the screen with a random x position
+    float enemyInset = enemyInsetDefault;
+    if (go.GetComponent<BoundsCheck>() != null) {
+        enemyInset = Mathf.Abs( go.GetComponent<BoundsCheck>().radius );
+    }
+    // Set the initial position for the spawned Enemy
+    Vector3 pos = Vector3.zero;
+    float xMin = -bndCheck.camWidth + enemyInset;
+    float xMax = bndCheck.camWidth - enemyInset;
+    pos.x = Random.Range( xMin, xMax );
+    pos.y = bndCheck.camHeight + enemyInset;
+    go.transform.position = pos;
+    // Invoke SpawnEnemy() again
+    Invoke( nameof(SpawnEnemy), 1f/enemySpawnPerSecond );
+}
+// Start() is called on the instantiated Enemy just before the next Update()
+```
+
+Как видно из выделенных жирным шрифтом комментариев в листинге метода `Main.SpawnEnemy()`, метод `Awake()` вызывается для всех скриптов, прикрепленных к объекту `Enemy`, сразу после его создания (спавна), тогда как `Start()` вызывается непосредственно перед выполнением метода `Update()` в следующем кадре.  
+
+Таким образом, если бы строка `x0 = pos.x;` находилась в методе `Enemy_1.Awake()`, переменной `x0` было бы присвоено значение координаты `x` объекта `Enemy_1` в момент его создания - то есть до того, как его позиция была бы определена последующими строками метода `Main.SpawnEnemy()`. Поскольку же метод `Enemy_1.Start()` вызывается непосредственно перед обновлением в следующем кадре, выполнение `Main.SpawnEnemy()` к этому моменту уже завершается, и переменная `x0` получает именно то значение, которое нам требуется.  
+
+Еще одна причина не добавлять метод `Awake()` в класс Enemy_1 заключается в том, что он вступит в конфликт с методом `Awake()` класса Enemy. Методы `Awake()`, `Start()`, `Update()` и другие встроенные методы MonoBehaviour реализованы особым образом: в отличие от стандартных методов при наследовании классов в C#, здесь не требуется использовать ключевые слова virtual или override, чтобы разрешить переопределение этих методов в подклассах (см. главу «Классы»). Однако это означает, что при возникновении конфликта (например, если метод `Awake()` определен и в Enemy, и в подклассе Enemy_1) метод `Awake()` подкласса переопределит метод `Awake()` класса Enemy, причем ни Visual Studio, ни Unity не выдадут никакого предупреждения.
+</Callout>
+
+2. Сохраните Enemy_1 и вернитесь в Unity. В окне Console должно появиться предупреждение (как показано на рисунке).
+
+<img src="/unity_doc/images/ex92.jpeg" alt="1" style={{  height: 'auto' }} />
+Предупреждение, демонстрирующее работу атрибута компилятора [RequireComponent]  
+
+Когда Unity перекомпилирует скрипт Enemy_1 с внесенными вами изменениями, атрибут компилятора [RequireComponent] в суперклассе Enemy даст Unity команду автоматически добавить компонент BoundsCheck (Script) к префабу игрового объекта Enemy_1. Это еще одна особенность, которая наследуется при создании класса Enemy_1 как подкласса Enemy!
+
+3. Вернувшись в Unity, выберите объект _MainCamera в окне Hierarchy и в компоненте Main (Script)
+измените элемент Element 0 массива prefabEnemies с Enemy_0 на Enemy_1 (то есть на префаб
+Enemy_1 из окна Project). Это позволит вам протестировать игру с Enemy_1 вместо Enemy.
+4. Нажмите кнопку Play.  
+
+Теперь вместо Enemy_0 появляется корабль Enemy_1, который движется вниз волнообразно.
+Однако обратите внимание на панель Scene: экземпляры Enemy_1 не исчезают, когда покидают
+нижнюю границу экрана... более того, они вообще не уходят за нижний край экрана. Это происходит
+потому, что компонент BoundsCheck (Script), прикрепленный к Enemy_1, использует значения
+по умолчанию (с параметром keepOnScreen = true), а не те, что мы задали для Enemy_0.  
+
+5. Остановите воспроизведение в Unity (нажав синюю кнопку Play).
+6. Выберите префаб Enemy_1 на панели Project и в окне Inspector для компонента BoundsCheck
+объекта Enemy_1 выполните следующие действия:
+    - a. Установите для параметра boundsType значение outset.
+    - b. Установите для параметра radius значение 2.5.
+    - c. Установите для параметра keepOnScreen значение false (снимите флажок).
+7. Вероятно, сейчас лучше всего добавить компонент BoundsCheck (Script) и к остальным
+префабам Enemy_#.
+    - a. Пока префаб Enemy_1 всё ещё выбран, в окне Inspector для Enemy_1 нажмите на три
+вертикальные точки (⋮) в правом верхнем углу компонента BoundsCheck (Script) и
+выберите пункт Copy Component.
+    - b. Выберите префаб Enemy_2 в папке _Prefabs на панели Project.
+    - c. Удерживая клавишу Shift на клавиатуре, щелкните по префабу Enemy_4. Это позволит
+выбрать все три префаба, которые мы хотим изменить.
+    - d. В окне Inspector (для выбранных трех префабов) нажмите на три вертикальные точки (⋮)
+в правом верхнем углу компонента Transform (не на те точки, что находятся рядом с
+заголовком «3 Prefab Assets» в верхней части Inspector, а именно на точки в правом
+верхнем углу компонента Transform) и выберите пункт Paste Component as New.  
+
+Теперь вы добавили ко всем выбранным префабам новый компонент BoundsCheck (Script), который дублирует компонент BoundsCheck, скопированный вами из префаба Enemy_1.

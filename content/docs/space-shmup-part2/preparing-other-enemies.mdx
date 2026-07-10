@@ -1,0 +1,110 @@
+---
+title: Подготовка к другим врагам
+description: Оставшиеся противники используют линейную интерполяцию - важный концепт разработки.
+---
+
+В главе («Mission Demolition») вы уже видели пример очень простой интерполяции в коде `FollowCam.cs`, отвечающем за перемещение камеры, однако здесь мы рассмотрим более интересные варианты. Прежде чем переходить к оставшимся врагам, уделите время изучению раздела «Интерполяция» в приложении B («Полезные концепции»), чтобы разобраться в таких понятиях, как сглаживание (easing).
+
+## Enemy_2 [!toc]
+
+Движение Enemy_2 осуществляется посредством линейной интерполяции с синусоидальным сглаживанием. Объект стремительно появляется с края экрана, замедляется, ненадолго меняет направление, снова замедляется и улетает за пределы экрана в первоначальном направлении. В этой интерполяции используются всего две точки, однако значение параметра u существенно изменяется по закону синусоиды. Функция сглаживания для параметра u объекта Enemy_2 будет выглядеть примерно так:  
+
+    u = u + 0.6 * Sin( 2π * u )  
+
+Это одна из функций сглаживания.
+Сначала мы настроим компонент BoundsCheck для Enemy_2, а затем напишем скрипт Enemy_2 на языке C#.  
+
+1. Select the Enemy_2 prefab in the _Prefabs folder of the Project pane.
+2. In the Enemy_2 prefab BoundsCheck Inspector, set boundsType = outset, radius = 3, and keepOnScreen = false.
+3. Open the Enemy_2 C# script in Visual Studio and enter the code in Code Listing.  
+    Code Listing Enemy_2.cs 
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Enemy_2 : Enemy { // Enemy_2 also extends the Enemy class // a
+    [Header("Enemy_2 Inscribed Fields")]
+    public float lifeTime = 10;
+    // Enemy_2 uses a Sine wave to modify a 2-point linear interpolation
+    [Tooltip("Determines how much the Sine wave will ease the interpolation")]
+    public float sinEccentricity = 0.6f;
+
+    [Header("Enemy_2 Private Fields")]
+    [SerializeField] private float birthTime; // Interpolation start time // b
+    [SerializeField] private Vector3 p0, p1; // Lerp_points
+
+    void Start () {
+        // Pick any point on the left side of the screen
+        p0 = Vector3.zero; // c
+        p0.x = -bndCheck.camWidth - bndCheck.radius;
+        p0.y = Random.Range( -bndCheck.camHeight, bndCheck.camHeight );
+
+        // Pick any point on the right side of the screen
+        p1 = Vector3.zero; // d
+        p1.x = bndCheck.camWidth + bndCheck.radius;
+        p1.y = Random.Range( -bndCheck.camHeight, bndCheck.camHeight );
+
+        // Possibly swap sides
+        if (Random.value > 0.5f) {
+            // Setting the .x of each point to its negative will move it to
+            // the other side of the screen
+            p0.x *= -1;
+            p1.x *= -1;
+        }
+
+        // Set the birthTime to the current time
+        birthTime = Time.time; // e
+    }
+
+    public override void Move() {
+        // Linear interpolations work based on a u value between 0 & 1
+        float u = (Time.time - birthTime) / lifeTime;
+        // If u>1, then it has been longer than lifeTime since birthTime
+        if (u > 1) {
+            // This Enemy_2 has finished its life
+            Destroy( this.gameObject ); // f
+            return;
+        }
+
+        // Adjust u by adding a U Curve based on a Sine wave
+        u = u + sinEccentricity*(Mathf.Sin(u*Mathf.PI*2));
+
+        // Interpolate the two linear interpolation points
+        pos = (1-u)*p0 + u*p1;
+
+        // Note that Enemy_2 does NOT call the base.Move() method
+    }
+
+    // void Update() {…} // Please delete the unused Update() method
+}
+```
+
+    - a. Класс Enemy_2 также наследуется от суперкласса Enemy.
+    - b. Это еще один пример использования атрибута компилятора [SerializeField]. Этот атрибут
+заставляет Unity отображать данное поле в окне Inspector (и позволяет редактировать его там же),
+несмотря на то, что поле является закрытым (private). Это удобно, так как позволяет видеть значения в
+Inspector, сохраняя при этом защиту от доступа к ним со стороны других классов. Заметим, что атрибуты
+компилятора, такие как [SerializeField], могут располагаться в той же строке, что и поле,
+к которому они относятся.
+    - c. В этом фрагменте кода выбирается случайная точка у левого края экрана. Сначала выбирается
+координата X, находящаяся непосредственно за пределами левой границы экрана: значение -bndCheck.camWidth
+соответствует левому краю, а вычитание bndCheck.radius гарантирует, что Enemy_2 будет полностью
+скрыт за пределами экрана (координата X смещается влево на величину, равную радиусу объекта Enemy_2).
+Затем выбирается случайная координата Y в диапазоне между нижней границей экрана (-
+bndCheck.camHeight) и верхней границей (bndCheck.camHeight).
+    - d. Аналогичным образом выбирается конечная точка за пределами правой границы экрана.
+    - e. Переменная birthTime используется для интерполяции в функции Move().
+    - f. Если с момента birthTime прошло больше времени, чем задано в lifeTime, то значение u
+станет больше 1, и объект Enemy_2 будет уничтожен. Уничтожение Enemy_2 происходит
+по завершении интерполированного движения, а не в момент выхода объекта за пределы экрана.
+
+4. В окне Inspector для компонента MainCamera Main (Script) замените элемент в слоте Element 0 массива Main.prefabEnemies на префаб Enemy_2 и нажмите кнопку Play.
+5. Во время воспроизведения измените значение sinEccentricity кривой сглаживания (easing curve) у префаба Enemy_2, чтобы увидеть, как это влияет на движение. Также можно временно отключить объект _Hero, сняв галочку рядом с его именем в окне Inspector; это предотвратит столкновения Enemy_2 с героем. Не забудьте снова поставить галочку, прежде чем переходить к следующему шагу!  
+
+Как видите, благодаря функции плавности (easing function) каждый объект Enemy_2 движется очень плавно, перемещаясь туда и обратно между выбранными точками по краям экрана.  
+
+6. Снова нажмите кнопку Play, чтобы остановить воспроизведение.  
+
+Вы заметите, что, хотя вы изменили поле sinEccentricity у префаба Enemy_2 во время работы Unity, это значение не вернулось автоматически к 0,6 после остановки воспроизведения! Это происходит потому, что изменения, внесенные в префаб на панели Project, сохраняются всегда - даже когда Unity находится в режиме воспроизведения.

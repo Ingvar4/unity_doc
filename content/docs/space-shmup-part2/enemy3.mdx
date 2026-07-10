@@ -1,0 +1,223 @@
+---
+title: Enemy_3
+description: Enemy_3 использует кривую Безье, чтобы пикировать сверху, замедлиться и улететь обратно вверх за пределы экрана.
+---
+
+Если вы с ними не знакомы, пожалуйста,
+прочитайте о кривых Безье в разделах «Интерполяция» и «Кривые Безье»,
+прежде чем переходить к дальнейшему изучению этой главы.
+
+>У Фрейи Холмер есть замечательное видео под названием «Красота кривых Безье» (The Beauty of Bézier Curves); его можно посмотреть по ссылке: https://www.youtube.com/watch?v=aVwxzDHniEw.
+
+### Универсальный и быстрый метод Безье для произвольного числа точек [!toc]
+
+Поскольку кривые Безье будут использоваться нами в нескольких местах, стоит сразу создать быструю и универсальную (пригодную для повторного использования) функцию для их интерполяции. На самом деле, в моей практике кривые Безье встречаются настолько часто, что я включил их в скрипт `Utils.as`, используемый в большинстве моих проектов. Этот скрипт можно считать своего рода «швейцарским ножом», содержащим часто востребованный код. Мы начнем создавать его здесь, а затем вы будете импортировать его версию в каждый последующий проект. Класс `Utils` будет практически полностью состоять из статических методов, чтобы их можно было легко вызывать из любой части кода.
+
+1. Создайте новый скрипт C# с именем Utils и поместите его в папку __Scripts.
+2. Откройте скрипт Utils в Visual Studio и введите код. Этот код
+разбирается в разделе «Функция кривой Безье, ориентированная на данные» (A Data-Oriented Bézier Function)
+приложения B «Полезные концепции» (Useful Concepts), поэтому здесь я не буду повторять эту информацию.  
+    Листинг Utils.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Utils : MonoBehaviour { // a
+
+    //== Bézier Curves============================================================\\
+
+    /// <summary>
+    /// While most Bézier curves are 3 or 4 points, it is possible to have
+    /// any number of points using this recursive function.
+    /// </summary>
+    /// <param name="u">The amount of interpolation [0..1]</param>
+    /// <param name="points">An array of Vector3s to interpolate</param>
+    static public Vector3 Bezier( float u, params Vector3[] points ) {// b
+        // Set up the array
+        Vector3[,] vArr = new Vector3[points.Length, points.Length];
+        // Fill the last row of vArr with the elements of vList
+        int r = points.Length - 1;
+        for ( int c = 0; c < points.Length; c++ ) {
+            vArr[r, c] = vList[c];
+        }
+
+        // Iterate over all remaining rows and interpolate points at each one // c
+        for ( r--; r >= 0; r-- ) { // d
+            for ( int c = 0; c <= r; c++ ) {
+                vArr[r,c] = Vector3.LerpUnclamped(vArr[r+1,c],
+                vArr[r+1,c+1], u);
+            }
+        }
+
+        // When complete, vArr[0,0] holds the final interpolated value
+        return vArr[0, 0];
+    }
+
+    // void Start() {…} // Please delete the unused Start() and Update() methods
+    // void Update() {…}
+}
+```
+
+    - a. Хотя у текущей версии класса Utils нет причин наследоваться от MonoBehaviour, для последующих дополнений потребуется этот базовый класс.
+    - b. Ключевое слово params позволяет передавать в метод либо массив, либо последовательность объектов Vector3.
+    - c. Эти вложенные циклы for составляют основу данного быстрого метода построения кривой Безье. Как поясняется в Приложении B, циклы проходят по каждой пустой строке и выполняют интерполяцию точек на основе значений из вышележащей строки.
+    - d. Обратите внимание на использование выражения r-- в блоке инициализации цикла for: это уменьшает значение r с points.Length-1 до points.Length-2 еще до начала итераций. В случае с кривой Безье по трем точкам такой подход позволяет начать выполнение цикла со строки 1 массива vArr, используя значения из строки 2.
+
+3. Сохраните скрипт Utils в Visual Studio и вернитесь в Unity.  
+
+### Реализация квадратичной кривой Безье (по трем точкам) в скрипте Enemy_3 [!toc]
+
+Давайте настроим Enemy_3 и реализуем скрипт, использующий новый метод `Utils.Bezier()`.
+
+1. Выберите префаб Enemy_3 в папке _Prefabs на панели Project.
+2. В компоненте BoundsCheck префаба Enemy_3 установите параметры: boundsType = outset, radius = 3, keepOnScreen = false.
+3. Откройте скрипт Enemy_3 и введите код из листинга.  
+    Листинг Enemy_3.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Enemy_3 : Enemy { // Enemy_3 also extends the Enemy class
+    [Header( "Enemy_3 Inscribed Fields" )]
+    public float lifeTime = 5;
+    public Vector2 midpointYRange = new Vector2( 1.5f, 3 );
+    [Tooltip("If true, the Bezier points & path are drawn in the Scene pane.")]
+    public bool drawDebugInfo = true;
+
+
+    [Header( "Enemy_3 Private Fields" )]
+    [SerializeField]
+    private Vector3[] points; // The three points for the Bezier curve
+    [SerializeField]
+    private float birthTime;
+
+    // Again, Start works well because it is not used in the Enemy superclass
+    void Start() {
+        points = new Vector3[3]; // Initialize points
+
+        // The start position has already been set by Main.SpawnEnemy()
+        points[0] = pos;
+
+        // Set xMin and xMax the same way that Main.SpawnEnemy() does
+        float xMin = -bndCheck.camWidth + bndCheck.radius;
+        float xMax = bndCheck.camWidth - bndCheck.radius;
+
+        // Pick a
+        random middle position in the bottom half of the screen
+        points[1] = Vector3.zero;
+        points[1].x = Random.Range( xMin, xMax );
+        float midYMult = Random.Range(midpointYRange[0], midpointYRange[1]); // a
+        points[1].y = -bndCheck.camHeight * midYMult; // a
+
+        // Pick a
+        random final position above the top of the screen
+        points[2] = Vector3.zero;
+        points[2].y = pos.y;
+        points[2].x = Random.Range( xMin, xMax );
+
+        // Set the birthTime to the current time
+        birthTime = Time.time;
+
+        if ( drawDebugInfo ) DrawDebug(); // b
+    }
+
+    public override void Move() {
+        // Bezier curves work based on a u value between 0 & 1
+        float u = ( Time.time - birthTime ) / lifeTime;
+
+        if ( u > 1 ) {
+            // This Enemy_3 has finished its life
+            Destroy( this.gameObject );
+            return;
+        }
+
+        transform.rotation = Quaternion.Euler( u * 180, 0, 0 ); // c
+
+        // Interpolate the three Bezier curve points // d
+        pos = Utils.Bezier( u, points );
+
+        // Enemy_3
+        does not call base.Move()
+    }
+
+    void DrawDebug() { // e
+        // Draw the three points
+        Debug.DrawLine( points[0], points[1], Color.cyan, lifeTime ); // f
+        Debug.DrawLine( points[1], points[2], Color.yellow, lifeTime );
+
+        // Draw the Bezier Curve
+        float numSections = 20;
+        Vector3 prevPoint = points[0]; // g
+        Color col;
+        Vector3 pt;
+        for ( int i = 1; i < numSections; i++ ) { // h
+            float u = i / numSections;
+            pt = Utils.Bezier(u, points);
+            col = Color.Lerp( Color.cyan, Color.yellow, u );
+            Debug.DrawLine( prevPoint, pt, col, lifeTime ); // i
+            prevPoint = pt;
+        }
+    }
+}
+```
+
+    - a. Эти строки задают Y-координату первой (т. е. средней) точки кривой Безье в диапазоне от 1,5 до 3 расстояний от центра до нижней границы экрана, исходя из значения по умолчанию для `Vector2 midpointYRange`. Обратите внимание: к компонентам `.x` и `.y` объекта `Vector2` можно обращаться с помощью индексов (как `[0]` и `[1]` соответственно).
+    - b. Если переменная `drawDebugInfo` имеет значение `true`, здесь вызывается метод `DrawDebug()`.
+    - c. Этот код применяет к кораблю глобальный поворот вокруг оси X, заставляя его перевернуться вблизи второй точки кривой Безье.
+    - d. В этом вызове используется статический метод `Utils.Bezier()`, который вы только что написали.
+    - e. Этот метод отрисовывает линии, отображающие три вектора `Vector3` из массива точек, а также саму кривую, по которой будет перемещаться игровой объект `Enemy_3`. Вам стоит увидеть линии, отрисованные этой функцией, еще до чтения пояснений к ней, поэтому я вернусь к пунктам // f и // g через несколько шагов.  
+
+4. Сохраните скрипт Enemy_3 в Visual Studio и вернитесь в Unity.
+5. Выберите объект _MainCamera в окне Hierarchy, назначьте префаб Enemy_3 в качестве элемента 0 (Element 0) массива prefabEnemies и сохраните сцену.
+6. Нажмите кнопку Play, чтобы увидеть, как перемещаются эти новые враги. Обратите внимание на линии и кривые, которые отрисовываются в окне Scene при каждом вызове метода `DrawDebug()` для объектов Enemy_3.  
+
+Эти линии и кривые - отличный пример того, что я называю визуальной отладкой. Разработка игр часто сопряжена с огромным объемом информации - слишком большим, чтобы его можно было легко представить в виде текстового сообщения в консоли. В общей сложности каждый вызов `DrawDebug()` отрисовывает 21 линию, отображая не только три точки, управляющие кривой, и форму самой кривой, но и (с помощью цвета) направление движения. Давайте разберем, как это происходит, проанализировав комментарии от `// f` до `// i` в листинге кода.  
+
+    - f. Метод `Debug.DrawLine()` рисует временную линию в окне Scene. Первые два параметра задают конечные точки линии, третий - цвет, а последний - время (в секундах), в течение которого линия будет отображаться на экране, прежде чем исчезнет. Установив длительность равной lifeTime, мы можем нарисовать линию один раз и быть уверенными, что она исчезнет ровно в тот момент, когда Enemy_3 завершит свое движение.
+    - g. Чтобы нарисовать саму кривую, мы разбиваем ее на 19 отдельных отрезков. Нулевая точка кривой сохраняется в переменной prevPoint.
+    - h. Цикл `for` начинается с индекса 1 (точка, соответствующая 1/20-й части или 5% длины кривой). В нем вычисляется вектор pt (точка на 5% пути вдоль кривой) с помощью метода `Utils.Bezier()`, а затем выбирается цвет c, соответствующий 5% перехода от голубого (cyan) к желтому (yellow).
+    - i. Метод `Debug.DrawLine()` рисует линию от prevPoint до текущей точки pt, которая будет отображаться в течение времени lifeTime. После этого значение pt присваивается переменной prevPoint, чтобы на следующей итерации цикла `for` линия начиналась в правильной точке.
+
+Наверняка вы заметили, что я в восторге от возможностей визуальной отладки. Она уже множество раз кардинально упрощала решение сложных проблем с кодом, и я ни разу не пожалел о времени, потраченном на написание кода для визуальной отладки.  
+
+Понаблюдав некоторое время за перемещением игровых объектов Enemy_3, вы заметите несколько особенностей движения по кривой Безье:  
+
+    - a. Хотя средняя точка находится далеко за пределами нижней границы экрана, ни один объект Enemy_3 не доходит до самого низа. Это происходит потому, что кривая Безье проходит через начальную и конечную точки, но на её форму влияет и средняя точка. В результате каждый Enemy_3 появляется над верхней границей экрана, быстро движется вниз, затем замедляется и устремляется обратно вверх, так и не коснувшись нижней границы экрана.
+    - b. В средней части кривой Enemy_3 значительно замедляется. Такова особенность (а иногда и недостаток) математического принципа, лежащего в основе кривых Безье: точки, образующие кривую, расположены дальше друг от друга у её концов и гораздо ближе друг к другу в середине.  
+
+7. Чтобы улучшить движение по кривой Безье и уменьшить замедление в нижней части кривой, добавьте в метод `Move()` класса `Enemy_3` строку. Это добавит к движению `Enemy_3` эффект плавности `easing3`, который ускорит перемещение на среднем участке кривой.  
+
+В приложении Б («Полезные концепции») подробно рассматривается сглаживание движения по кривым Безье.  
+
+    Листинг кода Enemy_3.cs
+
+```c#
+public class Enemy_3 : Enemy {
+    …
+
+    public override void Move() {
+        …
+        transform.rotation = Quaternion.Euler( u * 180, 0, 0 );
+
+        // Interpolate the three Bezier curve points
+        u = u - 0.1f * Mathf.Sin( u * Mathf.PI * 2 );
+        pos = Utils.Bezier( u, points );
+
+        // Enemy_3 does not call base.Move()
+    }
+}
+```
+
+Это изменение не только увеличит скорость корабля Enemy_3 в нижней части траектории его движения, но и обеспечит небольшое замедление в начале и конце этого пути; благодаря этому у игрока будет чуть больше времени, чтобы заметить Enemy_3 при появлении на экране, что сделает игру немного проще.  
+
+8. Если вы больше не хотите видеть кривые `DrawDebug()` в окне Scene, выберите префаб Enemy_3 в окне Project, а затем в окне Inspector для компонента Enemy_3 (Script) снимите флажок drawDebugInfo.
+
+### Оставьте Enemy_4 на потом [!toc]
+
+Прежде чем приступать к реализации Enemy_4, необходимо внести изменения в систему снарядов и принцип их работы. На данный момент игроки могут уничтожить любого врага одним выстрелом. В следующем разделе вы узнаете, как это изменить и добавить возможность использования на корабле различных видов оружия.  
+
+Если вы еще этого не сделали, пожалуйста, сохраните сцену.

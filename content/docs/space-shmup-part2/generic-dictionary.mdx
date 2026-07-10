@@ -1,0 +1,146 @@
+---
+title: Универсальный словарь для определений оружия
+description: Чтобы упростить доступ к WeaponDefinitions, вы скопируете их во время выполнения программы из массива weaponDefinitions в статическое закрытое поле-словарь с именем WEAP_DICT.
+---
+
+Dictionary - это разновидность обобщенной коллекции, подобная List.
+Однако, в отличие от List, представляющего собой упорядоченную (линейную) коллекцию, каждый элемент в Dictionary состоит из пары «ключ - значение», причем ключ используется для получения доступа к значению. Dictionary отлично подходит для хранения больших объемов данных, поскольку доступ к любому элементу осуществляется за константное время: это означает, что операция занимает одинаково мало времени независимо от того, где именно в структуре данных находится искомый элемент. Для сравнения: если искать в массиве weaponDefinitions элемент WeaponDefinition с типом «blaster», он найдется мгновенно, тогда как поиск элемента с типом «shield» займет втрое больше времени.
+
+>Конечно, время поиска в списке из трех элементов ничтожно мало, но для больших наборов данных оптимизация, обеспечивающая доступ за константное время, может иметь огромное значение.  
+
+Мы определим словарь WEAP_DICT, в котором ключом служит перечисление eWeaponType, а значением - объект WeaponDefinition. К сожалению, словари не отображаются в инспекторе Unity, иначе мы бы просто воспользовались таким решением с самого начала. Вместо этого словарь WEAP_DICT инициализируется в методе Awake() класса Main, а доступ к нему осуществляется через статическую функцию Main.GET_WEAPON_DEFINITION().  
+
+1. Откройте основной скрипт в Visual Studio и введите код, выделенный жирным шрифтом в листинге.  
+  Листинг Main.cs
+
+```c#
+public class Main : MonoBehaviour {
+    static private Main S; // A private singleton for Main
+    static private Dictionary<eWeaponType, WeaponDefinition> WEAP_DICT; // a
+
+    [Header("Inscribed")]
+    …
+
+    void Awake() {
+        …
+        Invoke( nameof(SpawnEnemy), 1f/enemySpawnPerSecond );
+
+        // A generic Dictionary with eWeaponType as the key
+        WEAP_DICT = new Dictionary<eWeaponType, WeaponDefinition>(); // a
+        foreach ( WeaponDefinition def in weaponDefinitions ) { // b
+            WEAP_DICT[def.type] = def;
+        }
+    }
+}
+
+```
+
+    - a. При объявлении и определении словарей указываются типы ключа и значения. Объявление `WEAP_DICT` как `static` и `private` означает, что доступ к нему могут получить любой экземпляр класса `Main` и любой статический метод этого класса, однако для других классов он недоступен.
+    - b. Этот цикл перебирает все элементы массива `weaponDefinitions` и создает соответствующую запись в словаре `WEAP_DICT`.
+
+Далее необходимо создать статическую функцию, позволяющую другим классам получать данные из WEAP_DICT. Если сделать новый статический метод `GET_WEAPON_DEFINITION()` общедоступным (public), любой другой код в проекте сможет вызывать его как `Main.GET_WEAPON_DEFINITION()`.
+
+2. Добавьте выделенный жирным шрифтом код из листинга в конец основного скрипта C#.  
+    Листинг Main.cs
+
+```c#
+public class Main : MonoBehaviour {
+    …
+
+    static public void HERO_DIED() { … }
+
+    /// <summary>
+    /// Static function that gets a WeaponDefinition from the WEAP_DICT static
+    /// protected field of the Main class.
+    /// </summary>
+    /// <returns>The WeaponDefinition, or if there is no WeaponDefinition with
+    /// the eWeaponType passed in, returns a new WeaponDefinition with a
+    /// eWeaponType of eWeaponType.none.</returns>
+    /// <param name="wt">The eWeaponType of the desired WeaponDefinition</param>
+    static public WeaponDefinition GET_WEAPON_DEFINITION( eWeaponType wt ) { // a
+        if (WEAP_DICT.ContainsKey(wt)) { // b
+            return( WEAP_DICT[wt]);
+        }
+        // If no entry of the correct type exists in WEAP_DICT, return a new
+        // WeaponDefinition with a type of eWeaponType.none (the default value)
+        return( new WeaponDefinition() ); // c
+    }
+}
+```
+
+    - а. Документация в коде выше этой функции теперь включает не только краткое описание,
+но и описание того, что возвращается, и переданного параметра. Они появятся,
+если вы наведете курсор мыши на имя функции в любом месте Visual Studio. Вы можете прочитать
+подробнее об этом типе документации в разделе «XML-документация в C#».
+    - b. Это условное выражение проверяет, есть ли у WEAP_DICT запись с ключом,
+который был передан как wt. Если вы используете доступ через скобки для получения записи, которой не существует,
+(например, если вы попытаетесь использовать WEAP_DICT[eWeaponType.phaser]), Unity выдаст ошибку. Если имеется элемент с соответствующим eWeaponType, возвращается правильный WeaponDefinition.
+    - c. Если в WEAP_DICT отсутствует запись с соответствующим ключом eWeaponType, возвращается новый объект WeaponDefinition с типом eWeaponType.none.
+
+### Изменение класса ProjectileHero для использования WeaponDefinitions [!toc]
+
+Вам необходимо существенно изменить класс ProjectileHero, чтобы он использовал WeaponDefinitions.  
+
+1. Откройте класс ProjectileHero в Visual Studio.
+2. Приведите код класса ProjectileHero в соответствие с листингом (поскольку в нем есть ряд изменений, я привожу полный текст кода ProjectileHero).  
+  Листинг ProjectileHero.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+[RequireComponent( typeof(BoundsCheck) )]
+public class ProjectileHero : MonoBehaviour {
+    private BoundsCheck bndCheck;
+    private Renderer rend;
+
+    [Header("Dynamic")]
+    public Rigidbody rigid;
+    [SerializeField] // a
+    private eWeaponType _type; // b
+
+    // This public property masks the private field _type
+    public eWeaponType type { // c
+        get { return( _type ); }
+        set { SetType( value ); }
+    }
+
+    void Awake () {
+        bndCheck = GetComponent<BoundsCheck>();
+        rend = GetComponent<Renderer>(); // d
+        rigid = GetComponent<Rigidbody>();
+    }
+
+    void Update () {
+        if ( bndCheck.LocIs(BoundsCheck.eScreenLocs.offUp) ) {
+            Destroy( gameObject );
+        }
+    }
+
+    /// <summary>
+    /// Sets the _type private field and colors this projectile to match the
+    /// WeaponDefinition.
+    /// </summary>
+    /// <param name="eType">The eWeaponType to use.</param>
+    public void SetType( eWeaponType eType ) { // e
+        _type = eType;
+        WeaponDefinition def = Main.GET_WEAPON_DEFINITION( _type );
+        rend.material.color = def.projectileColor;
+    }
+
+    /// <summary>
+    /// Allows Weapon to easily set the velocity of this ProjectileHero
+    /// </summary>
+    public Vector3 vel {
+        get { return rigid.velocity; }
+        set { rigid.velocity = value; }
+    }
+}
+```
+
+    - a. Как вы уже видели, атрибут `[SerializeField]`, указанный перед объявлением `_type`, делает поле `_type` видимым и доступным для редактирования в инспекторе Unity, несмотря на то, что оно является закрытым (`private`). Однако, поскольку это поле находится в разделе Dynamic (динамических полей) класса `ProjectileHero`, не следует ожидать, что его можно будет задать непосредственно в инспекторе.
+    - b. В этой книге часто применяется следующий подход: закрытое поле, доступ к которому осуществляется через свойство, именуется с использованием символа подчеркивания и имени самого свойства (например, закрытое поле `_type` скрыто за открытым свойством `type`, через которое к нему и происходит обращение).
+    - c. Блок `get` свойства `type` работает так же, как и в других рассмотренных ранее свойствах, однако блок `set` вызывает метод `SetType()`, что позволяет выполнять дополнительные действия помимо простого присваивания значения полю `_type`. Обратите также внимание, что в данном свойстве блоки `get` и `set` записаны в одну строку. Если каждый из них содержит лишь одну инструкцию, такой стиль вполне допустим и позволяет сэкономить место; главное - не забыть поставить точку с запятой (;) в нужном месте.
+    - d. В методе `SetType()` требуется использовать компонент `Renderer`, прикрепленный к данному игровому объекту (`GameObject`), поэтому он кэшируется здесь вместе с компонентом `Rigidbody`.
+    - e. Метод `SetType()` не только присваивает значение закрытому полю `_type`, но и окрашивает снаряд в цвет, соответствующий определению оружия (`WeaponDefinition`) из словаря `Main.WEAP_DICT`.

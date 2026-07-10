@@ -1,0 +1,162 @@
+---
+title: Стрельба (наконец-то)
+description: Теперь, когда вражеские корабли могут нанести игроку урон, пришло время дать _Hero возможность дать отпор.
+---
+
+В этой главе будет представлен только один тип и уровень снаряда. В следующей главе вы сможете делать с игровым оружием гораздо более интересные вещи.
+
+### ProjectileHero - Пуля Героя [!toc]
+
+Выполните следующие действия, чтобы создать снаряд героя, и установите параметры, как показано на рисунке:
+1. Создайте в окне Hierarchy куб с именем *ProjectileHero* и следующими значениями трансформации (Transform):
+ProjectileHero (Cube) P:[ 10, 0, 0 ] R:[ 0, 0, 0 ] S:[ 0.25, 1, 0.5 ]
+2. Установите для объекта ProjectileHero слой (Layer) с именем *ProjectileHero*.
+3. Создайте новый материал с именем *Mat_Projectile*:
+    - a. Поместите *Mat_Projectile* в папку *_Materials* окна Project.
+    - b. Назначьте материалу *Mat_Projectile* шейдер *ProtoTools > UnlitAlpha*.
+    - c. Примените материал *Mat_Projectile* к игровому объекту *ProjectileHero* в окне Hierarchy.
+4. Выберите *ProjectileHero* в окне Hierarchy и добавьте компонент Rigidbody со следующими настройками:
+    - a. Отключите использование гравитации (снимите флажок Use Gravity).
+    - b. Установите параметр `isKinematic` в значение `false` (снимите галочку).
+    - c. Constraints (Ограничения): включите опции Freeze Position Z (заморозка позиции по оси Z) и Freeze Rotation X, Y, Z (заморозка вращения по осям X, Y и Z), отметив их галочками.
+5. В компоненте Box Collider игрового объекта `ProjectileHero` установите параметр `Size.Z` равным 10. Это
+гарантирует, что снаряд сможет поразить объекты, находящиеся на небольшом удалении от
+плоскости XY (то есть там, где Z ≠ 0).
+6. Создайте новый C#-скрипт с именем `ProjectileHero`.
+    - a. Переместите скрипт `ProjectileHero` в папку `__Scripts`.
+    - b. Прикрепите скрипт `ProjectileHero` к игровому объекту `ProjectileHero`. Редактировать скрипт вы будете позже.  
+
+По завершении этих действий настройки объекта ProjectileHero на панели Hierarchy должны соответствовать тем, что показаны на рисунке.
+
+<img src="/unity_doc/images/ex90.jpeg" alt="1" style={{  height: 'auto' }} />
+ProjectileHero с соответствующими настройками, демонстрирующий увеличенный размер Box Collider по оси Z.  
+
+7. Если рядом с __Scene_0 в окне Hierarchy вы видите звездочку, значит, сцену необходимо сохранить.
+8. Добавьте компонент скрипта BoundsCheck к объекту ProjectileHero.
+    - a. Установите для параметра keepOnScreen значение false (снимите галочку).
+    - b. Установите для параметра boundsType значение outset.
+    - c. Установите для параметра radius значение 1.  
+
+Радиус BoundsCheck не влияет на столкновения с другими игровыми объектами (GameObject); он определяет лишь момент, когда ProjectileHero «решает», что вышел за пределы экрана. Если установить тип границы (boundsType) в значение outset, а радиус - в 1, то ProjectileHero будет считаться находящимся в пределах экрана до тех пор, пока не удалится от его границы на расстояние одной полной единицы.  
+
+9. Превратите ProjectileHero в префаб:
+    - a. Перетащите ProjectileHero из окна Hierarchy в папку _Prefabs в окне Project.
+    - b. Удалите оставшийся экземпляр ProjectileHero из окна Hierarchy.
+10. Сохраните сцену - да, сохраните её снова. Как я уже говорил, сохраняться нужно как можно чаще.
+
+### Наделение _Hero способностью стрелять [!toc]
+
+Теперь добавьте герою возможность стрелять пулей.  
+
+1. Откройте C#-скрипт Hero и внесите изменения:  
+    Листинг кода Hero.cs
+
+```c#
+public class Hero : MonoBehaviour {
+    …
+    [Header( "Inscribed" )]
+    // These fields control the movement of the ship
+    public float speed = 30;
+    public float rollMult = -45;
+    public float pitchMult = 30;
+    public GameObject projectilePrefab;
+    public float projectileSpeed = 40;
+    …
+
+    void Update () {
+        …
+        // Rotate the ship to make it feel more dynamic 
+        transform.rotation = Quaternion.Euler(vAxis*pitchMult,hAxis*rollMult,0);
+
+        // Allow the ship to fire
+        if ( Input.GetKeyDown( KeyCode.Space ) ) { // a
+            TempFire();
+        }
+    }
+
+    void TempFire() { // b
+        GameObject projGO = Instantiate<GameObject>( projectilePrefab );
+        projGO.transform.position = transform.position;
+        Rigidbody rigidB = projGO.GetComponent<Rigidbody>();
+        rigidB.velocity = Vector3.up * projectileSpeed;
+    }
+
+    void OnTriggerEnter(Collider other) { … }
+    …
+}
+```
+
+    - a. Из-за этого корабль стреляет при каждом нажатии клавиши пробела. Ось «Jump» привязана к пробелу, но если бы мы использовали здесь условие `Input.GetAxis("Jump") == 1`, выстрел происходил бы в каждом кадре! Впрочем, в следующей главе вы узнаете, как избежать этой проблемы, продолжая при этом использовать ось «Jump».
+    - b. Этот метод называется `TempFire()`, поскольку в следующей главе вы его замените.
+
+2. В Unity выберите объект _Hero в окне Hierarchy и перетащите ProjectileHero из окна Project в поле projectilePrefab скрипта Hero.
+3. Сохраните изменения и нажмите кнопку Play.  
+
+Сейчас вы можете выпускать снаряды, нажимая клавишу пробела, но они пока не уничтожают вражеские корабли: при столкновении с врагом снаряд просто отскакивает. Кроме того, если снаряд не попадает во врага, он продолжает лететь бесконечно даже после того, как покинет пределы экрана. Давайте исправим обе эти проблемы.  
+
+### Написание скрипта для ProjectileHero [!toc]
+
+Чтобы написать скрипт для снаряда, выполните следующие действия:  
+
+1. Откройте скрипт ProjectileHero на языке C# и внесите изменения. Пока что единственная задача ProjectileHero - уничтожать себя при выходе за пределы экрана. Дополнительный функционал вы добавите в следующей главе.  
+    Листинг кода ProjectileHero.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+[RequireComponent( typeof(BoundsCheck) )]
+public class ProjectileHero : MonoBehaviour {
+    private BoundsCheck bndCheck;
+
+    void Awake() {
+        bndCheck = GetComponent<BoundsCheck>();
+    }
+
+    void Update () {
+        if ( bndCheck.LocIs(BoundsCheck.eScreenLocs.offUp) ) { // a
+            Destroy( gameObject );
+        }
+    }
+
+    // void Start() {…} // Please delete the unused Start() method
+}
+```
+
+    - а. Если ProjectileHero выйдет за пределы верхней границы экрана, уничтожьте его.
+2. Конечно, не забудьте сохранить и этот скрипт, и вашу сцену.
+
+### Настройка снарядов для уничтожения врагов [!toc]
+
+Теперь пули уничтожаются при выходе за верхнюю границу экрана, но нам также нужно, чтобы они уничтожали врагов. Эту задачу мы реализуем внутри класса Enemy, поскольку в объектно-ориентированном программировании каждый объект должен сам управлять своим здоровьем и состоянием гибели.  
+
+1. Откройте скрипт Enemy на языке C#  и внесите изменения:  
+
+    Enemy.cs
+
+```c#
+public class Enemy : MonoBehaviour {
+    …
+    public virtual void Move() { … }
+
+    void OnCollisionEnter( Collision coll ) {
+        GameObject otherGO = coll.gameObject; // a
+        if ( otherGO.GetComponent<ProjectileHero>() != null ) { // b
+            Destroy( otherGO ); // Destroy the Projectile
+            Destroy( gameObject ); // Destroy this Enemy GameObject
+        } else {
+            Debug.Log( "Enemy hit by non-ProjectileHero: " + otherGO.name ); // c
+        }
+    }
+}
+```
+
+    - a. Получите GameObject коллайдера, с которым произошло столкновение.
+    - b. Если к объекту `otherGO` прикреплен скрипт `ProjectileHero`, уничтожьте как этот объект, так и текущий GameObject врага (`Enemy`).
+    - c. Если к объекту `otherGO` не прикреплен скрипт `ProjectileHero`, выведите имя объекта, с которым произошло столкновение, в консоль для отладки. Чтобы проверить это, можно временно удалить компонент `ProjectileHero` (скрипт) из префаба `ProjectileHero` и выстрелить во врага (но не забудьте вернуть компонент на место!).  
+
+При нажатии кнопки «Играть» (Play) враги (Enemy_0s) начнут двигаться вниз по экрану, и вы сможете сбивать их выстрелами. На этом данная глава завершается: у вас готов простой и удачный прототип. Однако в следующей главе он будет значительно доработан: вы научитесь добавлять новых врагов, три вида бонусов и два дополнительных типа оружия, а также познакомитесь с более интересными приемами программирования.  
+
+### Итоги [!toc]
+В большинство глав я включил раздел «Дальнейшие шаги», где предлагаются идеи по расширению проекта и совершенствованию ваших навыков. Однако в случае с прототипом Space SHMUP некоторые из этих задач вы выполните уже в следующей главе, попутно познакомившись с новыми концепциями программирования. А пока сделайте перерыв, чтобы приступить к следующей главе со свежими силами, и поздравьте себя с успешным созданием прототипа.

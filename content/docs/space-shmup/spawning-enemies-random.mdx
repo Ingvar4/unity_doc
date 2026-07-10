@@ -2,3 +2,134 @@
 title: Генерация врагов в случайном порядке
 description: Теперь, когда все готово, можно создавать несколько экземпляров Enemy_0 в случайном порядке, и при этом мы еще раз воспользуемся BoundsCheck.
 ---
+
+1. Прикрепите скрипт *BoundsCheck* к *_MainCamera*.
+    - a. Установите *keepOnScreen* в значение `false` (снимите флажок) в инспекторе BoundsCheck для *_MainCamera*.
+
+2. Создайте новый скрипт C# с именем *Main*. (В качестве альтернативы мы могли бы назвать этот скрипт
+SpaceSHMUP, но Main - это не менее допустимое имя, и его проще произнести на лекции.)
+    - a. Переместите скрипт *Main* в папку *__Scripts*.
+
+    - b. Прикрепите скрипт *Main* к *_MainCamera*.
+
+    - c. Откройте скрипт *Main* в Visual Studio и введите код из листинга кода:  
+    Листинг кода Main.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement; // Enables the loading & reloading of scenes
+
+public class Main : MonoBehaviour {
+    static private Main S; // A private singleton for Main
+
+    [Header("Inscribed")]
+    public GameObject[] prefabEnemies; // Array of Enemy prefabs
+    public float enemySpawnPerSecond = 0.5f; // # Enemies spawned/second
+    public float enemyInsetDefault = 1.5f; // Inset from the sides
+
+    private BoundsCheck bndCheck;
+
+    void Awake() {
+        S = this;
+        // Set bndCheck to reference the BoundsCheck component on this
+        // GameObject
+        bndCheck = GetComponent<BoundsCheck>();
+
+        // Invoke SpawnEnemy() once (in 2 seconds, based on default values)
+        Invoke( nameof(SpawnEnemy), 1f/enemySpawnPerSecond ); // a
+    }
+
+    public void SpawnEnemy() {
+        // Pick a random Enemy prefab to instantiate
+        int ndx = Random.Range(0, prefabEnemies.Length); // b
+        GameObject go = Instantiate<GameObject>( prefabEnemies[ ndx ] ); // c
+
+        // Position the Enemy above the screen with a random x position
+        float enemyInset = enemyInsetDefault; // d
+        if (go.GetComponent<BoundsCheck>() != null) { // e
+            enemyInset = Mathf.Abs( go.GetComponent<BoundsCheck>().radius );
+        }
+
+        // Set the initial position for the spawned Enemy // f
+        Vector3 pos = Vector3.zero;
+        float xMin = -bndCheck.camWidth + enemyInset;
+        float xMax = bndCheck.camWidth - enemyInset;
+        pos.x = Random.Range( xMin, xMax );
+        pos.y = bndCheck.camHeight + enemyInset;
+        go.transform.position = pos;
+
+        // Invoke SpawnEnemy() again
+        Invoke( nameof(SpawnEnemy), 1f/enemySpawnPerSecond ); // g
+    }
+
+    // void Start() {…} // Please delete the unused Start() and Update() methods
+    // void Update() {…}
+}
+```
+
+  - а. Функция `Invoke()` вызывает метод `SpawnEnemy()` через 1/0,5 секунды (т.е. 2
+секунды) на основе значений по умолчанию. Обратите внимание, что здесь мы используем nameof(SpawnEnemy)
+вместо “SpawnEnemy” в качестве параметра вызова `Invoke()`. Это немного надежнее,
+потому что Visual Studio проверит орфографию параметра `nameof()`, убедившись,
+что вы правильно написали SpawnEnemy, чтобы он скомпилировался и сгенерировал имя как
+строку, тогда как строковая версия, которую мы использовали в предыдущих главах,
+легко может быть написана с ошибками.
+
+  - b. В зависимости от длины массива prefabEnemies, выбирается случайное число,
+от 0 до единицы меньше, чем prefabEnemies.Length. Таким образом, если массив prefabEnemies содержит четыре врага, вызов `Random.Range()` вернет 0, 1, 2 или 3.
+Версия `Random.Range()` для целых чисел никогда не вернет число, равное максимальному (т.е. второму) переданному целому числу. (Однако версия `Random.Range()` для чисел с плавающей запятой способна вернуть максимальное число.)
+
+  - c. Сгенерированный случайный ndx используется для выбора префаба GameObject из
+prefabEnemies.
+
+  - d. EnemyInset изначально устанавливается равным enemyInsetDefault, заданному в Инспекторе.
+  - e. Однако, если выбранный префаб врага имеет компонент BoundsCheck, вы вместо этого считываете
+радиус из него. Берется абсолютное значение радиуса, потому что иногда
+радиус устанавливается на отрицательное значение, так что GameObject должен полностью находиться за пределами экрана,
+прежде чем он будет считаться находящимся за пределами экрана, как в случае с Enemy_0.
+
+  - f. Этот раздел кода устанавливает начальную позицию для созданного врага. Он использует BoundsCheck этого GameObject _MainCamera для получения camWidth и
+camHeight и выбирает позицию X, где созданный враг полностью находится на экране
+горизонтально. EnemyInset используется для того, чтобы убедиться, что враг не появляется
+частично за пределами экрана.
+
+Затем выбирается позиция по оси Y, где враг находится чуть выше экрана.
+
+  - g. Функция Invoke вызывается снова. Причина, по которой здесь используется `Invoke()` вместо
+`InvokeRepeating()`, заключается в том, что вы хотите иметь возможность динамически регулировать время между появлением каждого врага во время тестирования. После вызова `InvokeRepeating()` вызываемая функция всегда вызывается с изначально заданной частотой. Добавление вызова `Invoke()`
+в конце `SpawnEnemy()` позволяет вам (или игре) на лету регулировать
+enemySpawnPerSecond и влиять на частоту вызова
+`SpawnEnemy()`.  
+
+После того, как вы введете этот код и сохраните файл, вернитесь в Unity и следуйте этим инструкциям:  
+
+3. Убедитесь, что все переопределения префаба, которые вы установили для экземпляра Enemy_0 в
+Иерархии, скопированы обратно на префаб Enemy_0:
+    - a. Выберите Enemy_0 в Иерархии.
+
+    - b. Нажмите «Overrides» в верхней части панели инспектора экземпляра Enemy_0.
+
+    - c. Если есть какие-либо переопределения, нажмите «Применить все», чтобы применить их обратно к префабу Enemy_0.
+
+    - d. Удалите экземпляр Enemy_0 из Иерархии.
+
+4. Настройте основной скрипт на _MainCamera для создания Enemy_0:
+    - a. Выберите _MainCamera в Иерархии.
+
+    - b. В компоненте Main (Script) компонента _MainCamera откройте треугольник раскрытия рядом с
+prefabEnemies и установите размер prefabEnemies равным 1.
+    - c. Перетащите Enemy_0 из папки _Prefabs на панели проекта в элемент 0 массива
+prefabEnemies.
+
+    - d. Сохраните сцену! Вы помните о сохранении?
+
+5. Воспроизведите свою сцену. Теперь вы должны видеть, как Enemy_0 появляется примерно раз в 2 секунды,
+продвигается вниз по экрану, а затем исчезает после того, как покидает нижнюю часть экрана.  
+
+Если вы хотите видеть больше врагов одновременно во время игры, вы можете установить значение
+enemySpawnPerSecond в основном скрипте _MainCamera равным 10, и тогда вы будете видеть, как новый враг появляется каждые десятую долю секунды. При нажатии кнопки «Стоп» это значение вернется к 0,5.  
+
+Однако сейчас, когда _Hero сталкивается с врагом, ничего не происходит. Это необходимо
+исправить, и для этого нужно настроить несколько слоев.
