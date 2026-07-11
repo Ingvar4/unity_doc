@@ -10,6 +10,13 @@
     "generic-dictionary",
     "delegate-event",
     "weapon-gameobject",
-    "revising-the-enemy"
+    "revising-the-enemy",
+    "showing-enemy-damage",
+    "adding-powerups",
+    "powerup-code",
+    "expanding-weapon-options",
+    "race-conditions-script-execution",
+    "drop-powerups",
+    "more-complex-enemy"
   ]
 }

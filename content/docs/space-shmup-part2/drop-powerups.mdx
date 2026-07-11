@@ -1,0 +1,126 @@
+---
+title: Заставляем врагов ронять бонусы
+description: Вернемся к бонусам- давайте сделаем так, чтобы при уничтожении враги могли оставить после себя случайный бонус.
+---
+
+Это дает игроку гораздо больше стимула пытаться уничтожать врагов, а не просто избегать их, а также открывает путь к улучшению корабля.  
+
+Когда враг уничтожается, он уведомляет об этом синглтон Main, который затем создает (инстанцирует) новый игровой объект бонуса (PowerUp). Такой подход может показаться излишне сложным, однако в целом лучше ограничить количество различных классов, способных создавать новые игровые объекты на сцене. Чем меньше скриптов отвечают за определенное действие (например, создание объектов), тем проще будет выполнить отладку, если в ходе этого процесса возникнут какие-либо неполадки.  
+
+1. Начните с того, чтобы класс Main мог создавать экземпляры PowerUp. Добавьте код из листинга в скрипт Main.  
+    Листинг Main.cs
+
+```c#
+public class Main : MonoBehaviour {
+    …
+    [Header("Inscribed")]
+    …
+    public float gameRestartDelay = 2;
+    public GameObject prefabPowerUp; // a
+    public WeaponDefinition[] weaponDefinitions;
+    public eWeaponType[] powerUpFrequency = new eWeaponType[] { // b
+        eWeaponType.blaster,
+        eWeaponType.blaster,
+        eWeaponType.spread, eWeaponType.shield
+    };
+    …
+
+    static public WeaponDefinition GET_WEAPON_DEFINITION( eWeaponType wt ) {
+    … }
+
+    /// <summary>
+    /// Called by an Enemy ship whenever it is destroyed. It sometimes creates
+    /// a PowerUp in place of the destroyed ship.
+    /// </summary>
+    /// <param name="e">The Enemy that was destroyed</param>
+    static public void SHIP_DESTROYED( Enemy e ) {
+        // Potentially generate a PowerUp
+        if (Random.value <= e.powerUpDropChance) { // Underlined red for now // c
+            // Choose a PowerUp from the possibilities in powerUpFrequency
+            int ndx = Random.Range( 0, S.powerUpFrequency.Length ); // d
+            eWeaponType pUpType = S.powerUpFrequency[ndx];
+
+            // Spawn a PowerUp
+            GameObject go = Instantiate<GameObject>( S.prefabPowerUp );
+            PowerUp pUp = go.GetComponent<PowerUp>();
+            // Set it to the proper WeaponType
+            pUp.SetType( pUpType ); // e
+
+            // Set it to the position of the destroyed ship
+            pUp.transform.position = e.transform.position;
+        }
+    }
+}
+```
+
+    - a. Здесь будет храниться префаб для всех бонусов (PowerUps).
+    - b. Массив `powerUpFrequency` (типа `eWeaponTypes`) определяет частоту появления каждого типа бонуса (PowerUp). По умолчанию он содержит два элемента «бластер» (blaster), один «разброс» (spread) и один «щит» (shield); таким образом, бонус «бластер» будет встречаться вдвое чаще остальных во время игры. В C# допускается запись определения массива в несколько строк, как показано здесь.
+    - c. Для каждого типа корабля будет задан параметр `powerUpDropChance` - число в диапазоне от 0 до 1. Свойство `Random.value` генерирует случайное число с плавающей запятой (тип `float`) в диапазоне от 0 (включительно) до 1 (включительно). (Поскольку `Random.value` включает в себя и 0, и 1, сгенерированное число теоретически может быть равно любому из этих значений.) Если полученное число меньше или равно `powerUpDropChance`, создается экземпляр бонуса. Мы сделаем `powerUpDropChance` частью класса `Enemy`, чтобы разные враги имели разную вероятность сброса бонуса (например, `Enemy_0` может сбрасывать его редко, тогда как `Enemy_4` - всегда).
+На данном этапе `powerUpDropChance` будет подчеркнут красным в Visual Studio (а код не скомпилируется), так как мы еще не добавили поле `powerUpDropChance` в класс `Enemy`.
+    - d. В этой строке используется массив `powerUpFrequency`. При вызове `Random.Range()` с двумя целочисленными аргументами (`int`) метод выбирает число в диапазоне от первого (включительно) до второго (не включая его); например, `Random.Range(0, 4)` сгенерирует целое число 0, 1, 2 или 3. Это очень удобно для выбора случайного элемента массива, что и делается в данной строке.  
+
+        Обратите внимание: и `powerUpFrequency`, и `prefabPowerUp` (упоминаемый несколькими строками ниже) являются публичными полями приватного синглтона `Main S`. Это позволяет нам задавать их значения в инспекторе Unity, а затем использовать их через статический публичный метод `SHIP_DESTROYED()`.
+    - e. После выбора типа бонуса (PowerUp) у созданного экземпляра вызывается метод SetType(); затем бонус самостоятельно выполняет раскраску, устанавливает значение поля _type и отображает соответствующую букву в компоненте TextMesh.
+
+2. Чтобы добавить врагам поле `powerUpDropChance` и настроить вызов ими метода `Main.SHIP_DESTROYED()`, добавьте в скрипт `Enemy` код, выделенный жирным шрифтом в листинге.  
+    Листинг Enemy.cs
+
+```c#
+public class Enemy : MonoBehaviour {
+    [Header("Inscribed")]
+    public float speed = 10f; // The speed in m/s
+    public float fireRate = 0.3f; // Seconds/shot (Unused)
+    public float health = 10; // Damage needed to destroy this enemy
+    public int score = 100; // Points earned for destroying this
+    public float powerUpDropChance = 1f; // Chance to drop a PowerUp // a
+
+    protected bool calledShipDestroyed = false; // b
+    protected BoundsCheck bndCheck;
+    …
+
+    void OnCollisionEnter( Collision coll ) {
+        GameObject otherGO = coll.gameObject;
+
+        // Check for collisions with ProjectileHero
+        ProjectileHero p = otherGO.GetComponent<ProjectileHero>();
+        if ( p != null ) {
+            // Only damage this Enemy if it’s on screen
+            if ( bndCheck.isOnScreen ) {
+                // Get the damage amount from the Main WEAP_DICT.
+                health -= Main.GET_WEAPON_DEFINITION( p.type ).damageOnHit;
+                if ( health <= 0 ) {
+                    // Tell Main that this ship was destroyed // b
+                    if (!calledShipDestroyed){
+                        calledShipDestroyed = true;
+                        Main.SHIP_DESTROYED( this );
+                    }
+                    // Destroy this Enemy
+                    Destroy( this.gameObject );
+                }
+            }
+            // Destroy the ProjectileHero regardless
+            Destroy( otherGO );
+          } else {
+              print( "Enemy hit by non-ProjectileHero: " + otherGO.name );
+        }
+    }
+}
+```
+
+    - a. Параметр `powerUpDropChance` определяет вероятность того, что после уничтожения этот враг оставит после себя бонус (PowerUp). При значении 0 бонус не выпадает никогда, а при значении 1 - выпадает всегда. Реализация этого параметра устранит красное подчеркивание в скрипте `Main` и позволит скомпилировать оба скрипта.
+    - b. Непосредственно перед уничтожением враг уведомляет об этом скрипт `Main`, вызывая метод `Main.SHIP_DESTROYED()`. Это происходит лишь один раз для каждого корабля; за соблюдение этого правила отвечает логическая переменная `calledShipDestroyed`, которая предотвращает повторный учет врага, если в него попадают две пули в течение одного кадра. (Каждая пуля по-прежнему будет наносить кораблю положенный урон, но корабль не создаст два бонуса и не будет учтен дважды, если впоследствии вы добавите систему начисления очков.)  
+
+3. Сохраните все изменения в Visual Studio и вернитесь в Unity.
+4. Выберите объект _MainCamera в окне Hierarchy и перетащите префаб PowerUp из папки _Prefabs (в окне Project) в поле prefabPowerUp компонента Main (Script) объекта _MainCamera (это поле отображается в окне Inspector непосредственно над weaponDefinitions).
+5. Параметр powerUpFrequency уже должен быть задан в окне Inspector, но на всякий случай на рисунке показаны правильные настройки. Обратите внимание, что перечисления (enum) отображаются в окне Inspector Unity в виде выпадающих меню.
+
+<img src="/unity_doc/images/ex99.jpeg" alt="1" style={{  height: 'auto' }} />
+prefabPowerUp и powerUpFrequency в компоненте Main (Script)
+объекта _MainCamera  
+
+6. Выберите экземпляр PowerUp в окне Hierarchy и удалите его (он вам больше не нужен, так как в окне Project уже есть префаб PowerUp, а для тестирования этот экземпляр больше не требуется).
+7. Сохраните сцену.  
+
+Теперь запустите сцену и уничтожьте несколько врагов. Из них должны выпадать бонусы (PowerUps), улучшающие ваш корабль!  
+
+Со временем вы заметите, что бонус для бластера [B] встречается чаще, чем бонусы для веерной стрельбы [S] или щита [O]. Это происходит потому, что в массиве `powerUpFrequency` бластер встречается дважды, а веерная стрельба и щит - только по одному разу. Регулируя относительное количество упоминаний каждого из этих бонусов в `powerUpFrequency`, вы можете определять вероятность их выпадения по сравнению друг с другом. Позже в этой главе вы примените тот же прием для настройки частоты появления различных типов врагов: для этого нужно будет добавить одни типы врагов в массив `prefabEnemies` большее количество раз, чем другие.

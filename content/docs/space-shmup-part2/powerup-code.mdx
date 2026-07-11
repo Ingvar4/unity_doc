@@ -1,0 +1,213 @@
+---
+title: PowerUp Code
+description: Далее следует код PowerUp, но сначала нужно будет добавить и настроить скрипт BoundsCheck
+---
+
+1. Выберите игровой объект PowerUp в окне Hierarchy.
+    - a. Добавьте компонент BoundsCheck (Script) к игровому объекту PowerUp.
+    - b. Установите для BoundsCheck следующие параметры: boundsType = inset, radius = 1, keepOnScreen = true. Эти настройки обеспечат нахождение объекта PowerUp в пределах экрана в течение всего времени его существования.
+2. Создайте новый C#-скрипт с именем PowerUp в папке *__Scripts*.
+3. Прикрепите скрипт PowerUp к игровому объекту PowerUp в окне Hierarchy.
+4. Откройте скрипт PowerUp в Visual Studio и введите код из листинга.  
+  Листинг PowerUp.cs
+
+```c#
+    using System.Collections;
+    using System.Collections.Generic;
+    using UnityEngine;
+
+    [RequireComponent( typeof(BoundsCheck) )] // a
+    public class PowerUp : MonoBehaviour {
+    [Header("Inscribed")]
+    // This is an unusual but handy use of Vector2s. // b
+    [Tooltip("x holds a min value and y a max value for a Random.Range() call.")]
+    public Vector2 rotMinMax = new Vector2(15,90);
+    [Tooltip("x holds a min value and y a max value for a Random.Range() call.")]
+    public Vector2 driftMinMax = new Vector2(.25f,2);
+    public float lifeTime = 10; // PowerUp will exist for # seconds
+    public float fadeTime = 4; // Then it fades over # seconds
+
+    [Header("Dynamic")]
+    public eWeaponType type; // The type of the PowerUp
+    public GameObject cube; // Reference to the PowerCube child
+    public TextMesh letter; // Reference to the TextMesh
+    public Vector3 rotPerSecond; // Euler rotation speed for PowerCube
+    public float birthTime; // The Time.time this was instantiated
+
+    private Rigidbody rigid;
+    private BoundsCheck bndCheck;
+    private Material cubeMat;
+
+    void Awake() {
+        // Find the Cube reference (there’s only a single child)
+        cube = transform.GetChild(0).gameObject;
+        // Find the TextMesh and other components
+        letter = GetComponent<TextMesh>();
+        rigid = GetComponent<Rigidbody>();
+        bndCheck = GetComponent<BoundsCheck>();
+        cubeMat = cube.GetComponent<Renderer>().material;
+
+        // Set a random velocity
+        Vector3 vel = Random.onUnitSphere; // Get Random XYZ velocity // c
+        vel.z = 0; // Flatten the vel to the XY plane
+        vel.Normalize(); // Normalizing a Vector3 sets its length to 1m
+
+        vel *= Random.Range(driftMinMax.x, driftMinMax.y); // d
+        rigid.velocity = vel;
+
+        // Set the rotation of this PowerUp GameObject to R:[ 0, 0, 0 ]
+        transform.rotation = Quaternion.identity;
+        // Quaternion.identity is equal to no rotation.
+
+        // Randomize rotPerSecond for PowerCube using rotMinMax x & y // e
+        rotPerSecond = new Vector3( Random.Range( rotMinMax[0], rotMinMax[1] ),
+        Random.Range( rotMinMax[0], rotMinMax[1] ),
+        Random.Range( rotMinMax[0], rotMinMax[1] ) );
+
+        birthTime = Time.time;
+    }
+
+    // void Start() {…} // Please delete the unused Start() method
+
+    void Update() {
+        cube.transform.rotation = Quaternion.Euler( rotPerSecond*Time.time ); // f
+
+        // Fade out the PowerUp over time
+        // Given the default values, a PowerUp will exist for 10 seconds
+        // and then fade out over 4 seconds.
+        float u = (Time.time - (birthTime+lifeTime)) / fadeTime; // g
+        // If u >= 1, destroy this PowerUp
+        if (u >= 1) {
+            Destroy( this.gameObject );
+            return;
+        }
+        // If u>0, decrease the opacity (i.e., alpha) of the PowerCube & Letter
+        if (u>0) {
+            Color c = cubeMat.color;
+            c.a = 1f - u; // Set the alpha of PowerCube to 1-u
+            cubeMat.color = c;
+            // Fade the Letter too, just not as much
+            c = letter.color;
+            c.a = 1f - (u*0.5f); // Set the alpha of the letter to 1-(u/2)
+            letter.color = c;
+        }
+
+        if (!bndCheck.isOnScreen) {
+            // If the PowerUp has drifted entirely off screen, destroy it
+            Destroy( gameObject );
+        }
+    }
+
+    public eWeaponType type { get { return _type; } set { SetType(value); } } // h
+
+    public void SetType( eWeaponType wt ) {
+        // Grab the WeaponDefinition from Main
+        WeaponDefinition def = Main.GET_WEAPON_DEFINITION( wt );
+        cubeMat.color = def.powerUpColor; // Set the color of PowerCube
+        //letter.color = def.color; // We could colorize the letter too
+        letter.text = def.letter; // Set the letter that is shown
+        type = wt; // Finally actually set the type
+    }
+
+    /// <summary>
+    /// This function is called by the Hero class when a PowerUp is collected.
+    /// </summary>
+    /// <param name="target">The GameObject absorbing this PowerUp</param>
+    public void AbsorbedBy( GameObject target ) { // i
+        Destroy( this.gameObject );
+    }
+}
+```
+
+    - a. Для работы этого скрипта необходимо, чтобы на том же объекте GameObject также был закреплен скрипт BoundsCheck.
+    - b. Здесь я применяю часто используемый мной прием: переменная типа Vector2 хранит минимальное и максимальное значения, которые затем используются в вызове `Random.Range()` (где x - это минимум, а y - максимум). Переменная `driftMinMax` используется в строке, отмеченной как `// d`, а `rotMinMax` - в строке `// e`.
+    - c. `Random.onUnitSphere` - это статическое публичное свойство, возвращающее вектор Vector3 единичной длины, направленный в произвольную сторону. Иначе говоря, этот вектор указывает на точку, лежащую на поверхности сферы радиусом 1 с центром в начале координат (точка [ 0, 0, 0 ]). В следующих строках у вектора vel отбрасывается Z-координата, после чего он нормализуется (метод Normalize()): его длина снова становится равной 1, но сам вектор теперь лежит в плоскости XY.
+    - d. На этом этапе `vel` представляет собой единичный вектор, направленный в случайную сторону в плоскости XY.
+Переменная `driftMinMax` используется совместно с `Random.Range()` для выбора величины,
+на которую умножается вектор `vel`. При умножении вектора на число с плавающей запятой
+(скаляр) изменяется длина вектора, но его направление остается прежним (или меняется
+на противоположное, если скаляр отрицателен). В результате объект PowerUp получает
+скорость от 0,25 до 2 единиц в секунду (при использовании значений `driftMinMax` по умолчанию),
+направленную в случайную сторону в плоскости XY.
+    - e. Здесь `rotMinMax` используется для задания скорости вращения (в градусах в секунду)
+вокруг каждой из трех осей Эйлера (X, Y и Z). К компонентам `x` и `y` вектора `Vector2`
+также можно обращаться по индексам `[0]` и `[1]` соответственно. Это вращение
+присваивается в строке // f.
+    - f. В каждом кадре (`Update()`) задается вращение дочернего объекта PowerCube.
+Умножение `rotPerSecond` на `Time.time` делает вращение зависимым от времени.
+Это делается напрямую (а не через угловую скорость `Rigidbody`), так как вращение
+`Rigidbody` привело бы к вращению всего игрового объекта PowerUp, включая букву,
+а нам нужно, чтобы вращался только куб.
+    - g. Согласно этому уравнению, значение `u` остается меньше 0 в интервале от `birthTime`
+до момента, когда `Time.time` достигает `birthTime + lifeTime`; в течение этого времени
+игровой объект PowerUp отображается с полной непрозрачностью. Затем `u` становится
+положительным и возрастает от 0 до 1 в течение `fadeTime` секунд, при этом
+игровой объект PowerUp постепенно становится прозрачным (исчезает). Как только `u >= 1`,
+объект PowerUp уничтожается.
+    - h. Хотя это и необычно, можно создать свойство, записываемое в одну строку. Это свойство
+гарантирует, что метод `SetType()` будет вызван всякий раз, когда переменная `type`
+изменяется из класса, отличного от `PowerUp`.
+    - i. Метод `AbsorbedBy()` вызывается персонажем (Hero) при подборе этого объекта PowerUp.
+Параметр `target` (игровой объект) предусмотрен для того, чтобы в дальнейшем можно было
+добавить анимацию уменьшения и перемещения PowerUp к кораблю персонажа в момент подбора.
+
+5. Нажмите кнопку Play; вы должны увидеть в окне Hierarchy, как объект PowerUp дрейфует и вращается. Если направить персонажа (Hero) на PowerUp, в консоли появится сообщение «Shield trigger hit by non-Enemy: PowerUp» - это означает, что компонент Trigger Collider на объекте PowerCube корректно взаимодействует с коллайдером щита персонажа.
+6. Перетащите игровой объект PowerUp из окна Hierarchy в папку _Prefabs в окне Project, чтобы превратить его в префаб.
+Пока что оставьте экземпляр PowerUp в окне Hierarchy - это упростит тестирование следующего этапа.
+7. Сохраните сцену.
+
+### Реализация сбора бонусов героем [!toc]
+
+Вам нужно дать Герою возможность собирать бонусы. Сначала вы будете просто управлять процессом сбора,
+а затем модифицируете Героя так, чтобы он мог улучшать и менять оружие в ответ на полученные бонусы.
+
+1. Внесите в C#-скрипт Hero изменения, выделенные жирным шрифтом в листинге кода, чтобы герой мог сталкиваться с бонусами (PowerUps) и подбирать их. Вы также добавите массив оружия, который вскоре будет использован.  
+    Hero.cs
+
+```c#
+public class Hero : MonoBehaviour {
+    static public Hero S { get; private set; } // Singleton property
+
+    [Header( "Inscribed" )]
+    …
+    public float projectileSpeed = 40;
+    public Weapon[] weapons; // a
+
+    [Header( "Dynamic" )]
+    …
+
+    void OnTriggerEnter(Collider other) {
+        …
+        lastTriggerGo = go;
+
+        Enemy enemy = go.GetComponent<Enemy>();
+        PowerUp pUp = go.GetComponent<PowerUp>();
+        if ( enemy != null ) { // If the shield was triggered by an enemy
+            shieldLevel--; // Decrease the level of the shield by 1
+            Destroy( go ); // … and Destroy the enemy
+        } else if (pUp != null) { // If the shield hit a PowerUp
+            AbsorbPowerUp(pUp); // … absorb the PowerUp
+        } else {
+            Debug.Log( "Shield trigger hit by non-Enemy: " + go.name );
+        }
+    }
+
+    public void AbsorbPowerUp( PowerUp pUp ) {
+        Debug.Log( "Absorbed PowerUp: " + pUp.type ); // b
+        switch (pUp.type) {
+            // Leave this switch block empty for now.
+
+        }
+        pUp.AbsorbedBy( this.gameObject );
+    }
+
+    public float shieldLevel { … }
+}
+```
+
+    - a. В следующем разделе вы создадите пять игровых объектов (GameObject) типа «оружие» и сделаете их дочерними объектами _Hero; они будут служить орудиями корабля. Массив оружия будет хранить ссылки на каждый из этих объектов.
+    - b. Одно из удобных свойств перечислений (enum) заключается в том, что их можно выводить в консоль в составе сообщения, как показано здесь. В данном случае к сообщению будет добавлено название типа бонуса (например, none, blaster, spread и т. д.).  
+
+2. Сохраните скрипт Hero, вернитесь в Unity и нажмите Play.  
+
+Теперь герой может столкнуться с бонусом и поглотить его. При этом в консоли выводится сообщение «Absorbed PowerUp: none», так как тип бонуса в иерархии (Hierarchy) установлен в значение «none».
