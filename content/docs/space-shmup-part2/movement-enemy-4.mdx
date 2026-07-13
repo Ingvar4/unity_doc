@@ -1,0 +1,112 @@
+---
+title: Перемещение Enemy_4
+description: Enemy_4 должен появляться в случайной точке за пределами верхней границы экрана, выбирать случайную точку на экране и перемещаться к ней с течением времени, используя линейную интерполяцию.
+---
+
+Достигнув этой точки, следует на мгновение остановиться, а затем выбрать другую точку и переместиться к ней.  
+
+1. Откройте скрипт Enemy_4 и введите код из листинга.  
+  Листинг Enemy_4.cs
+
+```c#
+public class Enemy_4 : Enemy {
+    [Header("Enemy_4 Inscribed Fields")]
+    public float duration = 4; // Duration of interpolation movement
+
+    private EnemyShield[] allShields;
+    private EnemyShield thisShield;
+    private Vector3 p0, p1; // The two points to interpolate
+    private float timeStart; // Birth time for this Enemy_4
+
+    void Start() {
+        allShields = GetComponentsInChildren<EnemyShield>();
+        thisShield = GetComponent<EnemyShield>();
+
+        // Initially set p0 & p1 to the current position (from Main.SpawnEnemy())
+        p0 = p1 = pos; // a
+        InitMovement();
+    }
+
+    void InitMovement() { // b
+        p0 = p1; // Set p0 to the old p1
+        // Assign a new on-screen location to p1
+        float widMinRad = bndCheck.camWidth - bndCheck.radius;
+        float hgtMinRad = bndCheck.camHeight - bndCheck.radius;
+        p1.x = Random.Range( -widMinRad, widMinRad );
+        p1.y = Random.Range( -hgtMinRad, hgtMinRad );
+
+        // Make sure that it moves to a different quadrant of the screen
+        if ( p0.x * p1.x > 0 && p0.y * p1.y > 0 ) { // c
+            if ( Mathf.Abs( p0.x ) > Mathf.Abs( p0.y ) ) {
+                p1.x *= -1;
+            } else {
+                p1.y *= -1;
+            }
+        }
+
+        // Reset the time
+        timeStart = Time.time;
+    }
+
+    public override void Move () { // d
+        // This completely overrides Enemy.Move() with a linear interpolation
+        float u = (Time.time -timeStart) /duration;
+
+        if (u >=1) {
+            InitMovement();
+            u=0;
+        }
+
+        u = u - 0.15f * Mathf.Sin( u * 2 * Mathf.PI ); // Easing: Sine -0.15 // e
+        pos = (1-u)*p0 + u*p1; // Simple linear interpolation // f
+    }
+
+    void OnCollisionEnter( Collision coll ) { … }
+}
+```
+
+    - a. Enemy_4 выполняет интерполяцию своей позиции от p0 до p1. Скрипт Main.SpawnEnemy()
+задает этому экземпляру начальную позицию чуть выше верхней границы экрана;
+эта позиция присваивается здесь как p0, так и p1. Затем вызывается метод InitMovement().
+    - b. Метод `InitMovement()` сначала сохраняет текущую позицию p1 в p0 (поскольку
+Enemy_4 должен находиться в точке p1 в момент вызова `InitMovement()`).
+Затем выбирается новая позиция p1; при этом используются данные компонента
+BoundsCheck, чтобы гарантировать, что точка находится в пределах экрана.
+    - c. Поскольку центр экрана соответствует координатам [ 0, 0 ], положительные значения
+произведений p0.x*p1.x и p0.y*p1.y означают, что случайно выбранная на экране
+точка находится в том же квадранте, что и текущая позиция. Чтобы перейти в другой
+квадрант, мы сравниваем удаленность текущей координаты x корабля от нуля с
+удаленностью координаты y: если x дальше от нуля, мы умножаем p1.x на -1,
+перемещая точку на противоположную сторону экрана; если дальше находится p0.y,
+мы инвертируем p1.y. Смена квадрантов значительно повышает вероятность того,
+что Enemy_4 будет совершать динамичные перемещения по экрану, а не ограничиваться
+незначительными сдвигами.
+    - d. Этот метод `Move()` полностью переопределяет унаследованный метод `Enemy.Move()`.
+Он выполняет интерполяцию от p0 до p1 в течение заданного времени (по умолчанию - 4 секунды).
+Переменная u типа float увеличивается от 0 до 1 по мере выполнения интерполяции;
+когда значение u достигает единицы или превышает ее, вызывается `InitMovement()`
+для настройки следующего этапа интерполяции.
+    - e. Эта строка применяет функцию плавности (easing) к значению u, заставляя корабль
+двигаться нелинейно. При использовании функции «Sine –0.15» корабль начинает
+движение медленно, ускоряется в середине пути и замедляется при приближении к p1.
+Благодаря этому создается ощущение массы корабля, а само движение выглядит более естественным.
+    - f. Эта строка выполняет простую линейную интерполяцию от p0 до p1.  
+
+Чтобы узнать больше об интерполяции и сглаживании (easing), прочитайте раздел «Математические концепции: интерполяция» в Приложении Б.  
+
+2. Сохраните все скрипты в Visual Studio и вернитесь в Unity.
+3. Выберите префаб Enemy_4 в папке __Prefabs на панели Project.
+    - a. В компоненте BoundsCheck (Script):
+            - Установите boundsType = inset.
+            - Установите radius = 8. Это не позволит Enemy_4 приближаться слишком близко к краю экрана и обеспечит появление врага так, что его большие щиты будут полностью находиться за пределами верхней границы экрана.
+            - Установите keepOnScreen = false.
+    - b. В компоненте Enemy_4 (Script) установите health = 0. Это напомнит любому, кто
+позже посмотрит на него, что здоровье Enemy_4 хранится в компоненте Enemy Shield (Script),
+а не в компоненте Enemy_4 (Script). (Эти изменения также автоматически применяются к экземпляру Enemy_4 в
+иерархии.)
+
+4. Нажмите кнопку Play, и вы увидите, как Enemy_4 перемещается по экрану.
+5. Завершив тестирование:
+    - a. Удалите экземпляр Enemy_4 из окна Hierarchy и сохраните сцену.
+    - b. Выберите _MainCamera и в инспекторе компонента Main (Script) установите флажок spawnEnemies.
+    - c. Сохраните сцену.

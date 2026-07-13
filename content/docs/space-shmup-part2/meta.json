@@ -17,6 +17,11 @@
     "expanding-weapon-options",
     "race-conditions-script-execution",
     "drop-powerups",
-    "more-complex-enemy"
+    "more-complex-enemy",
+    "creating-enemyshield",
+    "coding-enemy-4",
+    "movement-enemy-4", 
+    "tuning-settings",
+    "adding-scrolling-starfield"
   ]
 }

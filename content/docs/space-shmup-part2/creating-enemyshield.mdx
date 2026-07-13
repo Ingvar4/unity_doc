@@ -1,0 +1,154 @@
+---
+title: Создание скрипта EnemyShield
+description: Теперь вы создадите скрипт, благодаря которому игровые объекты с тегом `enemy_shield` (находящиеся внутри `Enemy_4`) будут выполнять роль щитов и защищать свои родительские игровые объекты.
+---
+
+1. Создайте новый скрипт C# с именем EnemyShield и поместите его в папку *__Scripts*.
+2. Откройте скрипт EnemyShield в Visual Studio и введите код из листинга.  
+  Листинг EnemyShield.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+[DisallowMultipleComponent]
+[RequireComponent( typeof(BlinkColorOnHit) )]
+public class EnemyShield : MonoBehaviour {
+    [Header("Inscribed")]
+    public float health = 10;
+
+    private List<EnemyShield> protectors = new List<EnemyShield>();
+    private BlinkColorOnHit blinker;
+
+    void Start() {
+        blinker = GetComponent<BlinkColorOnHit>();
+        blinker.ignoreOnCollisionEnter = true; // This will not yet compile // a
+
+        if ( transform.parent == null )
+        return; // b
+        EnemyShield shieldParent = transform.parent.GetComponent<EnemyShield>();
+        if ( shieldParent != null ) {
+            shieldParent.AddProtector( this );
+        }
+    }
+
+    /// <summary>
+    /// Called by another EnemyShield to join the protectors of this EnemyShield
+    /// </summary>
+    /// <param name="shieldChild">The EnemyShield that will protect this</param>
+    public void AddProtector( EnemyShield shieldChild ) {
+        protectors.Add( shieldChild );
+    }
+
+    /// <summary>
+    /// Shortcut for gameObject.activeInHierarchy and gameObject.SetActive()
+    /// </summary>
+    public bool isActive {
+        get { return gameObject.activeInHierarchy; }
+        private set { gameObject.SetActive(value); } // c
+    }
+
+    /// <summary>
+    /// Called by Enemy_4.OnCollisionEnter() & parent’s EnemyShields.TakeDamage()
+    /// to distribute damage to EnemyShield protectors.
+    /// </summary>
+    /// <param name="dmg">The amount of damage to be handled</param>
+    /// <returns>Any damage not handled by this shield</returns>
+    public float TakeDamage( float dmg ) { // d
+        // Can we pass damage to a protector EnemyShield?
+        foreach ( EnemyShield es in protectors ) {
+            if ( es.isActive ) {
+                dmg = es.TakeDamage( dmg ); // e
+                // If all damage was handled, return 0 damage
+                if (dmg == 0) return 0;
+            }
+        }
+
+        // If the code gets here, then this EnemyShield will blink & take damage
+        // Make the blinker blink
+        blinker.SetColors(); // This will appear underlined in red for now // f
+
+        health -= dmg;
+        if ( health <= 0 ) { // g
+            // Deactivate this EnemyShield GameObject
+            isActive = false;
+            // Return any damage that was not absorbed by this EnemyShield
+            return -health; // h
+        }
+
+        return 0; // i
+    }
+}
+```
+
+    - a. Скоро мы добавим в метод `BlinkColorOnHit` код, который позволит проекту компилироваться, но пока в Visual Studio этот фрагмент будет подчеркнут красным.
+    - b. Эти строки сначала проверяют, есть ли у данного `GameObject` родительский объект в иерархии, а затем - есть ли у этого родителя компонент `EnemyShield`. Если оба условия выполняются, то текущий `EnemyShield` регистрируется как защитник родительского объекта. Это позволяет использовать настроенную нами иерархию игровых объектов щитов для определения того, какие именно `EnemyShield` защищают другие.
+    - c. Блок `get` свойства `isActive` является открытым (`public`), а блок `set` - закрытым (`private`); это означает, что получить значение свойства может любой класс, а изменить его - только класс `EnemyShield`.
+    - d. `TakeDamage()` - ключевой метод класса `EnemyShield`. Если у данного `EnemyShield` есть защитники, он попытается перенаправить урон им; если же ни один из них не активен (или если необработанный урон возвращается обратно), то значение здоровья будет уменьшено.
+    - e. Если какой-либо защитный компонент `EnemyShield` возвращает нулевой урон, то вверх по цепочке также передается ноль. Это позволяет избежать вызова метода `TakeDamage()` у других защитных компонентов, так как необработанного урона больше не осталось.
+    - f. Если выполнение кода не завершилось до этой строки, то данный `EnemyShield` мигнет, а затем получит урон. Метод `SetColor()` класса `BlinkColorOnHit` выполняет именно то, что нам нужно, однако сейчас он подчеркнут красным, из-за чего `EnemyShield` не компилируется. Это происходит потому, что метод `SetColor()` класса `BlinkColorOnHit` в данный момент не является публичным (public), но мы вскоре это исправим.
+    - g. Значение `dmg` вычитается из `health`, и если результат меньше или равен нулю, данный `EnemyShield` (а также его `GameObject`) деактивируется. Возвращается значение `health` с обратным знаком, чтобы учесть необработанный урон. Например, если `health` равно 2, а `dmg` - 5, то операция `health -= dmg` приведет к тому, что `health` станет равным -3. Это означает, что 3 единицы урона не были поглощены данным `EnemyShield`, поэтому возвращается число 3 (то есть `-health`).
+    - h. Если выполнение кода доходит до этой строки, значит, весь урон был поглощен за счет `health`, и мы можем вернуть ноль.  
+
+Далее нам нужно изменить BlinkColorOnHit так, чтобы код EnemyShield компилировался, а мигание происходило не всегда при столкновении с любой частью игрового объекта врага.  
+
+2. Откройте скрипт BlinkColorOnHit в Visual Studio и добавьте строки.  
+    Листинг кода BlinkColorOnHit.cs
+
+```c#
+public class BlinkColorOnHit : MonoBehaviour {
+    …
+    [Header("Dynamic")]
+    public bool showingColor = false;
+    public float blinkCompleteTime; // Time to stop showing the color
+    public bool ignoreOnCollisionEnter = false; // a
+
+    private Material[] materials; // All the Materials of this & its children
+    private Color[] originalColors;
+    private BoundsCheck bndCheck;
+
+    void Awake() { … }
+    …
+
+    void OnCollisionEnter( Collision coll ) {
+        if ( ignoreOnCollisionEnter ) return; // b
+
+        // Check for collisions with ProjectileHero
+        ProjectileHero p = coll.gameObject.GetComponent<ProjectileHero>();
+        …
+    }
+
+    public void SetColors() { // c
+        …
+    }
+    …
+}
+```
+
+    - a. Установка значения `false` для `ignoreOnCollisionEnter` гарантирует, что
+все компоненты `BlinkColorOnHit` на существующих игровых объектах (GameObjects)
+будут работать так же, как и раньше.
+    - b. Если `ignoreOnCollisionEnter` имеет значение `true`, выполнение метода прекращается.
+Значение `true` для `ignoreOnCollisionEnter` задается в строке `// a` листинга кода, поэтому
+игровые объекты с компонентом `EnemyShield` будут мигать только при
+прямом вызове метода `SetColors()`.
+    - c. Убедитесь, что метод `SetColors()` объявлен как `public`, чтобы его мог вызывать `EnemyShield`.
+3. Сохраните все скрипты в Visual Studio и вернитесь в Unity.
+4. Добавьте скрипт `EnemyShield` к объекту `Enemy_4`, а также к каждому из его дочерних объектов, представляющих щит:
+    - a. Если вы вышли из режима редактирования префаба `Enemy_4`, дважды щелкните по `Enemy_4` в
+папке `_Prefabs` на панели Project, чтобы войти в режим редактирования префаба `Enemy_4`.
+    - b. Выберите корневой игровой объект `Enemy_4` (префаб `Enemy_4`) на панели Hierarchy.
+    - c. Удерживая клавишу Command (или Ctrl в Windows), щелкните по `enemy4_shield_Front` в
+иерархии `Enemy_4`. Это добавит объект к выделению.
+    - d. Удерживая клавишу Command (или Ctrl в Windows), щелкните по `enemy4_shield_Left`.
+    - e. Удерживая клавишу Command (или Ctrl в Windows), щелкните по `enemy4_shield_Right`. Теперь у вас
+должно быть выделено четыре игровых объекта, как показано на рисунке 32.10b.
+    - f. В главном меню Unity выберите Component > Scripts > EnemyShield. Это добавит
+компоненты `EnemyShield` и `BlinkColorOnHit` ко всем четырем игровым объектам (поскольку
+компонент `EnemyShield` имеет атрибут `[RequireComponent(typeof(BlinkColorOnHit))]`).  
+
+Если при выполнении процедуры множественного выбора, описанной в шагах 4c–4f, возникнут трудности, вы также можете добавить компоненты EnemyShield по отдельности.   
+
+5. Нажмите на значок `<` слева от названия Enemy_4 в верхней части панели Hierarchy, чтобы вернуться к иерархии сцены.
+6. Сохраните сцену и проект (*File > Save Project*). Файлы проекта, не относящиеся к сцене, должны сохраняться автоматически, но лишний раз убедиться в этом не помешает.

@@ -1,0 +1,118 @@
+---
+title: Программирование Enemy_4 для использования EnemyShield
+description: Теперь нужно настроить Enemy_4 так, чтобы он мог использовать скрипты EnemyShield.
+---
+
+Поскольку суперкласс `Enemy` не был изначально рассчитан на наличие щитов (`EnemyShields`), нам потребуется написать новый метод `OnCollisionEnter()`, который переопределит одноименный метод класса `Enemy`. Однако, в отличие от большинства других методов, методы-сообщения `MonoBehaviour` в Unity (такие как `Start()`, `OnCollisionEnter()` и т. д.) не требуют явного объявления виртуальными (`virtual`) в суперклассе или использования ключевого слова `override` в подклассе.
+
+<Callout>
+### Примечание [!toc]
+Учитывая реализацию компонента EnemyShield, при падении его запаса здоровья до нуля он отключает тот игровой объект (GameObject), к которому прикреплен. Это означает, что компонент EnemyShield, находящийся на корневом игровом объекте Enemy_4, отключит этот объект еще до того, как поле здоровья Enemy_4 (унаследованное от класса Enemy) получит какой-либо урон. Мы вернемся к этому позже.
+
+</Callout>
+
+1. Откройте скрипт Enemy_4 в Visual Studio. (На этом этапе это должен быть
+просто стандартный скрипт подкласса Unity MonoBehaviour. Если у вас нет скрипта Enemy_4,
+просто создайте его сейчас в папке __Scripts и затем прикрепите его к префабу Enemy_4.)  
+  Листинг кода Enemy_4.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+[RequireComponent( typeof(EnemyShield) )]
+public class Enemy_4 : Enemy { // Enemy_4 also extends the Enemy class
+    private EnemyShield[] allShields;
+    private EnemyShield thisShield;
+
+    void Start() {
+        allShields = GetComponentsInChildren<EnemyShield>(); // a
+        thisShield = GetComponent<EnemyShield>();
+    }
+
+    public override void Move() {
+        // You’ll add much more here shortly. For now, it’s easier to test if
+        // Enemy_4 doesn’t move.
+    }
+
+    /// <summary>
+    /// Enemy_4 Collisions are handled differently from other Enemy subclasses
+    /// to enable protection by EnemyShields.
+    /// </summary>
+    /// <param name="coll"></param>
+    void OnCollisionEnter( Collision coll ) { // b
+        GameObject otherGO = coll.gameObject;
+
+        // Make sure this was hit by a ProjectileHero
+        ProjectileHero p = otherGO.GetComponent<ProjectileHero>();
+        if ( p != null ) {
+            // Destroy the ProjectileHero regardless of bndCheck.isOnScreen
+            Destroy( otherGO ); // c
+
+            // Only damage this Enemy if it’s on screen
+            if ( bndCheck.isOnScreen ) {
+                // Find the GameObject of this Enemy_4 that was actually hit
+                GameObject hitGO = coll.contacts[0].thisCollider.gameObject; // d
+                if ( hitGO == otherGO ) { // e
+                    hitGO = coll.contacts[0].otherCollider.gameObject;
+                }
+
+                // Get the damage amount from the Main WEAP_DICT.
+                float dmg = Main.GET_WEAPON_DEFINITION( p.type ).damageOnHit;
+
+                // Find the EnemyShield that was hit (if there was one)
+                bool shieldFound = false;
+                foreach ( EnemyShield es in allShields ) { // f
+                    if ( es.gameObject == hitGO ) {
+                        es.TakeDamage( dmg );
+                        shieldFound = true;
+                    }
+                }
+                if ( !shieldFound ) thisShield.TakeDamage( dmg ); // g
+
+                // If thisShield is still active, then it has not been destroyed
+                if ( thisShield.isActive ) return; // h
+
+                // This ship was destroyed so tell Main about it
+                if ( !calledShipDestroyed ) {
+                    Main.SHIP_DESTROYED( this );
+                    calledShipDestroyed = true;
+                }
+
+                // Destroy this Enemy_4
+                Destroy( gameObject );
+            }
+        } else {
+            Debug.Log( "Enemy_4 hit by non-ProjectileHero: " + otherGO.name );
+        }
+    }
+}
+```
+
+    - a. Метод `GetComponentsInChildren<EnemyShield>()` получает ссылки на все компоненты `EnemyShield`, имеющиеся на данном игровом объекте (GameObject) и его дочерних объектах (включая «внуков» и т. д.) в иерархии сцены. Эта операция выполняется относительно медленно, поэтому ее следует проводить лишь один раз.
+    - b. Механизм реализации сообщений `MonoBehaviour` в Unity (таких как `Update()` и `OnCollisionEnter()`) избавляет от необходимости использовать ключевые слова `virtual` и `override` в базовом и производном классах соответственно - при условии, что вам не требуется вызывать версию метода из базового класса (например, нельзя вызвать `base.OnCollisionEnter()`, если не были использованы `virtual` и `override`).
+    - c. Может показаться странным уничтожать объект `otherGO`, а затем обращаться к нему в строке // e. Однако метод `Destroy()` не срабатывает мгновенно; вместо этого он добавляет `otherGO` в список объектов, которые будут уничтожены после завершения текущего кадра (метода `Update()`).
+    - d. В Unity часто встречается ситуация, когда игровой объект с компонентом `Rigidbody` имеет несколько дочерних объектов с прикрепленными коллайдерами (компонентами `Collider`). В Unity такая конфигурация называется «составными коллайдерами» (Compound Colliders), поскольку все коллайдеры действуют как единый объект, перемещаемый и управляемый компонентом `Rigidbody`. Когда любой из коллайдеров сталкивается с каким-либо объектом, метод `OnCollisionEnter()` вызывается у того игрового объекта, на котором находится компонент `Rigidbody` (а не у того, на котором находится сам коллайдер). Поэтому, если нам нужно узнать, какой именно коллайдер участвовал в столкновении, эту информацию необходимо получить из точек контакта (contact points), хранящихся в массиве `coll.contacts`. В строке `// d` мы получаем информацию из нулевой точки контакта объекта `coll` (типа `Collision`). Это позволяет нам получить конкретный коллайдер, по которому было произведено попадание (`thisCollider`). Таким образом, хотя любой коллайдер, принадлежащий дочернему объекту `Enemy_4`, приведет к вызову метода `Enemy_4.OnCollisionEnter()`, обращение к `coll.contacts[0].thisCollider.gameObject` позволит нам определить именно тот игровой объект, в который попал снаряд `ProjectileHero`.  
+
+>Подробнее о составных коллайдерах (Compound Colliders) можно прочитать в нижней части страницы документации Unity, посвященной компоненту Rigidbody:
+https://docs.unity3d.com/2020.3/Documentation/Manual/class-Rigidbody.html
+
+    - e. В некоторых версиях Unity движок PhysX иногда путал `thisCollider` и `otherCollider`; поэтому, если переменная `hitGO` ошибочно указывала на игровой объект `ProjectileHero`, данная условная конструкция переназначает `hitGO` на `otherCollider.gameObject`.
+    - f. Этот цикл `foreach` перебирает игровые объекты всех компонентов `EnemyShield` и проверяет, является ли текущий объект тем самым, по которому был нанесен удар. Если это так, у данного `EnemyShield` вызывается метод `TakeDamage()`.
+    - g. В том маловероятном случае, если у пораженного игрового объекта отсутствует компонент `EnemyShield`, вызывается `thisShield.TakeDamage()`, что приводит к попытке нанести урон компоненту `EnemyShield` объекта `Enemy_4`.
+    - h. После вызова `TakeDamage()` у соответствующего `EnemyShield` проверяется состояние здоровья всех компонентов `EnemyShield`: если оно исчерпано, переменная `thisShield.isActive` принимает значение `false`. Таким образом, если `thisShield.isActive` по-прежнему равно `true`, это означает, что у одного из компонентов `EnemyShield` в иерархии `Enemy_4` еще осталось здоровье.
+    - i. Эта строка выполняется (и объект `Enemy_4` уничтожается), когда уровень здоровья компонента `EnemyShield` на объекте `Enemy_4` падает до нуля или ниже. Это означает, что поле `health` в компоненте `Enemy_4` (скрипте) игнорируется.  
+
+2. Сохраните все скрипты в Visual Studio и вернитесь в Unity.  
+
+Теперь пришло время увидеть скрипты EnemyShield в действии. Поскольку мы не добавили никакого кода в метод `Enemy_4.Move()`, любой экземпляр Enemy_4 пока будет оставаться на месте, что значительно упрощает тестирование.  
+
+3. Перетащите объект Enemy_4 из папки _Prefabs в иерархию сцены (Scene Hierarchy), чтобы создать его экземпляр на сцене.
+4. Установите параметры Transform для экземпляра Enemy_4 в иерархии следующим образом:
+Enemy_4 (Enemy_4) P:[ 3, 20, 0 ] R:[ 0, 0, 0 ] S:[ 2, 2, 2 ]
+5. Еще одно действие, которое упростит тестирование, - это отключение спавна (появления) других врагов.
+Выберите объект _MainCamera в иерархии и в окне Inspector (в компоненте Main (Script)) снимите галочку с параметра spawnEnemies.
+6. Нажмите кнопку Play.  
+
+Враг №4 (Enemy_4) расположен так, что снаряды Героя попадают в его правый щит (с точки зрения самого врага), уничтожают его, а затем поражают корпус корабля. При продолжении стрельбы вы увидите, что, хотя попадания приходятся на корпус, урон сначала принимают на себя щиты Врага №4. Левый и правый щиты защищают передний щит, а передний щит защищает основной корпус корабля.
