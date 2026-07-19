@@ -1,0 +1,62 @@
+---
+title: Разбор всего кода AP
+description: построчный разбор
+---
+
+## Скрипт AppleTree.cs [!toc]
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine; //Подключение библиотек
+
+public class AppleTree : MonoBehaviour {
+    [Header("Inscribed")] //Добавляет заголовок в Inspector для групп переменных, которые не изменяются во время выполнения скрипта
+    public GameObject applePrefab; //Объявление переменной префаба для последующего подключения к ней GameObject префаба яблока в Inspector
+    public float speed = 1f; //Скорость движения AppleTree
+    public float leftAndRightEdge = 10f; //Расстояние, на котором AppleTree меняет направление
+    public float changeDirChance = 0.1f; //Вероятность того, что AppleTree сменит направление
+    public float appleDropDelay = 1f; //Интервал в секундах между созданием экземпляров Apple
+
+    void Start () { //Метод Start вызывается перед обновлением первого кадра.
+        
+    }
+    
+    void Update () { // Метод Update вызывается один раз за кадр (так быстро, как компьютер может прорисовывать кадры)
+        // Базовое движение
+        Vector3 pos = transform.position; // Эта строка определяет Vector3 pos как положение AppleTree в данный момент.
+        pos.x += speed * Time.deltaTime; // x pos увеличивается на скорость, умноженную на Time.deltaTime (которая является мерой количества секунд, прошедших с момента последнего кадра).
+        transform.position = pos; // Присваивает измененное значение pos обратно transform.position (что перемещает AppleTree в новое положение)
+
+        // Изменение направления
+        if ( pos.x < -leftAndRightEdge ) { // проверяет, меньше ли новое значение pos.x, отрицательного предела по горизонтали, заданного leftAndRightEdge
+            speed = Mathf.Abs( speed ); // Движение вправо до тех пор, пока pos.x меньше leftAndRightEdge
+        } else if ( pos.x > leftAndRightEdge ) { // Если pos.x больше leftAndRightEdge, то speed устанавливается равным отрицательному значению Mathf.Abs(speed), что гарантирует, что AppleTree будет двигаться влево
+            speed = -Mathf.Abs( speed ); // Движение влево
+    }
+
+    void FixedUpdate() { // Вызывается ровно 50 раз в секунду, независимо от того, на каком компьютере он выполняется 
+        // Случайная смена направления привязана к времени благодаря FixedUpdate()
+        if ( Random.value < changeDirChance ) { // Если это случайное число меньше, чем changeDirChance
+            speed *= -1; // AppleTree изменит направление движения, установив скорость, равную отрицательному значению самой скорости
+        }
+    }
+}
+```
+
+<Callout>
+### `Mathf.Abs()` [!toc]
+Метод `Mathf.Abs()` в Unity C# возвращает абсолютное значение (модуль) числа. Иными словами, он убирает знак «минус», если число отрицательное, делая его положительным, а положительное оставляет без изменений.  
+Применяется, к примеру для вычисление расстояния: чтобы узнать, насколько далеко объект находится от другого по одной из осей (например, Mathf.Abs(player.position.x - enemy.position.x)). 
+</Callout>
+
+<Callout>
+### `Random.value` [!toc]
+Random.value в Unity C# - это статическое свойство, которое возвращает случайное число с плавающей запятой (тип float) в диапазоне от 0.0 до 1.0 (включительно). Это стандартный инструмент для генерации вероятностей, выбора случайных цветов или создания эффектов плавного изменения. 
+</Callout>
+
+<Callout type='error'>
+### ERROR [!toc]
+Вываливается ошибка по Random. Потому что есть UnityEngine.Random и System.Random.  
+Я подключил дополнительно `using Random=UnityEngine.Random;`;
+</Callout>

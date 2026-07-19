@@ -20,7 +20,11 @@
     "space-shmup-part2",
     
     "---DOCUMENTATION---",
-    "methods-classes"
+    "methods-classes",
+    "scripts-unity-csharp",
+    "camera-unity",
+    "rigidbody-unity",
+    "movement-unity"
     
   ]
 }

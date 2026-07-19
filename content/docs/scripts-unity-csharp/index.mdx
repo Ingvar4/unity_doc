@@ -1,0 +1,17 @@
+---
+title: Scripts Unity C#
+description: заметки по скриптам
+---
+
+### Заголовки для групп переменных [!toc]
+- `[Header("Inscribed")]` - добавляет заголовок в *Inspector* для групп переменных, которые не изменяются во время выполнения скрипта.
+
+```c#
+public class AppleTree : MonoBehaviour {
+    [Header("Inscribed")] // a
+    public GameObject applePrefab;
+    public float speed = 1f;
+    public float leftAndRightEdge = 10f;
+    public float changeDirChance = 0.1f;
+    public float appleDropDelay = 1f;
+```
