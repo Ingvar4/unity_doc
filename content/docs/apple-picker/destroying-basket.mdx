@@ -39,7 +39,7 @@ public class ApplePicker : MonoBehaviour {
 
     public void AppleMissed() {
         // Destroy all of the falling Apples
-        GameObject[] appleArray=GameObject.FindGameObjectsWithTag("Apple");
+        GameObject[] appleArray = GameObject.FindGameObjectsWithTag("Apple");
         foreach ( GameObject tempGO in appleArray ) {
             Destroy( tempGO );
         }
@@ -77,7 +77,7 @@ public class ApplePicker : MonoBehaviour {
 реальный, готовый к использованию список.
 - e. Эта строка в конце цикла `for` добавляет каждую корзину в basketList. Корзины
 добавляются в том порядке, в котором они создаются, то есть снизу вверх, поэтому 0-
-я корзина в basketList — самая нижняя.
+я корзина в basketList - самая нижняя.
 - f. Этот новый раздел метода `AppleMissed()` уничтожает одну из корзин. Поскольку
 корзины добавляются снизу вверх, важно, чтобы последняя корзина в списке уничтожалась
 первой (чтобы уничтожать корзины сверху вниз).

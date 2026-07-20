@@ -3,7 +3,7 @@ title: Разбор всего кода AP
 description: построчный разбор
 ---
 
-## Скрипт AppleTree.cs [!toc]
+## Скрипт AppleTree.cs 
 
 ```c#
 using System.Collections;
@@ -19,7 +19,13 @@ public class AppleTree : MonoBehaviour {
     public float appleDropDelay = 1f; //Интервал в секундах между созданием экземпляров Apple
 
     void Start () { //Метод Start вызывается перед обновлением первого кадра.
-        
+        Invoke( "DropApple", 2f ); //1й параметр - название кастомной функции, 2й - время ожидания перед вызовом
+    }
+
+    void DropApple() { // Это пользовательская функция для создания экземпляра Apple в местеположение AppleTree
+        GameObject apple = Instantiate<GameObject>( applePrefab ); // Создает экземпляр applePrefab и присваивает его локальной переменной GameObject apple
+        apple.transform.position = transform.position; // Положение яблони присваивается положению яблока (иначе яблоко будет использовать положение своего префаба)
+        Invoke( "DropApple", appleDropDelay ); // Рекурсия? DropApple() вызывает себя каждый раз, когда ее вызывают, в результате яблоко будет падать каждую секунду, пока игра работает
     }
     
     void Update () { // Метод Update вызывается один раз за кадр (так быстро, как компьютер может прорисовывать кадры)
@@ -45,6 +51,24 @@ public class AppleTree : MonoBehaviour {
 ```
 
 <Callout>
+### `Invoke()` [!toc]
+Вызывает именованную функцию после ожидания в течение заданного количества секунд. Имеет два параметра. В данном случае она вызывает новую функцию `DropApple()`.
+</Callout>
+
+<Callout>
+### `Instantiate<GameObject>()` [!toc]
+Данный метод используется для динамического создания (клонирования) объектов прямо во время игры. Он принимает исходный объект или префаб и возвращает его точную копию, часто применяясь для спавна врагов, выстрелов или бонусов. 
+
+Пример с позиционированием при спавне:
+```c#
+Vector3 spawnPosition = new Vector3(0, 2, 0);
+Quaternion spawnRotation = Quaternion.identity; // Без поворота
+
+GameObject newObj = Instantiate<GameObject>(myPrefab, spawnPosition, spawnRotation);
+```
+</Callout>
+
+<Callout>
 ### `Mathf.Abs()` [!toc]
 Метод `Mathf.Abs()` в Unity C# возвращает абсолютное значение (модуль) числа. Иными словами, он убирает знак «минус», если число отрицательное, делая его положительным, а положительное оставляет без изменений.  
 Применяется, к примеру для вычисление расстояния: чтобы узнать, насколько далеко объект находится от другого по одной из осей (например, Mathf.Abs(player.position.x - enemy.position.x)). 
@@ -60,3 +84,231 @@ Random.value в Unity C# - это статическое свойство, ко�
 Вываливается ошибка по Random. Потому что есть UnityEngine.Random и System.Random.  
 Я подключил дополнительно `using Random=UnityEngine.Random;`;
 </Callout>
+
+## Скрипт Apple.cs 
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Apple : MonoBehaviour {
+    public static float bottomY = -20f; //Объявление и определение статической переменной с именем bottomY (статические поля являются общими для всех экземпляров класса)
+    //public (модификатор доступа): Переменная видна из любых других скриптов и классов проекта. В Unity это также означает, что данная переменная будет отображаться в панели Inspector (если она не является static).
+    //static (модификатор): Делает переменную «глобальной» для этого класса. Она принадлежит самому классу, а не какому-то конкретному объекту. Вам не нужно создавать экземпляр (копию) скрипта, чтобы обратиться к ней — достаточно написать имя класса.
+    //По итогу переменная существует в единственном экземпляре, не отображается в Инспекторе
+    void Update () {
+        if ( transform.position.y < bottomY ) {
+            Destroy( this.gameObject ); //Удаляет из игры все, что ей передается
+
+            ApplePicker apScript = Camera.main.GetComponent<ApplePicker>(); // Получение ссылки на компонент ApplePicker в Main Camera
+            apScript.AppleMissed(); // Вызов публичного метода AppleMissed() из apScript
+            //Сам метод AppleMissed() находится в скрипте ApplePicker
+        }
+    }
+}
+```
+
+<Callout>
+### `Destroy()` [!toc]
+Удаляет из игры все, что ей передается, и может использоваться для уничтожения как компонентов, так и GameObjects. В данном случае необходимо использовать `Destroy(this.gameObject)`, поскольку `Destroy(this)` просто удалит компонент *Apple (Script)* из экземпляра GameObject *Apple*. В любом скрипте `this` относится к текущему экземпляру класса C#, в котором он вызывается (в данном листинге кода он относится к этому экземпляру компонента *Apple (Script)*), а не ко всему GameObject. Всякий раз, когда вы хотите уничтожить весь GameObject изнутри присоединенного класса компонента, вы должны вызывать `Destroy(this.gameObject)`.
+</Callout>
+
+## Скрипт ApplePicker 
+
+```c#
+using System.Collections;
+using System.Collections.Generic; // Библиотека для использования коллекций
+using UnityEngine;
+using UnityEngine.SceneManagement; // Позволяет этому коду перезагрузить сцену, когда все корзины будут потеряны
+
+public class ApplePicker : MonoBehaviour {
+    [Header("Inscribed")]
+    public GameObject basketPrefab; //Поле для префаба корзины GameObject
+    public int numBaskets = 3; //Число корзин
+    public float basketBottomY = -14f; //Положение корзины по оси Y
+    public float basketSpacingY = 2f; //Расстояние между корзинами по оси Y
+    public List<GameObject> basketList; // Объявление списка коллекции
+
+    void Start () {
+        basketList = new List<GameObject>(); // Эта строка инициализирует basketList как новый List<GameObject>(). Инициализация превращает его в реальный, готовый к использованию список.
+        for (int i = 0; i < numBaskets; i++) { //Цикл создания корзин
+            GameObject tBasketGO = Instantiate<GameObject>( basketPrefab ); //Создание корзины и присвоение результата tBasketGO (теперь tBasketGO содержит ссылку на новую корзину)
+            Vector3 pos = Vector3.zero; // pos присваивается позиция (0,0,0) (то есть х=0, y=0 и z=0). Это эквивалентно new Vector3(0,0,0);
+            pos.y = basketBottomY + ( basketSpacingY * i ); //Вычисление высоты корзины
+            //1. i = 0 (-14 + (2 × 0) = -14) итог: (0, -14, 0)
+            //2. i = 1 (-14 + (2 × 1) = -12) итог: (0, -12, 0)
+            //3. i = 2 (-14 + (2 × 2) = -10) итог: (0, -10, 0)
+            tBasketGO.transform.position = pos; //Установка позиции (Basket → Transform → Position → (0,-14,0) и так далее по циклу)
+            basketList.Add( tBasketGO ); // Добавляет каждую корзину в basketList. Корзины добавляются в том порядке, в котором они создаются, то есть снизу вверх, поэтому 0- я корзина в basketList — самая нижняя.
+        }
+    }
+
+    public void AppleMissed() { // Метод AppleMissed() должен быть объявлен как public, чтобы другие классы (такие как Apple) могли его вызывать
+        // Уничтожение всех падающих яблок
+        GameObject[] appleArray = GameObject.FindGameObjectsWithTag("Apple"); // Возвращает массив всех существующих GameObjects с тегом Apple. Последующий цикл foreach проходит по каждому из них и уничтожает их
+        foreach ( GameObject tempGO in appleArray ) {
+            Destroy( tempGO );
+        }
+
+        // Раздел кода по уничтожению одной из корзин
+        int basketIndex = basketList.Count -1; //Получение индекса последней корзины в basketList
+        GameObject basketGO = basketList[basketIndex]; // Получаем ссылку на объект "Корзина"
+        basketList.RemoveAt( basketIndex ); // Удаляем корзину из списка и уничтожаем игровой объект
+        Destroy( basketGO );
+        
+        if ( basketList.Count == 0 ) { // Если корзин не осталось, перезапуск игры
+            SceneManager.LoadScene( "_Scene_0" ); // Фактически сбрасывает игру в начальное состояние
+        }
+    }
+}
+```
+
+<Callout>
+### Transform [!toc]
+У каждого объекта Unity есть компонент Transform. В нём хранится позиция, поворот, масштаб.
+</Callout>
+
+<Callout>
+### Vector3 [!toc]
+Одна из самых часто используемых структур в Unity. Она хранит три числа: (x,y,z). По сути это просто контейнер для трёх координат. Например:
+
+```c#
+Vector3 pos = new Vector3(3, 5, 10);
+
+//x = 3, y = 5, z = 10  
+```
+Использование как позиции:
+
+```c#
+transform.position = new Vector3(5,3,0);
+
+// Объект переместится вправо на 5, вверх на 3, вперёд на 0
+```
+
+Использование как направления:
+
+```c#
+Vector3.right  // (1,0,0)
+Vector3.left  // (-1,0,0)
+Vector3.up  // (0,1,0)
+Vector3.down // (0,-1,0)
+Vector3.forward  // (0,0,1)
+Vector3.back  // (0,0,-1)
+Vector3.zero  // (0,0,0)
+Vector3.one  // (1,1,1)
+```
+</Callout>
+
+## Скрипт Basket.cs 
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Basket : MonoBehaviour {
+    public ScoreCounter scoreCounter; // Это сохранит ссылку на экземпляр скрипта ScoreCounter, прикрепленного к GameObject ScoreCounter
+
+    void Start() {
+        // Поиск объекта GameObject с именем ScoreCounter в иерархии сцены
+        GameObject scoreGO = GameObject.Find( "ScoreCounter" ); // Это делается в Start(), потому что GameObject.Find() работает очень медленно, поэтому, по возможности, это следует делать только один раз на скрипт. 
+        // Получите компонент ScoreCounter (script) из библиотеки scoreGO
+        scoreCounter = scoreGO.GetComponent<ScoreCounter>(); // scoreGO.GetComponent<ScoreCounter>() ищет компонент ScoreCounter (Script) в GameObject scoreGO и присваивает его публичному полю (переменной) scoreCounter
+    }
+
+    void Update () {
+        // Получение текущего положение курсора мыши на экране из поля ввода
+        Vector3 mousePos2D = Input.mousePosition; // Это значение выражается в координатах экрана, то есть оно показывает, на каком расстоянии в пикселях находится курсор мыши от левого верхнего угла экрана. Координата z для Input.mousePosition всегда равна 0, поскольку это, по сути, двумерное измерение.
+        // Положение камеры по оси Z определяет, насколько сильно нужно перемещать курсор мыши в трехмерном пространстве
+        mousePos2D.z = -Camera.main.transform.position.z; // Эта строка устанавливает координату z mousePos2D равной отрицательному значению координаты Z главной камеры
+        //В игре главная камера находится на Z = -10, поэтому mousePos2D.z устанавливается на 10. Это указывает последующей функции ScreenToWorldPoint(), на какое расстояние нужно сдвинуть mousePos3D в 3D- пространство (от положения главной камеры), помещая конечную точку мира на плоскость Z=0
+
+        // Преобразование точки из двухмерного экранного пространства в трехмерное игровое пространство
+        Vector3 mousePos3D = Camera.main.ScreenToWorldPoint( mousePos2D ); // Преобразует mousePos2D в точку в 3D-пространстве внутри сцены
+
+        // Перемещение координаты X этой корзины в положение X курсора мыши
+        Vector3 pos = this.transform.position;
+        pos.x = mousePos3D.x;
+        this.transform.position = pos;
+    }
+
+    void OnCollisionEnter( Collision coll ) { // Вызывается всякий раз, когда другой GameObject сталкивается с этой корзиной, и ему передается аргумент Collision с информацией о столкновении, включая ссылку на GameObject, который ударил Collider этой корзины
+        // Узнайте, что попало в эту корзину
+        GameObject collidedWith = coll.gameObject; // Присваивает столкнувшийся GameObject временной локальной переменной collidedWith
+        if ( collidedWith.CompareTag("Apple") ) { // Проверьте, является ли collidedWith яблоком, найдя тег «Apple», который был присвоен префабу GameObject «Apple». 
+            Destroy( collidedWith ); //Если collidedWith является яблоком, оно уничтожается. Теперь, если яблоко ударит по этой корзине, оно будет уничтожено
+             
+            scoreCounter.score += 100; // Увеличение счёта и присвоение значения обратно scoreCounter.score
+        }
+    }
+}
+
+```
+<Callout>
+### `GetComponent<>()` [!toc]
+Так же, как и для других компонентов (например, Rigidbody и Text), `GetComponent<>()` можно использовать для поиска ссылок на компоненты скриптов, которые вы создаете, поместив имя класса в угловые скобки метода (например, `<ScoreCounter>`).
+</Callout>
+
+<Callout>
+### `Camera.ScreenToWorldPoint()` [!toc]
+Преобразует 2D-координаты экрана (например, позицию курсора мыши или тапа) в 3D-координаты игрового мира. Он часто используется для привязки объектов к указателю или бросания предметов.  
+
+Метод принимает Vector3, где ось Z — это расстояние (глубина) в единицах измерения мира (Units) от камеры до нужной точки.  
+
+- Для 2D-игр: ось Z должна быть равна расстоянию до вашей плоскости объектов (например, 0, если камера на -10), иначе координаты будут искажены.  
+- Для 3D-игр: чаще используют рейкастинг (Raycast), чтобы узнать точное расстояние до объекта под курсором.
+</Callout>
+
+<Callout>
+### `OnCollisionEnter()` [!toc]
+Это встроенный метод событий в Unity на C#, который автоматически срабатывает в момент, когда объект начинает соприкасаться (сталкиваться) с другим физическим объектом.
+- Условия работы: Хотя бы у одного из двух сталкивающихся объектов должен быть компонент Rigidbody (твердое тело), и оба объекта должны иметь Collider (коллайдер) с отключенной галочкой Is Trigger.
+- Один вызов: Метод срабатывает ровно один раз в кадре, когда происходит первоначальный контакт.
+- Аргумент Collision: Метод принимает параметр (например, Collision collision), который хранит данные о столкновении: точку соприкосновения, силу удара и информацию о другом объекте.
+</Callout>
+
+<Callout type='error'>
+### Ошибка [!toc]
+
+*InvalidOperationException: You are trying to read Input using the UnityEngine.Input class, but you have switched active Input handling to Input System package in Player Settings. UnityEngine.Input.get_mousePosition () (at `<98d790dd21cd450e86ad05334e7b44ab>:0) Basket.Update () (at Assets/Basket.cs:17)`*  
+
+Для исправления этой ошибки необходимо заменить устаревший код Input.mousePosition на новый синтаксис системы ввода в вашем скрипте Basket.cs или включить обе системы ввода в настройках Unity Player.  
+
+Ошибка возникает из-за того, что ваш проект настроен на использование более нового пакета Input System, но строка 17 в файле Basket.cs по-прежнему пытается использовать старый, устаревший класс UnityEngine.Input.  
+
+**Вариант решения:**  
+
+- добавить в шапку `using UnityEngine.InputSystem;`
+- заменить `Vector3 mousePos2D = Input.mousePosition;`  на   
+`Vector3 mousePos2D = Mouse.current.position.ReadValue();`
+</Callout>
+
+## Скрипт ScoreCounter 
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI; // Позволяет этому скрипту работать с классом Text
+
+public class ScoreCounter : MonoBehaviour {
+    [Header("Dynamic")] // Этот динамический заголовок появится в инспекторе, указывая на то, что поле score изменяется во время игры (в отличие от публичных полей Inscribed, которые не изменяются при запущенной игре)
+    public int score = 0;
+    private Text uiText; // Частное поле Text uiText используется для хранения ссылки на компонент Text в этом GameObject ScoreCounter
+
+    void Start() {
+        uiText = GetComponent<Text>(); // GetComponent<Text>() ищет компонент Text в GameObject, к которому прикреплен скрипт ScoreCounter, а затем присваивает этот компонент Text uiText.GetComponent()
+    }
+
+    void Update() {
+        uiText.text = score.ToString( "#,0" );
+        // Каждый кадр вызывается Update(), и uiText.text (текст, отображаемый на GameObject ScoreCounter) 
+        // устанавливается в строковое представление целого числа score. 
+        // Метод ToString() с аргументом score.ToString("#,0") возвращает строковое представление значения score, 
+        // а параметр "#,0" указывает ToString() форматировать строку как целое число с запятыми,
+        // разделяющими каждые три цифры (например, 1,000,000), и отображать ноль, если значение равно нулю 
+        // ("#,#" не отобразило бы ничего, если бы значение было нулевым в формате ).
+    }
+}
+```
