@@ -240,6 +240,7 @@ public class Basket : MonoBehaviour {
             Destroy( collidedWith ); //Если collidedWith является яблоком, оно уничтожается. Теперь, если яблоко ударит по этой корзине, оно будет уничтожено
              
             scoreCounter.score += 100; // Увеличение счёта и присвоение значения обратно scoreCounter.score
+            HighScore.TRY_SET_HIGH_SCORE( scoreCounter.score );
         }
     }
 }
@@ -312,3 +313,70 @@ public class ScoreCounter : MonoBehaviour {
     }
 }
 ```
+
+## Скрипт HighScore
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI; // Эта строка необходима для корректной работы графического интерфейса пользователя (uGUI)
+
+public class HighScore : MonoBehaviour {
+    // static - становится общим для всех экземпляров класса HighScore
+    // private - скрывает переменную от других классов (в случае неожиданного поведения можно будет сразу понять в каком классе искать проблему)
+    static private Text _UI_TEXT;  
+    static private int _SCORE = 1000; // Является поле-подложкой для свойства SCORE. Большинству свойств требуется private поле-подложка для хранения значения, которое они оборачивают
+
+    private Text txtCom; // txtCom — это ссылка на текстовый компонент этого модуля GO.
+
+    void Awake() { // Вызывается сразу же при первом создании экземпляра класса HighScore
+        _UI_TEXT = GetComponent<Text>(); // Text этого экземпляра HighScore присваивается статическому частному полю _UI_TEXT
+        // Если таблица рекордов PlayerPrefs уже существует, прочтите её
+        if (PlayerPrefs.HasKey("HighScore")) { // PlayerPrefs - это словарь значений, на которые ссылаются через строковые ключи
+            SCORE = PlayerPrefs.GetInt("HighScore");
+        }
+        // Присвойте наивысший балл HighScore
+        PlayerPrefs.SetInt("HighScore", SCORE); // Эта строка присваивает текущее значение HighScore.SCORE ключу HighScore в PlayerPrefs. Если HighScore в PlayerPrefs уже существует, это перезапишет значение обратно в PlayerPrefs;
+    }
+
+    static public int SCORE { // Доступно для просмотра любому классу. Любой другой скрипт может прочитать значение _SCORE, просто введя HighScore.SCORE
+        get { return _SCORE; }
+        private set { // Хотя любой класс может получить значение SCORE, только класс HighScore может его установить (потому и private)
+            _SCORE = value; // value - это специальная переменная, которая хранит число, переданное в SCORE
+            PlayerPrefs.SetInt("HighScore", value); // Теперь при каждом вызове оператора set для SCORE также устанавливается значение HighScore в PlayerPrefs
+            if ( _UI_TEXT != null ) { // Прежде чем пытаться установить значение _UI_TEXT.text, нам следует дважды проверить, чтобы убедиться, что _UI_TEXT не равен null
+                _UI_TEXT.text = "High Score: " + value.ToString( "#,0" );
+            }
+        }
+    }
+
+    static public void TRY_SET_HIGH_SCORE( int scoreToTry ) {
+        if ( scoreToTry <= SCORE ) return;
+        SCORE = scoreToTry;
+    }
+    // Поскольку поле _SCORE является закрытым (private), другим скриптам необходим способ 
+    // попытаться установить новый рекорд. Статический открытый (public) метод 
+    // TRY_SET_HIGH_SCORE() позволяет любому скрипту передать значение счета в HighScore
+    // (например, вызвав HighScore.TRY_SET_HIGH_SCORE(100)). 
+    // Переданный параметр scoreToTry сравнивается с текущим значением SCORE, 
+    // и если он больше, то SCORE присваивается значение scoreToTry. Это защищает HighScore 
+    // от установки более низкого значения другим скриптом.
+
+    // Следующий код позволяет легко сбросить рекорд игрока в PlayerPrefs
+    [Tooltip( "Check this box to reset the HighScore in PlayerPrefs" )]
+    public bool resetHighScoreNow = false; // В Инспекторе появится общедоступный флажок типа bool с именем resetHighScoreNow
+    void OnDrawGizmos() { // Вызывается редактором Unity практически каждый раз, когда GameObject отображается на экране, редактор постоянно вызывает метод OnDrawGizmos()
+        if ( resetHighScoreNow ) {
+            resetHighScoreNow = false;
+            PlayerPrefs.SetInt( "HighScore", 1000 );
+            Debug.LogWarning( "PlayerPrefs HighScore reset to 1,000." );
+        }
+    }
+}
+```
+
+<Callout>
+### `Awake()` [!toc]
+Встроенный метод Unity (подобно `Start()` или `Update()`), который вызывается сразу же при первом создании экземпляра класса HighScore (поэтому `Awake()` всегда выполняется до `Start()`). Я часто использую метод `Awake()`, чтобы присвоить ссылки на компоненты GameObject, такие как `_UI_TEXT`, до того, как произойдет что-либо другое, в том числе до вызова `Start()` в любых других скриптах!
+</Callout>

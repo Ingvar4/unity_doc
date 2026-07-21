@@ -23,16 +23,15 @@ public class HighScore : MonoBehaviour {
     static private Text _UI_TEXT; // a
     static private int _SCORE = 1000; // b
 
-    private Text txtCom; // txtCom is a reference to this GO’s Text
-    component
+    private Text txtCom; // txtCom is a reference to this GO’s Text component
 
-    void Awake () { // c
+    void Awake() { // c
         _UI_TEXT = GetComponent<Text>(); // d
     }
 
     static public int SCORE { // e
         get { return _SCORE; }
-            private set { // f
+        private set { // f
             _SCORE = value;
             if ( _UI_TEXT != null ) { // g
                 _UI_TEXT.text = "High Score: " + value.ToString( "#,0" );
@@ -41,13 +40,11 @@ public class HighScore : MonoBehaviour {
     }
 
     static public void TRY_SET_HIGH_SCORE( int scoreToTry ) { // h
-        if ( scoreToTry <= SCORE ) return; // If scoreToTry is too low,
-        return
+        if ( scoreToTry <= SCORE ) return; // If scoreToTry is too low, return
         SCORE = scoreToTry;
     }
 
-    // void Start() {…} // Please delete the unused Start() & Update()
-    methods
+    // void Start() {…} // Please delete the unused Start() & Update() methods
     // void Update() {…}
 }
 ```
@@ -55,13 +52,13 @@ public class HighScore : MonoBehaviour {
 - a. Ключевое слово static приводит к тому, что текстовый объект `_UI_TEXT`
 становится общим для всех экземпляров класса HighScore (хотя на самом деле будет
 только один экземпляр). Мы делаем это здесь для того, чтобы все методы в этом классе
-могли быть статическими, за исключением метода Awake() (см. // c). Обозначение
+могли быть статическими, за исключением метода `Awake()` (см. `// c`). Обозначение
 `_UI_TEXT` частным скрывает его от других классов, что обычно считается хорошей
 практикой, так что если `_UI_TEXT` изменится неожиданным образом, мы будем знать, что
 это произошло из-за этого класса, а не из-за чего-то в другом классе.
 - b. `static private int _SCORE` является поле-подложкой для свойства SCORE
-в // e. Большинству свойств требуется private поле-подложка для хранения
-значения, которое они оборачивают. Я подробнее расскажу об этом в // e.
+в `// e`. Большинству свойств требуется private поле-подложка для хранения
+значения, которое они оборачивают. Я подробнее расскажу об этом в `// e`.
 - c. `Awake()` - это встроенный метод Unity (подобно `Start()` или `Update()`),
 который вызывается сразу же при первом создании экземпляра класса HighScore
 (поэтому `Awake()` всегда выполняется до `Start()`). Я часто использую метод
@@ -89,7 +86,7 @@ value будет равна 100 на время выполнения опера�
 скрипта, устанавливающего SCORE, и вывела бы красную ошибку в консоль Unity. Если
 `_UI_TEXT` не равен `null`, следующая строка использует тот же формат
 ToString("#,0"), который мы видели в листинге кода для отображения SCORE в текстовом поле `_UI_TEXT`.
-- h. Поскольку поле SCORE является закрытым (private), другим скриптам необходим способ попытаться установить новый рекорд. Статический открытый (public) метод `TRY_SET_HIGH_SCORE()` позволяет любому скрипту передать значение счета в HighScore (например, вызвав HighScore.TRY_SET_HIGH_SCORE(100)). Переданный параметр `scoreToTry` сравнивается с текущим значением SCORE, и если он больше, то SCORE присваивается значение `scoreToTry`. Это защищает HighScore от установки более низкого значения другим скриптом.  
+- h. Поскольку поле _SCORE является закрытым (private), другим скриптам необходим способ попытаться установить новый рекорд. Статический открытый (public) метод `TRY_SET_HIGH_SCORE()` позволяет любому скрипту передать значение счета в HighScore (например, вызвав HighScore.TRY_SET_HIGH_SCORE(100)). Переданный параметр `scoreToTry` сравнивается с текущим значением SCORE, и если он больше, то SCORE присваивается значение `scoreToTry`. Это защищает HighScore от установки более низкого значения другим скриптом.  
 
 Одно из преимуществ использования свойства SCORE для установки значения
 `_UI_TEXT.text` заключается в том, что это происходит только при установке нового
