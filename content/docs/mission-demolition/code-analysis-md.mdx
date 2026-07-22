@@ -14,6 +14,7 @@ public class Slingshot : MonoBehaviour {
     [Header("Inscribed")] 
     public GameObject projectilePrefab;
     public float velocityMult = 10f; 
+    public GameObject projLinePrefab; // Это поле (переменная) позволяет нам задать префаб для projectileLine
     
     [Header("Dynamic")] 
     public GameObject launchPoint;
@@ -71,11 +72,26 @@ public class Slingshot : MonoBehaviour {
             projRB.isKinematic = false; // Установка isKinematic обратно в false позволяет снаряду теперь лететь в воздухе на основе физической симуляции
             projRB.collisionDetectionMode = CollisionDetectionMode.Continuous; // Устанавливаем режим обнаружения столкновений (Collision Detection Mode) в continuous
             projRB.velocity = -mouseDelta * velocityMult;
+
+            // Переключив вид на Slingshot непосредственно перед установкой FollowCam.POI в следующей строке, мы гарантируем...
+            FollowCam.SWITCH_VIEW( FollowCam.eView.slingshot ); // что поле nextView в FollowCam будет установлено в eView.castle
+
+            FollowCam.POI = projectile; // Устанавливает POI для _MainCamera
+
+            // Добавление ProjectileLine к Projectile
+            Instantiate<GameObject>(projLinePrefab, projectile.transform); // Эта перегрузка метода Instantiate<>() принимает трансформацию родителя в качестве второго параметра, поэтому экземпляр projLinePrefab будет создан как дочерний элемент projectile, избавляя нас от необходимости задавать родитель в отдельной команде
+
             projectile = null; // Установка поля projectile обратно в null разрывает связь между
             // этим экземпляром скрипта Slingshot и GameObject снаряда. Это хорошая задача 
             // по очистке. Если бы мы не разорвали эту связь, а позже код уничтожил этот 
             // снаряд, то оставшаяся ссылка на него помешала бы повторному использованию 
             // памяти компьютера, занимаемой снарядом, для других целей
+            MissionDemolition.SHOT_FIRED(); 
+            // Поскольку метод ShotFired() в классе MissionDemolition является статическим, 
+            // вы можете получить к нему доступ через сам класс MissionDemolition, 
+            // а не через конкретный экземпляр MissionDemolition. Когда Slingshot 
+            // вызывает MissionDemolition.SHOT_FIRED(), это приводит к увеличению 
+            // значения MissionDemolition.S.shotsTaken
         }
     }
 }
@@ -129,4 +145,505 @@ void Update() {
 }
 
 ```
+</Callout>
+
+## Скрипт FollowCam.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class FollowCam : MonoBehaviour {
+    static private FollowCam S; // Мы используем здесь частный синглтон, чтобы обеспечить возможность вызова статического публичного метода (в данном случае SWITCH_VIEW()
+    static public GameObject POI; // Статическая точка интереса, за которой должна следовать камера
+
+    public enum eView { none, slingshot, castle, both }; // Мы создаем публичный тип перечисления eView, чтобы определить различные возможные виды
+
+    [Header("Inscribed")]
+    public float easing = 0.05f; // Указывает Unity перемещать камеру примерно на 5% от ее текущего положения к положению POI при каждом FixedUpdate
+    // Установка минимальных ограничений по осям Х и Y для FollowCam, чтобы она не смещалась слишком далеко влево или вниз
+    public Vector2 minXY = Vector2.zero; // Vector2.zero - [0,0]
+    public GameObject viewBothGO; // Здесь будет храниться ссылка на GameObject ViewBoth
+
+    [Header("Dynamic")]
+    public float camZ; // Желаемое положение камеры по оси Z
+    public eView nextView = eView.slingshot; // Здесь сохраняется не текущий вид, а тот, к которому FollowCam перейдет, если игрок нажмет кнопку. Это используется, когда вызывается SwitchView() с eView.none в качестве параметра
+
+    void Awake() {
+        S = this; // Без этой строки SWITCH_VIEW() не будет работать
+        camZ = this.transform.position.z;
+    }
+
+    void FixedUpdate () {
+        // // Однострочное условное выражение не требует использования фигурных скобок
+        // if (POI == null) return; // Если POI установлено в null (по умолчанию), метод FixedUpdate() возвращается, и остальная часть кода в этом методе не выполняется
+        // Vector3 destination = POI.transform.position; // Определение положения точки интереса
+
+        Vector3 destination = Vector3.zero; // Изначально устанавливает для destination значение по умолчанию [ 0, 0, 0 ]. Таким образом, если позже ничего не изменится, камера вернется в начальную точку
+
+        if ( POI != null ) { // Проверяем, не является ли POI нулевым и имеет ли он компонент Rigidbody. Если на POI нет компонента Rigidbody, то вызов GetComponent<Rigidbody>() вернет null
+            // Если у объекта POI есть свойство Rigidbody, проверьте, находится ли он в спящем режиме
+            Rigidbody poiRigid = POI.GetComponent<Rigidbody>();
+            if ( ( poiRigid != null ) && poiRigid.IsSleeping() ) { // Rigidbody находится в состоянии «sleeping», когда он перестал двигаться, и системе PhysX больше не нужно заботиться о его симуляции. Если poiRigid.IsSleeping() равно true, то мы сбрасываем POI в null, что на следующем кадре вернет положение камеры обратно в [ 0, 0, 0 ]
+                POI = null;
+            }
+        }
+        // Поскольку состояние null у POI могло измениться (и поскольку позже нам понадобятся 
+        // POI, не имеющие компонентов Rigidbody), мы снова проверяем, является ли POI null, 
+        // и если нет, то устанавливаем пункт назначения
+        if ( POI != null ) { // e
+            destination = POI.transform.position;
+        }
+
+        // Ограничьте минимальные значения destination.x и destination.y
+        destination.x = Mathf.Max( minXY.x, destination.x );
+        destination.y = Mathf.Max( minXY.y, destination.y );
+
+        destination = Vector3.Lerp(transform.position, destination, easing); // Интерполировать данные от текущего положения камеры в направлении пункта назначения
+        destination.z = camZ; // Чтобы камера находилась на достаточном расстоянии, принудительно установите destination.z равным camZ
+        transform.position = destination; // Наведите камеру на место назначения
+        Camera.main.orthographicSize = destination.y + 10; // Установите ортогональный размер камеры, чтобы земля оставалась в поле зрения
+    }
+
+    public void SwitchView( eView newView ) { // Основная версия SwitchView() принимает в качестве входных данных параметр eView
+        if ( newView == eView.none ) { // Если newView равно eView.none, то вместо него используется значение nextView
+            newView = nextView; // Это позволит переключаться между тремя видами одним и тем же нажатием кнопки
+        }
+        switch ( newView ) { // Здесь обрабатывается каждый возможный newView, при этом POI переключается между ними, а nextView настраивается. Когда игрок фактически запускает снаряд из рогатки, класс Slingshot устанавливает POI на новый снаряд. Это не один из наших трех видов, но это сделано специально
+            case eView.slingshot:
+            POI = null;
+            nextView = eView.castle;
+            break;
+            case eView.castle:
+            POI = MissionDemolition.GET_CASTLE(); // Чтобы получить доступ к замку, нам нужна ссылка на него. У нас её нет, но у синглатона MissionDemolition она есть, поэтому мы вызовем статический публичный метод GET_CASTLE()
+            nextView = eView.both;
+            break;
+            case eView.both:
+            POI = viewBothGO;
+            nextView = eView.slingshot;
+            break;
+        }
+    }
+
+    //Эта перегрузка метода SwitchView() не принимает параметров, а затем сразу вызывает 
+    // основную версию SwitchView() с eView.none в качестве параметра. Эта перегрузка 
+    // нужна, потому что кнопки uGUI могут вызывать только методы с определенными 
+    // типами параметров, а тип eView, который мы только что написали, к ним не относится
+    public void SwitchView() {
+        SwitchView( eView.none );
+    }
+
+    //Этот статический метод public void SWITCH_VIEW() не является перегрузкой 
+    // SwitchView(), поскольку он имеет другое имя, но здесь используется аналогичным 
+    // образом. С его помощью другие классы (включая Slingshot) могут вызывать 
+    // FollowCam.SWITCH_VIEW() для переключения вида по мере необходимости
+    static public void SWITCH_VIEW( eView newView ) { // j
+        S.SwitchView( newView );
+    }
+}
+```
+
+<Callout>
+### `Vector3.Lerp()` [!toc]
+Использует линейную интерполяцию для нахождения точки между двумя переданными объектами Vector3, возвращая средневзвешенное значение этих двух значений. Если значение `easing` равно `0`, `Lerp()` возвращает первую точку (`transform.position`); если `easing` равно `1`, `Lerp()` возвращает вторую точку (`destination`). Если `easing` имеет любое значение от `0` до `1`, `Lerp()` возвращает точку между ними (при `easing` равном `0.5` возвращается средняя точка, расположенная на полпути между ними). Установка `easing = 0.05f` указывает Unity перемещать камеру примерно на 5% от ее текущего положения к положению `POI` при каждом `FixedUpdate` (т. е. при каждом обновлении физического движка, которое происходит 50 раз в секунду). Поскольку `POI` постоянно движется, это обеспечивает плавное следование камеры.
+</Callout>
+
+## Скрипт CloudCover.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class CloudCover : MonoBehaviour {
+
+    [Header( "Inscribed" )]
+    public Sprite[] cloudSprites;
+    public int numClouds = 40; 
+    public Vector3 minPos = new Vector3( -20, -5, -5 );
+    public Vector3 maxPos = new Vector3( 300, 40, 5 );
+
+    [Tooltip("For scaleRange, x is the min value, and y is the max value.")]
+    public Vector2 scaleRange = new Vector2( 1, 4 ); // Передаёт 2 параметра которые в последствии становятся scaleRange.x в качестве минимального значения, а scaleRange.y - в качестве максимального
+
+    // Далее идёт пример создания GameObject с нуля, когда он по сути является пустым, без добавления копии префаба или другого GameObject
+    void Start() {
+        Transform parentTrans = this.transform;
+        GameObject cloudGO;
+        Transform cloudTrans;
+        SpriteRenderer sRend;
+        float scaleMult;
+        for ( int i = 0; i < numClouds; i++ ) {
+            // Создайте новый игровой объект (с нуля!) и получите его преобразование (Transform)
+            cloudGO = new GameObject(); 
+            cloudTrans = cloudGO.transform;
+            sRend = cloudGO.AddComponent<SpriteRenderer>(); // Это добавляет компонент типа SpriteRenderer к новому GameObject cloudGO, что позволит нам позже присвоить ему один из спрайтов облаков. Это также демонстрирует, как добавлять компоненты к GameObject с помощью кода
+
+            int spriteNum = Random.Range( 0, cloudSprites.Length ); // Random.Range() будет случайным образом выбирать из всех чисел, которые являются действительными индексами для массива cloudSprites
+            sRend.sprite = cloudSprites[spriteNum];
+
+            cloudTrans.position = RandomPos(); // выбирает случайные значения x, y и z в диапазоне между позициями Vector3 minPos и maxPos
+            cloudTrans.SetParent( parentTrans, true );
+
+            scaleMult = Random.Range( scaleRange.x, scaleRange.y );
+            cloudTrans.localScale = Vector3.one * scaleMult;
+        }
+    }
+
+    Vector3 RandomPos() { 
+        Vector3 pos = new Vector3();
+        pos.x = Random.Range( minPos.x, maxPos.x );
+        pos.y = Random.Range( minPos.y, maxPos.y );
+        pos.z = Random.Range( minPos.z, maxPos.z );
+        return pos;
+    }
+}
+```
+
+## Скрипт RigidbodySleep.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+[RequireComponent( typeof(Rigidbody) )] // Этот атрибут компилятора RequireComponent гарантирует, что любой GameObject, к которому прикреплен этот скрипт, имеет компонент Rigidbody
+
+public class RigidbodySleep : MonoBehaviour {
+    private int sleepCountdown = 4; // Это целое число будет отсчитывать количество последовательных вызовов FixedUpdates(), на время которых мы указали Rigidbody перейти в режим ожидания
+    private Rigidbody rigid;
+
+    void Awake() {
+        rigid = GetComponent<Rigidbody>(); // Поскольку вызов GetComponent<>() является ресурсоемким (т. е. неэффективным), мы не хотим выполнять его в каждом FixedUpdate. Вместо этого мы вызываем его один раз в Awake() для каждой стены, а затем кэшируем результат
+    }
+
+    void FixedUpdate() {
+        if ( sleepCountdown > 0 ) { // В каждом FixedUpdate вызывается rigid.Sleep(), а затем sleepCountdown уменьшается на единицу. Когда это произойдет четыре раза (т. е. sleepCountdown раз), процесс останавливается
+            rigid.Sleep();
+            sleepCountdown--;
+        }
+    }
+}
+// Указание Rigidbody стены перейти в режим сна заставляет его изначально предполагать, 
+// что он не должен двигаться, что поможет замкам изначально оставаться стабильными
+```
+
+## Скрипт Projectile.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+[RequireComponent( typeof(Rigidbody) )] 
+
+public class Projectile : MonoBehaviour {
+    const int LOOKBACK_COUNT = 10; // Хранит максимальную длину, которую мы хотим разрешить списку дельт
+    static List<Projectile> PROJECTILES = new List<Projectile>(); // Так же, как мы сделали с PROJ_LINES в классе ProjectileLine, этот статический список будет хранить ссылки на все снаряды в игре
+
+    [SerializeField]
+    private bool _awake = true; // Мы хотим, чтобы это свойство отображалось в инспекторе, и чтобы другие скрипты могли считывать это значение, но не хотим, чтобы другие скрипты могли его изменять
+    public bool awake {
+        get { return _awake; }
+        private set { _awake = value; }
+    }
+
+    private Vector3 prevPos;
+    // Этот закрытый список хранит историю пройденного расстояния снарядом
+    private List<float> deltas = new List<float>();
+    private Rigidbody rigid;
+
+    void Start() {
+        rigid = GetComponent<Rigidbody>();
+        awake = true;
+        prevPos = new Vector3(1000,1000,0);
+        // Мы устанавливаем начальные значения в prevPos и deltas на положение и расстояние, 
+        // удаленные от фактического положения снаряда. Это дает снаряду некоторое время, 
+        // чтобы начать движение, прежде чем начальное значение delta будет удалено из списка 
+        // deltas, на случай, если возникнут сбои в физике, из-за которых может показаться, 
+        // что снаряд не движется в первых кадрах
+        deltas.Add( 1000 );
+        PROJECTILES.Add( this ); // Здесь снаряд добавляется в PROJECTILES
+    }
+
+    void FixedUpdate() {
+        if ( rigid.isKinematic || !awake ) return; // Если Rigidbody является кинематическим (что имеет место при прицеливании) или awake становится false (что задано ниже), остальная часть FixedUpdate() не будет выполняться
+
+        Vector3 deltaV3 = transform.position - prevPos; // Мы вычисляем расстояние между текущим положением и последним положением только один раз, а затем сохраняем это расстояние в списке deltas
+        deltas.Add( deltaV3.magnitude );
+        prevPos = transform.position;
+
+        // Ограничьте время просмотра
+        // Если в списке deltas содержится больше, чем LOOKBACK_COUNT элементов, удалите 0-е значение дельты (то есть самое старое), пока не останется ровно LOOKBACK_COUNT элементов
+        while ( deltas.Count > LOOKBACK_COUNT ) {
+            deltas.RemoveAt( 0 );
+        }
+
+        // Пройдите по всем значениям дельты и найдите наибольшее из них
+        float maxDelta = 0;
+        foreach ( float f in deltas ) {
+            if ( f > maxDelta ) maxDelta = f;
+        }
+
+        // Если снаряд не переместился более чем на величину порога сна (sleepThreshold)...
+        if ( maxDelta <= Physics.sleepThreshold ) {
+            // установите параметр awake в значение false и переведите Rigidbody в спящий режим
+            awake = false;
+            rigid.Sleep();
+        }
+    }
+
+    private void OnDestroy() {
+        PROJECTILES.Remove( this ); // Вызывается для каждого GameObject и компонента при его уничтожении. Здесь этот Projectile удалит себя из PROJECTILES
+    }
+
+    static public void DESTROY_PROJECTILES() { // Проходит по всем существующим Projectiles и уничтожает их gameObjects
+        foreach ( Projectile p in PROJECTILES ) {
+            Destroy( p.gameObject );
+        }
+    }
+}
+```
+
+<Callout>
+### Public get, Private set Properties [!toc]
+В листинге кода мы определяем свойство `awake`, имеющее открытый (public) метод доступа для чтения (`get`) и закрытый (private) метод доступа для записи (`set`), что не позволяет другим скриптам изменять его значение. Это весьма распространенный шаблон проектирования, позволяющий любому классу считывать значение такого свойства, как `awake`, но не дающий возможности его изменять.  
+
+Одна из специфических для Unity проблем заключается в том, что эти свойства нельзя
+увидеть или изменить в инспекторе. Если мы хотим также взаимодействовать со
+значением `awake` в инспекторе Unity, нам нужно создать частное поле-подложку для
+этого свойства (в данном примере - `_awake`) и присвоить ему атрибут компилятора
+`[SerializeField]`, который указывает Unity показывать это значение в инспекторе (и
+позволять вам изменять его там), даже если `_awake` является частным.
+</Callout>
+
+## Скрипт ProjectileLine.cs
+
+```c#
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+[RequireComponent( typeof(LineRenderer) )]
+
+public class ProjectileLine : MonoBehaviour {
+    static List <ProjectileLine> PROJ_LINES = new List<ProjectileLine>(); // Мы используем этот список для хранения ссылки на каждый скрипт ProjectileLine
+    private const float DIM_MULT = 0.75f;
+
+    private LineRenderer _line; // Имена этих частных полей начинаются с подчеркивания, чтобы напомнить нам, что они являются частными
+    private bool _drawing = true;
+    private Projectile _projectile;
+
+    void Start() {
+        _line = GetComponent<LineRenderer>();
+        _line.positionCount = 1; // Получите ссылку на LineRenderer и присвойте ему первую позицию (т. е. точку)
+        _line.SetPosition( 0, transform.position );
+
+        _projectile = GetComponentInParent<Projectile>(); // Позволяет нам просматривать иерархию вверх от этого GameObject в поисках компонентов (в данном случае, компонента Projectile (Script) GameObject Projectile, который является родителем данного GameObject ProjectileLine)
+
+        ADD_LINE( this ); // В конце метода Start(), вызов ADD_LINE() добавит данный экземпляр ProjectileLine в список PROJ_LINES
+    }
+
+    void FixedUpdate() {
+        if ( _drawing ) {
+            // В каждом кадре, в котором существует этот ProjectileLine, 
+            // он увеличивает positionCount LineRenderer (т. е. количество точек в линии) 
+            // и добавляет текущее положение этого трансформатора в мире к линии. 
+            // Это заставит ProjectileLine следовать за Projectile во время его полета
+            _line.positionCount++;
+            _line.SetPosition( _line.positionCount - 1, transform.position );
+            // Если объект Projectile Rigidbody находится в спящем режиме, отрисовка прекращается
+            if ( _projectile != null ) { // Пока projectile найден в иерархии, отрисовка продолжается
+                if ( !_projectile.awake ) { // Когда _projectile.awake станет false, отрисовка закончится
+                    _drawing = false;
+                    _projectile = null; // А так же разорвётся связь с _projectile
+                }
+            }
+        }
+    }
+
+    private void OnDestroy() {
+        // Удаление объекта ProjectileLine из PROJ_LINES, когда его GameObject будет уничтожен
+        PROJ_LINES.Remove( this );
+        // Когда вы уничтожаете GameObject, он перестает существовать, но это не приводит 
+        // к его автоматическому удалению из переменных, которые на него ссылаются. 
+        // В данном случае, если бы каждый экземпляр ProjectileLine не был удален из 
+        // PROJ_LINES, в PROJ_LINES по-прежнему существовала бы ссылка, но она не 
+        // указывала бы ни на что полезное и вызывала бы ошибку при следующем обращении к ней
+    }
+
+    static void ADD_LINE( ProjectileLine newLine ) {
+        Color col; // Переменная Color col будет использоваться много раз в следующем цикле foreach, поэтому мы объявляем ее здесь один раз, а не в каждой итерации цикла
+        // Проход по всем ProjectileLine и затемнение их
+        foreach ( ProjectileLine pl in PROJ_LINES ) {
+            col = pl._line.startColor;
+            col = col * DIM_MULT;
+            pl._line.startColor = pl._line.endColor = col; // Это допустимый способ выполнения нескольких присваиваний одного и того же значения. Объект LineRenderer имеет как startColor, так и endColor, поскольку его цвет представляет собой градиент, а не отдельный цвет
+        }
+        
+        PROJ_LINES.Add( newLine ); // Наконец, newLine добавляется в PROJ_LINES
+    }
+}
+```
+
+## Скрипт Goal.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+[RequireComponent ( typeof(Renderer) )]
+
+public class Goal : MonoBehaviour {
+    static public bool goalMet = false; // Статическое поле, доступное из любого места в коде
+
+    void OnTriggerEnter( Collider other ) {
+        // Когда на  trigger что-то попадает
+        // Проверяем, является ли это Projectile
+        Projectile proj = other.GetComponent<Projectile>(); 
+        if ( proj != null ) {
+            
+            Goal.goalMet = true;
+            //Также установите для цвета более высокую прозрачность (альфа-канал)
+            Material mat = GetComponent<Renderer>().material; // Здесь мы можем получить компонент Renderer этого GameObject, не беспокоясь о том, что его может не быть, благодаря атрибуту компилятора RequireComponent в начале скрипта, который гарантирует, что компонент Renderer будет присоединен
+            Color c = mat.color;
+            c.a = 0.75f;
+            mat.color = c;
+        }
+    }
+}
+```
+
+## Скрипт MissionDemolition.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI; // Чтобы использовать любой из классов uGUI, таких как Text и Button, необходимо добавить оператор using UnityEngine.UI;
+
+public enum GameMode { // Это первый пример перечисления. Дополнительную информацию см. в блоке «Enum»
+    idle,
+    playing,
+    levelEnd
+}
+
+public class MissionDemolition : MonoBehaviour {
+    static private MissionDemolition S; // Это частный синглтон
+
+    [Header("Inscribed")]
+    public Text uitLevel; // UIText_Level Text
+    public Text uitShots; // UIText_Shots Text
+    public Vector3 castlePos; // Место для строительства замков
+    public GameObject[] castles; // Массив замков
+
+    [Header("Dynamic")]
+    public int level; // Текущий уровень
+    public int levelMax; // Число уровней
+    public int shotsTaken;
+    public GameObject castle; // Текущий замок
+    public GameMode mode = GameMode.idle;
+    public string showing = "Show Slingshot"; // FollowCam mode
+
+    void Start() {
+        S = this; // Определение Singleton 
+
+        level = 0;
+        shotsTaken = 0;
+        levelMax = castles.Length;
+        StartLevel();
+    }
+
+    void StartLevel() {
+        // Если старый замок существует, его следует снести
+        if (castle != null) {
+            Destroy( castle );
+        }
+
+        // Уничтожить старые снаряды, если они существуют 
+        Projectile.DESTROY_PROJECTILES(); 
+
+        // Создать экземпляр нового замка
+        castle = Instantiate<GameObject>( castles[level] );
+        castle.transform.position = castlePos;
+
+        // Сбросить цель
+        Goal.goalMet = false;
+
+        UpdateGUI();
+
+        mode = GameMode.playing;
+
+        FollowCam.SWITCH_VIEW( FollowCam.eView.both ); // Когда начинается новый уровень, вызывается SWITCH_VIEW(), чтобы показать и замок, и рогатку
+    }
+
+    void UpdateGUI() {
+        // Отображение данных в текстовых полях графического интерфейса
+        uitLevel.text = "Level: "+(level+1)+" of "+levelMax;
+        uitShots.text = "Shots Taken: "+shotsTaken;
+    }
+
+    void Update() {
+        UpdateGUI();
+
+        // Проверка окончания уровня
+        if ( (mode == GameMode.playing) && Goal.goalMet ) {
+            // Измените режим, чтобы прекратить проверку уровня 
+            mode = GameMode.levelEnd;
+            // Отдаление камеры, чтобы показать и рогатку и замок
+            FollowCam.SWITCH_VIEW( FollowCam.eView.both ); // SWITCH_VIEW() также вызывается в конце уровня, чтобы камера отдалилась, как только игрок достигнет цели
+            // Переход на следующий уровень за 2 секунды
+            Invoke("NextLevel", 2f); // NextLevel() вызывается через две секунды после того, как Projectile соприкасается с Goal
+        }
+    }
+
+    void NextLevel() {
+        level++;
+        if (level == levelMax) {
+            level = 0;
+            shotsTaken = 0;
+        }
+        StartLevel();
+    }
+
+    // Статический метод, позволяющий коду в любом месте увеличивать значение shotsTaken
+    static public void SHOT_FIRED() { // Это статический публичный метод, который Slingshot будет вызывать, чтобы сообщить MissionDemolition о том, что был произведен выстрел
+        S.shotsTaken++;
+    }
+
+    // Статический метод, позволяющий любому коду получить ссылку на S.castle
+    static public GameObject GET_CASTLE() { // Это статический публичный метод, который позволит другим скриптам получить ссылку на поле castle объекта Singleton S.
+        return S.castle;
+    }
+}
+```
+
+<Callout>
+### Enum [!toc]
+Enum (или перечисление) - это способ определения конкретных именованных чисел в
+C#. Определение enum в начале скрипта MissionDemolition на C# объявляет тип enum
+GameMode с тремя возможными значениями: idle, playing и levelEnd.
+После определения перечисления можно объявить переменную, использующую
+данное перечисление в качестве своего типа.  
+
+```c#
+public GameMode mode = GameMode.idle;
+```
+
+Предыдущая строка создает новую переменную с именем mode, которая имеет тип
+GameMode и имеет значение GameMode.idle.  
+
+Перечисления часто используются в коде, когда для переменной существует лишь
+несколько конкретных вариантов и вы хотите, чтобы эти варианты были легко
+читаемыми для человека. В качестве альтернативы можно передать тип режима игры в
+виде строки (например, «idle», «playing» или «levelEnd»), но перечисление - это гораздо
+более чистый способ, который не так подвержен ошибкам в написании и позволяет
+использовать автозаполнение при вводе.
+</Callout>
+
+<Callout>
+### Singleton [!toc]
+Это шаблон программирования, при котором всегда существует только один экземпляр класса, и он должен быть публичным. Здесь мы изменили синглтон MissionDemolition.S, сделав его частным. Это позволяет нам реализовывать статические публичные методы, такие как SHOT_FIRED(), которые могут вызываться любым другим классом, не позволяя при этом другим классам получать доступ к полям MissionDemolition классов
 </Callout>
