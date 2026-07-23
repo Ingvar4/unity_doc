@@ -61,3 +61,40 @@ public class Hero : MonoBehaviour {
 - Результат: Возвращает тип данных Quaternion, который понятен компоненту transform.rotation.
 - Порядок вращения: Поворот происходит в порядке: сначала по оси Z, затем по оси X и в конце по оси Y.
 </Callout>
+
+## Скрипт Shield.cs
+
+```c# title="C# Shield.cs"
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Shield : MonoBehaviour {
+    [Header("Inscribed")]
+    public float rotationsPerSecond = 0.1f;
+
+    [Header("Dynamic")]
+    public int levelShown = 0; 
+
+    // Эта переменная не будет отображаться в инспекторе
+    Material mat; // Поле Material mat не объявлено как public, поэтому оно не будет отображаться в инспекторе и к нему не будет доступа за пределами класса Shield
+
+    void Start() {
+        mat = GetComponent<Renderer>().material; // В Start() mat определяется как материал компонента Renderer на этом GameObject (т. е. компонента Renderer Shield в иерархии). Это позволяет быстро установить смещение текстуры в строке mat.mainTextureOffset
+    }
+
+    void Update() {
+        // Считываем текущий уровень щита у Hero Singleton
+        int currLevel = Mathf.FloorToInt( Hero.S.shieldLevel ); // currLevel устанавливается на целое значение текущего числа Hero.S.shieldLevel. Округление shieldLevel к меньшему значению гарантирует, что щит переместится на новое смещение по оси X, а не покажет смещение между двумя участками текстуры щита
+        // Если это отличается от levelShown...
+        if (levelShown != currLevel) {
+            levelShown = currLevel;
+            // Отрегулируйте смещение текстуры, чтобы отображать разные уровни защиты
+            mat.mainTextureOffset = new Vector2( 0.2f * levelShown, 0 ); // Настраивает смещение по оси X Mat_Shield, чтобы отобразить правильный уровень щита
+        }
+        // Поворот щита каждый кадр с задержкой по времени
+        float rZ = -(rotationsPerSecond * Time.time * 360) % 360f; // Эта строка и следующая за ней заставляют GameObject Shield медленно вращаться вокруг оси z
+        transform.rotation = Quaternion.Euler( 0, 0, rZ );
+    }
+}
+```
