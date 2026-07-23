@@ -1,0 +1,63 @@
+---
+title: Разбор всего кода SH
+description: построчный разбор
+---
+
+## Скрипт Hero.cs
+
+- Считывание значений осей ввода с помощью `Input.GetAxis()` (метод считается устаревшим)
+- Настройка перемещения объекта в зависимости от полученых значений с осей
+- Добавление Rotation объекта при его движении
+
+```c# title="C# Hero.cs"
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Hero : MonoBehaviour {
+    static public Hero S { get; private set; } // Объявляем синглтон где set приватный, что позволяет вносить в него изменения только из кода класса Hero
+
+    [Header("Inscribed")]
+    // Эти поля управляют движением корабля
+    public float speed = 30;
+    public float rollMult = -45;
+    public float pitchMult = 30;
+
+    [Header("Dynamic")] [Range(0,4)] // Атрибут [Range(0,4)] здесь добавляет ползунок в Инспектор и не позволяет нам использовать Инспектор для установки shieldLevel в значение меньше 0 или больше 4
+    public float shieldLevel = 1;
+
+    void Awake() {
+        if (S == null) {
+            S = this; // Выдает ошибку в панели Console, если вы попытаетесь установить Hero.S после того, как он уже был установлен
+        } else {
+            Debug.LogError("Hero.Awake() - Attempted to assign second Hero.S!");
+        }
+        // Это еще одна мера защиты от ошибок (например, если в одной сцене было два GameObject, 
+        // к которым были прикреплены скрипты Hero, или два компонента Hero, прикрепленных к одному GameObject)
+    }
+
+    void Update(){
+        // Получаем информацию из класса Input
+        // Эти две строки используют класс Input Unity для извлечения информации из Unity Input Manager
+        float hAxis = Input.GetAxis("Horizontal");
+        float vAxis = Input.GetAxis("Vertical");
+
+        // Изменяем transform.position в зависимости от осей
+        Vector3 pos = transform.position; // Получаем позицию объекта
+        pos.x += hAxis * speed * Time.deltaTime; // Позиции по оси Х присваиваем значение перемножения горизонтальной оси на заданную скорость и на время в секундах, которое прошло с момента показа предыдущего кадра (Time.deltaTime)
+        pos.y += vAxis * speed * Time.deltaTime; // То же самое делаем с позицией по Y
+        transform.position = pos; // Получившиеся значения присваиваем pos
+
+        // Поворот корабля (Rotate), для большей динамики
+        transform.rotation = Quaternion.Euler(vAxis * pitchMult, hAxis * rollMult, 0); //pitchMult и rollMult умножаются на vAxis и hAxis (каждый из которых находится в диапазоне от [-1..1]), чтобы наклонять корабль вперед и назад (от –30 до 30 градусов) и кренить его влево и вправо (от 45 до –45 градусов)
+    }
+}
+```
+
+<Callout>
+### `Quaternion.Euler()` [!toc]
+Это метод, который переводит привычные нам углы поворота по осям X, Y и Z (углы Эйлера) в специальный математический формат кватернионов, который движок использует для вращения объектов. Он принимает вектор Vector3 и возвращает готовый поворот.  
+- Входные данные: Принимает три числа (или Vector3) — градусы поворота по осям X (pitch), Y (yaw) и Z (roll).
+- Результат: Возвращает тип данных Quaternion, который понятен компоненту transform.rotation.
+- Порядок вращения: Поворот происходит в порядке: сначала по оси Z, затем по оси X и в конце по оси Y.
+</Callout>

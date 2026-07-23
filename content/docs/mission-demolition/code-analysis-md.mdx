@@ -5,7 +5,7 @@ description: построчный разбор
 
 ## Скрипт Slingshot.cs
 
-```c#
+```c# title="C# Slingshot.cs"
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -149,7 +149,7 @@ void Update() {
 
 ## Скрипт FollowCam.cs
 
-```c#
+```c# title="C# FollowCam.cs"
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -251,7 +251,7 @@ public class FollowCam : MonoBehaviour {
 
 ## Скрипт CloudCover.cs
 
-```c#
+```c# title="C# CloudCover.cs"
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -303,7 +303,7 @@ public class CloudCover : MonoBehaviour {
 
 ## Скрипт RigidbodySleep.cs
 
-```c#
+```c# title="C# RigidbodySleep.cs"
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -331,7 +331,7 @@ public class RigidbodySleep : MonoBehaviour {
 
 ## Скрипт Projectile.cs
 
-```c#
+```c# title="C# Projectile.cs"
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -420,7 +420,7 @@ public class Projectile : MonoBehaviour {
 
 ## Скрипт ProjectileLine.cs
 
-```c#
+```c# title="C# ProjectileLine.cs"
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -489,7 +489,7 @@ public class ProjectileLine : MonoBehaviour {
 
 ## Скрипт Goal.cs
 
-```c#
+```c# title="C# Goal.cs"
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -500,11 +500,10 @@ public class Goal : MonoBehaviour {
     static public bool goalMet = false; // Статическое поле, доступное из любого места в коде
 
     void OnTriggerEnter( Collider other ) {
-        // Когда на  trigger что-то попадает
+        // Когда на trigger что-то попадает
         // Проверяем, является ли это Projectile
         Projectile proj = other.GetComponent<Projectile>(); 
         if ( proj != null ) {
-            
             Goal.goalMet = true;
             //Также установите для цвета более высокую прозрачность (альфа-канал)
             Material mat = GetComponent<Renderer>().material; // Здесь мы можем получить компонент Renderer этого GameObject, не беспокоясь о том, что его может не быть, благодаря атрибуту компилятора RequireComponent в начале скрипта, который гарантирует, что компонент Renderer будет присоединен
@@ -518,7 +517,7 @@ public class Goal : MonoBehaviour {
 
 ## Скрипт MissionDemolition.cs
 
-```c#
+```c# title="C# MissionDemolition.cs"
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;

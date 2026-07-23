@@ -14,6 +14,7 @@
 //   type MDXProvidedComponents = ReturnType<typeof getMDXComponents>;
 // }
 import defaultMdxComponents from 'fumadocs-ui/mdx';
+import * as TabsComponents from 'fumadocs-ui/components/tabs';
 import type { MDXComponents } from 'mdx/types';
 
 function withBasePath(src?: string) {
@@ -31,6 +32,7 @@ function withBasePath(src?: string) {
 export function getMDXComponents(components?: MDXComponents) {
   return {
     ...defaultMdxComponents,
+    ...TabsComponents,
     ...components,
     img: ({ src, alt, ...props }) => (
       <img

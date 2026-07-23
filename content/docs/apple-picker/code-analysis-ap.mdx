@@ -5,7 +5,13 @@ description: построчный разбор
 
 ## Скрипт AppleTree.cs 
 
-```c#
+- Объявление группы переменных для последующей настройки поведения Apple AppleTree
+- Использование метода `Invoke()` для вызова функций через время
+- Функция создания объекта с присвоением ему местоположения 
+- Поиск местоположения объекта и присвоение ему скорости движения + изменение направления
+- Создание функции случайной смены местоположения
+
+```c# title="C# AppleTree.cs"
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine; //Подключение библиотек
@@ -87,7 +93,10 @@ Random.value в Unity C# - это статическое свойство, ко�
 
 ## Скрипт Apple.cs 
 
-```c#
+- Удаление объекта из сцены с помощью метода `Destroy()` при заданном условии
+- Пример получения ссылки на другой компонент и вызова из него функций
+
+```c# title="C# Apple.cs"
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -116,7 +125,12 @@ public class Apple : MonoBehaviour {
 
 ## Скрипт ApplePicker 
 
-```c#
+- Подключение коллекций списка к скрипту с последующей инициализацией
+- Пример цикла создания объектов из префаба с позиционированием и добавлением в список
+- Создание публичной функции по поиску объектов по тегам, добавление их в массив и удаления через `foreach` 
+- Пример сброса сцены с помощью SceneManagement при определённых условиях
+
+```c# title="C# ApplePicker.cs"
 using System.Collections;
 using System.Collections.Generic; // Библиотека для использования коллекций
 using UnityEngine;
@@ -202,7 +216,11 @@ Vector3.one  // (1,1,1)
 
 ## Скрипт Basket.cs 
 
-```c#
+- Сохранение ссылки на экземпляр другого скрипта, для последующей передачи в него данных из текущего скрипта
+- Получение текущего положение курсора мыши на экране
+- Обработка столкновений объектов с помощью `OnCollisionEnter()`
+
+```csharp title="C# Basket.cs"
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -285,9 +303,9 @@ public class Basket : MonoBehaviour {
 `Vector3 mousePos2D = Mouse.current.position.ReadValue();`
 </Callout>
 
-## Скрипт ScoreCounter 
+## Скрипт ScoreCounter.cs
 
-```c#
+```c# title="C# ScoreCounter.cs"
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -314,9 +332,9 @@ public class ScoreCounter : MonoBehaviour {
 }
 ```
 
-## Скрипт HighScore
+## Скрипт HighScore.cs
 
-```c#
+```c# title="C# HighScore.cs"
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
