@@ -98,3 +98,73 @@ public class Shield : MonoBehaviour {
     }
 }
 ```
+
+## Скрипт BoundsCheck.cs
+
+```c# title="C# BoundsCheck.cs"
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+// If you type /// in Visual Studio, it will automatically expand to a <summary>
+/// <summary>
+/// Keeps a GameObject on screen.
+/// Note that this ONLY works for an orthographic Main Camera.
+/// </summary>
+// система интерпретирует текст между тегами <summary> как краткое описание назначения класса
+public class BoundsCheck : MonoBehaviour {
+    public enum eType { center, inset, outset }; // Позволяет нам контролировать, будет ли BoundsCheck центрированным, смещенным внутрь или наружу, а общедоступный eType boundsType можно установить в Инспекторе
+
+    [Header("Inscribed")]
+    public eType boundsType = eType.center; 
+    public float radius = 1f;
+
+    [Header("Dynamic")]
+    public float camWidth; 
+    public float camHeight;
+
+    void Awake() {
+        camHeight = Camera.main.orthographicSize; // .orthographicSize возвращает значение Size из инспектора камеры (в данном случае 40). Таким образом, camHeight представляет собой расстояние от начала координат мира (позиция 0,0,0) до верхнего или нижнего края экрана в мировых координатах
+        camWidth = camHeight * Camera.main.aspect; // Camera.main.aspect - это соотношение сторон камеры по ширине/высоте, определяемое соотношением сторон панели Game, что делает aspect равным 0.75f. Умножив camHeight на .aspect, можно получить расстояние от начала координат до левого или правого края экрана
+    }
+
+    void LateUpdate () { 
+        // Нахождение значения checkRadius, которое позволит выбрать center, inset, или outset
+        float checkRadius = 0;
+        if (boundsType == eType.inset) checkRadius = -radius;
+        if (boundsType == eType.outset) checkRadius = radius;
+
+        Vector3 pos = transform.position;
+        // Ограничение положения по оси X значением camWidth
+        if (pos.x > camWidth + checkRadius) { 
+            pos.x = camWidth + checkRadius; 
+        }
+        if (pos.x < -camWidth - checkRadius) { 
+            pos.x = -camWidth - checkRadius; 
+        }
+        // Ограничение положения по оси Y значением camHeight
+        if (pos.y > camHeight + checkRadius) { 
+            pos.y = camHeight + checkRadius; 
+        }
+        if (pos.y < -camHeight - checkRadius) { 
+            pos.y = -camHeight - checkRadius; 
+        }
+        transform.position = pos;
+    }
+}
+```
+
+<Callout>
+### `LateUpdate()` [!toc]
+Вызывается в каждом кадре после того, как `Update()` был вызван для всех GameObjects. Если бы этот код находился в функции `Update()`, он мог бы выполняться либо до, либо после вызова `Update()` в скрипте Hero. Размещение этого кода в `LateUpdate()` позволяет избежать возникновения условия гонки между двумя функциями `Update()` и гарантирует, что `Hero.Update()` перемещает GameObject _Hero в новое положение в каждом кадре, прежде чем эта функция сохранит его на экране
+</Callout>
+
+<Callout>
+### Race condition [!toc]
+Cостояние гонки (race condition) - это ситуация, когда порядок выполнения двух фрагментов кода (т. е. A перед B или B перед A) имеет значение, но вы не можете контролировать этот порядок. Например, в этом коде, если `BoundsCheck.LateUpdate()` будет выполнена раньше `Hero.Update()`, GameObject _Hero потенциально может выйти за пределы границ (поскольку сначала будут ограничены границы, а затем будет перемещен корабль). Выполнение ограничения в виде `LateUpdate()` в BoundsCheck обеспечивает соблюдение порядка выполнения двух скриптов (где `Update()` всегда предшествует `LateUpdate()`), предотвращая состояние гонки.
+</Callout>
+
+<Callout type='error'>
+### ERROR [!toc]
+Чтобы не вываливалась ошибка null reference нужно в *_MainCamera* выставить тег MainCamera
+</Callout>
