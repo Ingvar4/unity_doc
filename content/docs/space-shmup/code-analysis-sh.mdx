@@ -118,8 +118,10 @@ public class BoundsCheck : MonoBehaviour {
     [Header("Inscribed")]
     public eType boundsType = eType.center; 
     public float radius = 1f;
+    public bool keepOnScreen = true; // Компонент BoundsCheck принудительно удерживает игровой объект в пределах экрана
 
     [Header("Dynamic")]
+    public bool isOnScreen = true; // принимает значение false, если игровой объект покидает пределы экрана. Точнее говоря, при типе границ outset значение isOnScreen становится false, если игровой объект выходит за край экрана на расстояние, превышающее радиус
     public float camWidth; 
     public float camHeight;
 
@@ -135,21 +137,37 @@ public class BoundsCheck : MonoBehaviour {
         if (boundsType == eType.outset) checkRadius = radius;
 
         Vector3 pos = transform.position;
+        isOnScreen = true; // Изначально присваивается значение true, пока не будет доказано обратное. Это позволяет isOnScreen снова стать true, если в предыдущем кадре объект находился за пределами экрана, а в текущем - вернулся в его границы
         // Ограничение положения по оси X значением camWidth
-        if (pos.x > camWidth + checkRadius) { 
-            pos.x = camWidth + checkRadius; 
+        if ( pos.x > camWidth + checkRadius ) {
+            pos.x = camWidth + checkRadius;
+            isOnScreen = false;
         }
-        if (pos.x < -camWidth - checkRadius) { 
-            pos.x = -camWidth - checkRadius; 
+        if ( pos.x < -camWidth - checkRadius ) {
+            pos.x = -camWidth - checkRadius;
+            isOnScreen = false;
         }
-        // Ограничение положения по оси Y значением camHeight
-        if (pos.y > camHeight + checkRadius) { 
-            pos.y = camHeight + checkRadius; 
+        if ( pos.y > camHeight + checkRadius ) {
+            pos.y = camHeight + checkRadius;
+            isOnScreen = false;
         }
-        if (pos.y < -camHeight - checkRadius) { 
-            pos.y = -camHeight - checkRadius; 
+        if ( pos.y < -camHeight - checkRadius ) {
+            pos.y = -camHeight - checkRadius;
+            isOnScreen = false;
         }
-        transform.position = pos;
+        // Если условие в любой из этих четырех инструкций if выполняется, значит, игровой объект вышел 
+        // за пределы допустимой зоны. В результате isOnScreen устанавливается в false, а переменная pos 
+        // корректируется так, чтобы вернуть объект в границы экрана
+
+        // Если keepOnScreen равен true, это означает, что вы пытаетесь удержать игровой объект в 
+        // пределах экрана. Если keepOnScreen равен true, а isOnScreen - false, значит, объект вышел 
+        // за границы и его необходимо вернуть обратно. В этом случае transform.position присваивается 
+        // обновленное значение pos (находящееся в пределах экрана), а isOnScreen устанавливается в true, 
+        // так как в результате присвоения новой позиции объект вернулся на экран
+        if ( keepOnScreen && !isOnScreen ) { 
+            transform.position = pos; 
+            isOnScreen = true;
+        }
     }
 }
 ```
