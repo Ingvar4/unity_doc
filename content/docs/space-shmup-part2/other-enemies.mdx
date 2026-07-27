@@ -26,7 +26,7 @@ Enemy_1 перемещается вниз по экрану, двигаясь и
 Enemy_0, Enemy_1 расширяет класс Enemy и наследует все его поля,
 функции и свойства, за исключением тех, что имеют модификатор доступа private.
 
-1. Откройте скрипт Enemy_1 в Visual Studio и введите код, выделенный жирным шрифтом в листинге.  
+1. Откройте скрипт Enemy_1 в Visual Studio и введите код.  
     Листинг Enemy_1.cs
 
 ```c#
@@ -63,8 +63,7 @@ public class Enemy_1 : Enemy { // Enemy_1 also extends the Enemy class // a
         float theta = Mathf.PI * 2 * age / waveFrequency;
         float sin = Mathf.Sin(theta);
         tempPos.x = x0 + waveWidth * sin;
-        pos = tempPos; // rotate a
-        bit about y
+        pos = tempPos; // rotate a bit about y
         Vector3 rot = new Vector3(0, sin *waveRotY, 0);
         this.transform.rotation = Quaternion.Euler(rot);
 
@@ -113,7 +112,7 @@ public void SpawnEnemy() {
 // Start() is called on the instantiated Enemy just before the next Update()
 ```
 
-Как видно из выделенных жирным шрифтом комментариев в листинге метода `Main.SpawnEnemy()`, метод `Awake()` вызывается для всех скриптов, прикрепленных к объекту `Enemy`, сразу после его создания (спавна), тогда как `Start()` вызывается непосредственно перед выполнением метода `Update()` в следующем кадре.  
+Метод `Awake()` вызывается для всех скриптов, прикрепленных к объекту `Enemy`, сразу после его создания (спавна), тогда как `Start()` вызывается непосредственно перед выполнением метода `Update()` в следующем кадре.  
 
 Таким образом, если бы строка `x0 = pos.x;` находилась в методе `Enemy_1.Awake()`, переменной `x0` было бы присвоено значение координаты `x` объекта `Enemy_1` в момент его создания - то есть до того, как его позиция была бы определена последующими строками метода `Main.SpawnEnemy()`. Поскольку же метод `Enemy_1.Start()` вызывается непосредственно перед обновлением в следующем кадре, выполнение `Main.SpawnEnemy()` к этому моменту уже завершается, и переменная `x0` получает именно то значение, которое нам требуется.  
 

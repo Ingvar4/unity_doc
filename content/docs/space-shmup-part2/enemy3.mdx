@@ -37,10 +37,10 @@ public class Utils : MonoBehaviour { // a
     static public Vector3 Bezier( float u, params Vector3[] points ) {// b
         // Set up the array
         Vector3[,] vArr = new Vector3[points.Length, points.Length];
-        // Fill the last row of vArr with the elements of vList
+        // Fill the last row of vArr with the elements of points
         int r = points.Length - 1;
         for ( int c = 0; c < points.Length; c++ ) {
-            vArr[r, c] = vList[c];
+            vArr[r, c] = points[c];
         }
 
         // Iterate over all remaining rows and interpolate points at each one // c
@@ -106,15 +106,13 @@ public class Enemy_3 : Enemy { // Enemy_3 also extends the Enemy class
         float xMin = -bndCheck.camWidth + bndCheck.radius;
         float xMax = bndCheck.camWidth - bndCheck.radius;
 
-        // Pick a
-        random middle position in the bottom half of the screen
+        // Pick a random middle position in the bottom half of the screen
         points[1] = Vector3.zero;
         points[1].x = Random.Range( xMin, xMax );
         float midYMult = Random.Range(midpointYRange[0], midpointYRange[1]); // a
         points[1].y = -bndCheck.camHeight * midYMult; // a
 
-        // Pick a
-        random final position above the top of the screen
+        // Pick a random final position above the top of the screen
         points[2] = Vector3.zero;
         points[2].y = pos.y;
         points[2].x = Random.Range( xMin, xMax );
@@ -140,8 +138,7 @@ public class Enemy_3 : Enemy { // Enemy_3 also extends the Enemy class
         // Interpolate the three Bezier curve points // d
         pos = Utils.Bezier( u, points );
 
-        // Enemy_3
-        does not call base.Move()
+        // Enemy_3 does not call base.Move()
     }
 
     void DrawDebug() { // e

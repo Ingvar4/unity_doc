@@ -24,7 +24,8 @@
     "scripts-unity-csharp",
     "camera-unity",
     "rigidbody-unity",
-    "movement-unity"
+    "movement-unity",
+    "interpolation"
     
   ]
 }
