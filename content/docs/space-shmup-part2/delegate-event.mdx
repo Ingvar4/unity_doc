@@ -24,7 +24,7 @@ public class Hero : MonoBehaviour {
 
     void Awake() {
         if (S == null) {
-            …S = this; // Set the Singleton
+            S = this; // Set the Singleton
         } else {
             Debug.LogError("Hero.Awake() - Attempted to assign second Hero.S!");
         }

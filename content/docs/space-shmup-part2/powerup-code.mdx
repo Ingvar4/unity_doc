@@ -28,7 +28,7 @@ description: Далее следует код PowerUp, но сначала ну�
     public float fadeTime = 4; // Then it fades over # seconds
 
     [Header("Dynamic")]
-    public eWeaponType type; // The type of the PowerUp
+    public eWeaponType _type; // The type of the PowerUp
     public GameObject cube; // Reference to the PowerCube child
     public TextMesh letter; // Reference to the TextMesh
     public Vector3 rotPerSecond; // Euler rotation speed for PowerCube
@@ -70,7 +70,7 @@ description: Далее следует код PowerUp, но сначала ну�
     // void Start() {…} // Please delete the unused Start() method
 
     void Update() {
-        cube.transform.rotation = Quaternion.Euler( rotPerSecond*Time.time ); // f
+        cube.transform.rotation = Quaternion.Euler( rotPerSecond * Time.time ); // f
 
         // Fade out the PowerUp over time
         // Given the default values, a PowerUp will exist for 10 seconds
@@ -82,7 +82,7 @@ description: Далее следует код PowerUp, но сначала ну�
             return;
         }
         // If u>0, decrease the opacity (i.e., alpha) of the PowerCube & Letter
-        if (u>0) {
+        if (u > 0) {
             Color c = cubeMat.color;
             c.a = 1f - u; // Set the alpha of PowerCube to 1-u
             cubeMat.color = c;
@@ -106,7 +106,7 @@ description: Далее следует код PowerUp, но сначала ну�
         cubeMat.color = def.powerUpColor; // Set the color of PowerCube
         //letter.color = def.color; // We could colorize the letter too
         letter.text = def.letter; // Set the letter that is shown
-        type = wt; // Finally actually set the type
+        _type = wt; // Finally actually set the type
     }
 
     /// <summary>
@@ -161,7 +161,7 @@ description: Далее следует код PowerUp, но сначала ну�
 Вам нужно дать Герою возможность собирать бонусы. Сначала вы будете просто управлять процессом сбора,
 а затем модифицируете Героя так, чтобы он мог улучшать и менять оружие в ответ на полученные бонусы.
 
-1. Внесите в C#-скрипт Hero изменения, выделенные жирным шрифтом в листинге кода, чтобы герой мог сталкиваться с бонусами (PowerUps) и подбирать их. Вы также добавите массив оружия, который вскоре будет использован.  
+1. Внесите в C#-скрипт Hero изменения, чтобы герой мог сталкиваться с бонусами (PowerUps) и подбирать их. Вы также добавите массив оружия, который вскоре будет использован.  
     Hero.cs
 
 ```c#
