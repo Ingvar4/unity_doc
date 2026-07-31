@@ -2,6 +2,8 @@
   "pages": [ 
     "getting-started-prospector",
     "importing-images-sprites",
-    "constructing-cards"
+    "constructing-cards",
+    "gathering-references",
+    "building-the-cards"
   ]
 }
