@@ -5,3 +5,430 @@ description: Теперь нам нужно вернуться к некотор
 
 Процедурное искусство создается с помощью математических правил или компьютерного программирования,
 поэтому это и есть процедурные карты.
+
+### Добавление статических полей в CardSpritesSO [!toc]
+
+Мы хотим, чтобы `CardSpritesSO` хранил всю информацию о спрайтах для карт, поэтому
+давайте добавим в `CardSpritesSO` публичный статический словарь `SUITS`, который
+упростит получение спрайта для любой масти. Вы также добавите частный синглтон `S` для
+`CardSpritesSO`, который позволит общедоступному статическому свойству `RANKS` и
+общедоступному статическому методу `GET_FACE()` получать доступ к значениям,
+которые вы задали в экземпляре `CardSprites`, не позволяя другим скриптам видеть этот синглтон
+`S`.  
+
+1. Дважды щелкните скрипт `CardSpritesSO` в папке *Assets/__Scripts* на панели Project и вставьте строки из листинга кода в конец скрипта, непосредственно перед заключительной фигурной скобкой.  
+
+        Листинг кода CardSpritesSO.cs  
+
+```c#
+public class CardSpritesSO : ScriptableObject {
+    …
+    [Header("Pip Sprites")]
+    public Sprite[] faceSprites;
+    public Sprite[] rankSprites;
+
+    private static CardSpritesSO S; // a
+    public static Dictionary<char, Sprite> SUITS { get; private set; } // b
+
+    public void Init() {
+        INIT_STATICS(this); // c
+    }
+
+    /// <summary>
+    /// Initializes the static elements of CardSpriteSO.
+    /// </summary>
+    /// <param name="cSSO">CardSpriteSO to be assigned to the Singleton S</param>
+    static void INIT_STATICS(CardSpritesSO cSSO) {
+        if (S != null) {
+            Debug.LogError("CardSpritesSO.S can't be set a 2nd time!"); // d
+            return;
+        }
+        S = cSSO; // Initialize the Singleton each time the game starts
+
+        // Initialize the _SUITS Dictionary
+        SUITS = new Dictionary<char, Sprite>() { // e
+            { 'C', S.suitClub },
+            { 'D', S.suitDiamond },
+            { 'H', S.suitHeart },
+            { 'S', S.suitSpade }
+        };
+    }
+
+    public static Sprite[] RANKS {
+        get { return S.rankSprites; }
+    }
+
+    /// <summary>
+    /// Searches S.faceSprites for the one with the right name
+    /// </summary>
+    /// <param name="name">The name to search for</param>
+    /// <returns>A face Sprite</returns>
+    public static Sprite GET_FACE(string name) {
+        foreach (Sprite spr in S.faceSprites) {
+            if (spr.name == name) return spr; // f
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// This public static property makes S.cardBack accessible to other classes
+    /// </summary>
+    public static Sprite BACK {
+        get { return S.cardBack; }
+    }
+
+    /// <summary>
+    /// Call this to reset the Singleton S to null at the end of a game
+    /// </summary>
+    public static void RESET() { // g
+        S = null;
+    }
+}
+```
+
+    - a. `S` — это частная версия статического синглатона.
+Присвоение ему статуса `private` означает, что его значения могут устанавливаться
+и считываться только экземплярами класса `CardSpriteSO`.
+    - b. `SUITS` является автоматическим свойством. Это означает, что C# автоматически создаст
+частное поле-подложку, к которому обращается свойство `SUITS`, и нам не нужно делать
+это явно. `SUITS` является публичным, но имеет определение `{ get; private set; }`,
+что означает: любой класс сможет получить значение `SUITS`, но возможность устанавливать
+значение `SUITS` доступна только классу `CardSpriteSO`.
+    - c. Непосредственно перед определением метода `INIT_STATICS()`, следующим за этой
+строкой, вы увидите особый тип комментария, который Microsoft называет XML
+Documentation, хотя большинство людей, которых я знаю, называют его JavaDoc (из-за его
+первоначального использования в языке программирования Java). Если навести курсор
+мыши на имя метода `INIT_STATICS()` в строке `// c`, вы увидите, что эта
+документация появляется в виде всплывающей подсказки. Комментарии JavaDoc —
+отличный способ помочь другим понять методы, которые вы пишете. Подробнее об этом
+можно прочитать в Приложении B в разделе «XML-документация в C#».
+    - d. Это условие `if` гарантирует, что мы не пытаемся установить синглтон
+`CardSpritesSO` `S` более одного раза (что могло бы произойти, если бы у нас было
+два экземпляра скрипта `CardSpritesSO`, прикрепленных к GameObjects в игре). Если
+`S` уже установлен до вызова `INIT_STATICS()`, это условие `if` обнаружит это,
+запишет красное сообщение об ошибке в консоль, а затем вернется, не выполняя
+остальную часть метода `INIT_STATICS()`.
+    - e. Фигурные скобки здесь определяют ключи и значения словаря `SUITS`. Это однострочная
+инициализация для `SUITS`, аналогичная однострочной инициализации для массивов, и
+это один из немногих случаев, когда после закрывающей фигурной скобки `}` требуется
+точка с запятой `;`.
+    - f. Если условие `if` содержит только одну строку между фигурными скобками, вполне
+допустимо использовать этот формат и поместить все в одну строку без фигурных скобок.
+    - g. Статический метод `RESET()` устанавливает значение частного объекта-синглатона `S`
+равным `null`. Его необходимо вызывать в любой момент до перезагрузки сцены, чтобы
+защита в `// d` не записывала ошибку в консоль при перезагрузке сцены и повторном
+вызове `Init()` (что будет происходить каждый раз, когда игра перезапускается с новой
+перетасованной колодой).
+
+### Добавление статических полей и методов в JsonParseDeck [!toc]
+
+Нам также нужно добавить несколько статических элементов в JsonParseDeck, чтобы сделать его
+более удобным при создании карт. В листинге кода вы увидите использование нескольких
+вещей, о которых мы узнали в предыдущем скрипте, включая автоматическое свойство
+(private static Singleton S), защиту от двойного присвоения значения Singleton (в
+`Awake()`) и использование комментариев JavaDoc.  
+
+1. Дважды щелкните скрипт `JsonParseDeck` в папке *Assets/__Scripts* на панели «Проект» и
+вставьте строки из листинга кода в класс `JsonParseDeck` в коде.
+
+```c#
+public class JsonParseDeck : MonoBehaviour {
+    private static JsonParseDeck S { get; set; } // Another automatic property
+
+    [Header( "Inscribed" )]
+    public TextAsset jsonDeckFile;// The JSONDeck
+
+    [Header( "Dynamic" )]
+    public JsonDeck deck;
+
+    void Awake() {
+        if (S != null) {
+            Debug.LogError("JsonParseDeck.S can't be set a 2nd time!");
+            return;
+        }
+        S = this;
+
+        deck = JsonUtility.FromJson<JsonDeck>( jsonDeckFile.text );
+    }
+
+    /// <summary>
+    /// Returns the decorator layout information for all cards.
+    /// </summary>
+    static public List<JsonPip> DECORATORS {
+        get { return S.deck.decorators; }
+    }
+
+    /// <summary>
+    /// Returns the JsonCard matching the rank passed in.
+    /// Note: The rank should be 1 (Ace) - 13 (King).
+    /// </summary>
+    /// <param name="rank">Must be an int in range 1-13</param>
+    /// <returns>JsonCard information</returns>
+    static public JsonCard GET_CARD_DEF(int rank) {
+        if ( (rank < 1) || (rank > S.deck.cards.Count) ) {
+            Debug.LogWarning("Illegal rank argument: " + rank);
+            return null;
+        }
+        return S.deck.cards[rank - 1];
+    }
+}
+```
+
+Эти статические методы `DECORATORS()` и `GET_CARD_DEF()` позволят нам легко получить
+доступ к информации, извлеченной из JSON-файла (и сохраненной в колоде JsonDeck), из
+любой другой части кода. Однако следует отметить, что нет никаких мер защиты от попыток
+вызова любого из этих статических методов до того, как будет установлен синглтон S. Если это
+произойдет, вы увидите исключение нулевой ссылки.
+
+### Создание скрипта колоды [!toc]
+
+Теперь пришло время приступить к созданию скрипта *Deck*, который в конечном итоге будет
+управлять 52 картами в нашей игре.  
+
+1. Создайте новый скрипт на C# с именем *Deck*.
+    - a. Переместите скрипт *Deck* в папку *__Scripts* на панели Project.
+    - b. Прикрепите скрипт *Deck* к объекту *_MainCamera*.
+2. Откройте скрипт *Deck* в Visual Studio и введите код.  
+
+        Листинг  Deck.cs
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+[RequireComponent( typeof(JsonParseDeck) )] // a
+public class Deck : MonoBehaviour {
+    [Header( "Inscribed" )]
+    public CardSpritesSO cardSprites;
+    public GameObject prefabCard;
+    public GameObject prefabSprite;
+    public bool startFaceUp = true;
+
+    [Header( "Dynamic" )]
+    public Transform deckAnchor;
+    public List<Card> cards;
+
+    private JsonParseDeck jsonDeck;
+
+    static public GameObject SPRITE_PREFAB { get; private set; }
+
+    void Start() {
+        InitDeck();
+    }
+
+    /// <summary>
+    /// The Prospector class will call InitDeck to set up the deck and build
+    /// all 52 card GameObjects from the jsonDeck and cardSprites information.
+    /// </summary>
+    public void InitDeck() {
+        // Create a static reference to spritePrefab for the Card class to use
+        SPRITE_PREFAB = prefabSprite;
+        // Call Init method on the CardSpriteSO instance assigned to cardSprites
+        cardSprites.Init();
+
+        // Get a reference to the JsonParseDeck component
+        jsonDeck = GetComponent<JsonParseDeck>(); // b
+
+        // Create an anchor for all the Card GameObjects in the Hierarchy
+        if ( GameObject.Find( "_Deck" ) == null ) { // c
+            GameObject anchorGO = new GameObject( "_Deck" );
+            deckAnchor = anchorGO.transform;
+        }
+
+        MakeCards();
+    }
+
+    /// <summary>
+    /// Create a GameObject for each card in the deck.
+    /// </summary>
+    void MakeCards() {
+        cards = new List<Card>();
+        Card c;
+
+        // Generate 13 cards for each suit
+        string suits = "CDHS";
+        for ( int i = 0; i < 4; i++ ) {
+            for ( int j = 1; j <= 13; j++ ) { // d
+                c = MakeCard( suits[i], j ); // e
+                cards.Add( c );
+
+                // This aligns the cards in nice rows for testing
+                c.transform.position =
+                new Vector3( ( j - 7 ) * 3, ( i - 1.5f ) * 4, 0 );
+            }
+        }
+    }
+
+    /// <summary>
+    /// Creates a card GameObject based on suit and rank.
+    /// Note that this method assumes it will be passed a valid suit and rank.
+    /// </summary>
+    /// <param name="suit">The suit of the card (e.g., 'C')</param>
+    /// <param name="rank">The rank from 1 to 13</param>
+    /// <returns></returns>
+    Card MakeCard( char suit, int rank ) {
+        GameObject go = Instantiate<GameObject>( prefabCard, deckAnchor ); // f
+
+        Card card = go.GetComponent<Card>();
+
+        //card.Init(suit, rank, startFaceUp); // g
+        return card;
+    }
+
+    // void Update() {…} // Please remove the unused Update() method
+}
+```
+
+    - a. Атрибут компилятора RequireComponent сообщает Unity, что для работы этого
+компонента Deck необходимо, чтобы к тому же GameObject был также прикреплен
+компонент JsonParseDeck. Это может дать полезные ошибки, если компонент
+JsonParseDeck отсутствует, и если вы прикрепите Deck к GameObject, у которого
+еще нет компонента JsonParseDeck, компонент JsonParseDeck будет
+прикреплен автоматически.
+    - b. Благодаря атрибуту RequireComponent, указанному выше, нам не нужно
+проверять, является ли jsonDeck нулевым после этой строки. Компонент
+JsonParseDeck является обязательным, поэтому этот вызов GetComponent всегда
+будет возвращать значение, отличное от нуля.
+    - c. Добавление всех карт на корневом уровне иерархии сделало бы её довольно
+загромождённой, поэтому вместо этого эти строки создают пустой GameObject с именем
+_Deck, который станет родительским Transform для всех карт в иерархии. Я часто называю пустые GameObjects, используемые таким образом, «якорями», поскольку они собирают и служат корнем для
+всех своих дочерних GameObjects.
+    - d. Обратите внимание, что j будет принимать значения от 1 до 13 включительно (а не от 0
+до 12), потому что я хотел, чтобы j соответствовал рангу создаваемой карты (например, я
+хотел, чтобы j имел значение 5 при создании карты 5).
+    - e. Поскольку строку можно рассматривать как упорядоченную коллекцию символов,
+мы можем использовать доступ через квадратные скобки к строке suits для
+выбора отдельных символов.
+    - f. Добавление deckAnchor в качестве опционального второго параметра к вызову
+`Instantiate<>()` приведет к инстанциированию префаба card go в качестве
+дочернего объекта deckAnchor (т. е. дочернего объекта Transform GameObject-а _Deck в
+иерархии), что более эффективно, чем инстанциировать карту без родителя, а затем
+вызывать go.transform.SetParent().
+    - g. На данный момент мы закомментировали этот вызов Init(), так как еще не написали
+метод Init() в классе Card. Однако позже мы раскомментируем его.
+
+3. Сохраните скрипт Deck и вернитесь в Unity.
+4. Выберите MainCamera в иерархии. Нам нужно присвоить ресурсы трем
+общедоступным полям, которые только что были созданы в компоненте Deck (Script),
+прикрепленном к
+_MainCamera.
+    - a. Присвойте экземпляр ScriptableObject CardSprites из панели Project полю
+поле cardSprites компонента Deck (Script) объекта _MainCamera.
+    - b. Перетащите PrefabCard из папки Prefabs панели Project в поле prefabCard.
+    - c. Перетащите PrefabSprite из папки Prefabs в поле prefabSprite.
+5. Сохраните сцену.  
+
+Если вы нажмете «Play now», скрипт Deck расположит 54 пустых карты в сетке 13x4, которая
+заполнит панель Game (именно поэтому мы установили ортогональный размер _MainCamera
+равным 15). Далее мы воспользуемся информацией из JSON_Deck, чтобы сделать это гораздо
+интереснее.
+
+### Предоставление картам информации для самостоятельного формирования [!toc]
+
+Исходя из принципа объектно-ориентированного программирования, согласно которому каждый
+объект в основном управляет сам собой, в данной игре имеет смысл, чтобы карты формировались
+самостоятельно на основе информации, содержащейся в объекте JsonParseDeck и скрипт-объекте
+CardSprites. Сначала мы убедимся, что эта информация правильно передается объекту Card, а
+затем непосредственно сформируем визуальный облик карты из различных спрайтов.  
+
+1. Дважды щелкните скрипт *Card* в папке *Assets/__Scripts* на панели Project, чтобы открыть его в
+Visual Studio.
+2. Удалите пустые методы `Start()` и `Update()`.
+3. Введите строки, показанные в листинге кода. 
+
+    Листинг Card.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Card : MonoBehaviour {
+    [Header("Dynamic")]
+    public char suit; // Suit of the Card (C,D,H, or S)
+    public int rank; // Rank of the Card (1-13)
+    public Color color = Color.black; // Color to tint pips
+    public string colS = "Black"; // or "Red". Name of the Color
+    public GameObject back; // The GameObject of the back of the card
+    public JsonCard def; // The card layout as defined in JSON_Deck.json
+
+    // This List holds all of the Decorator GameObjects
+    public List<GameObject> decoGOs = new List<GameObject>();
+    // This List holds all of the Pip GameObjects
+    public List<GameObject> pipGOs = new List<GameObject>();
+
+    /// <summary>
+    /// Creates this Card's visuals based on suit and rank.
+    /// Note that this method assumes it will be passed a valid suit and rank.
+    /// </summary>
+    /// <param name="eSuit">The suit of the card (e.g., 'C')</param>
+    /// <param name="eRank">The rank from 1 to 13</param>
+    /// <returns></returns>
+    public void Init(char eSuit, int eRank, bool startFaceUp=true) {
+        // Assign basic values to the Card
+        gameObject.name = name = eSuit.ToString() + eRank;
+        suit = eSuit;
+        rank = eRank;
+        // If this is a Diamond or Heart, change the default Black color to Red
+        if (suit == 'D' || suit == 'H') {
+            colS = "Red";
+            color = Color.red;
+        }
+
+        def = JsonParseDeck.GET_CARD_DEF(rank);
+
+        // Build the card from Sprites // a
+
+    }
+
+    /// <summary>
+    /// Shortcut for setting transform.localPosition.
+    /// </summary>
+    /// <param name="v"></param>
+    public virtual void SetLocalPos(Vector3 v) { // b
+        transform.localPosition = v;
+    }
+
+    // void Start() {…} // Don't forget to delete Start() and Update()
+    // void Update() {…}
+}
+```
+
+    - a. Вскоре вы добавите несколько строк после этой. Каждая из них будет вызовом метода,
+который создает отдельную часть каждой карты.
+    - b. Этот метод является ярлыком для установки transform.localPosition, но,
+будучи виртуальным методом, он также может быть переопределен в подклассах.
+Позже мы сможем переопределить этот метод, чтобы анимировать карты, а не просто
+перемещать их в новые позиции.  
+
+4. Теперь, когда у Card есть метод `Init()`, мы можем раскомментировать строку в
+Deck, которая вызывала `card.Init()`. Откройте скрипт Deck в Visual Studio и
+раскомментируйте строку `card.Init()` в методе MakeCard, как показано в
+листинге кода.  
+
+```c#
+public class Deck : MonoBehaviour {
+    …
+
+    Card MakeCard( char suit, int rank ) {
+        GameObject go = Instantiate<GameObject>( prefabCard, deckAnchor );
+
+        Card card = go.GetComponent<Card>();
+
+        card.Init(suit, rank, startFaceUp); // Uncomment this line!
+        return card;
+    }
+}
+```
+
+5. В строке меню Visual Studio выберите «Файл» > «Сохранить все», чтобы
+убедиться, что весь код сохранен.
+6. Вернитесь в Unity и нажмите «Play».  
+
+В иерархии вы должны увидеть объект GameObject с именем Deck, у которого в качестве
+дочерних элементов находятся все 52 (пока пустые) карты. Однако, если вы раскроете
+треугольник раскрытия для Deck и щелкните по одной из карт (например, S10), то в компоненте
+Card (Script) этой карты вы увидите, что значения def (то есть определение JsonCard), suit, rank и
+color уже заданы. Я считаю, что часто полезно дважды проверить, что данные такого рода
+успешно проходят через мой код, прежде чем я начну возиться с созданием графики, чтобы
+карты выглядели правильно.
