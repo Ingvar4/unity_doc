@@ -5,3 +5,338 @@ description: Теперь, когда у карт есть информация,
 
 Хотя ваши карты пока выглядят пустыми, на рисунке вы можете увидеть, что
 мы будем создавать на следующих нескольких страницах кода.
+
+<img src="/unity_doc/images/ex114.jpeg" alt="1" style={{  height: 'auto' }} />
+Сетка карт, которая будет создана классом Deck, когда вы закончите этот
+раздел  
+
+### Добавление декораторов к картам [!toc]
+
+Декораторами на каждой карте являются номинал и масть, отображаемые в верхнем левом и
+нижнем правом углах каждой карты.
+
+1. Дважды щелкните скрипт *Card* в папке *Assets/__Scripts* на панели «Проект» и вставьте строки из листинга кода в конец класса *Card* - после метода `SetLocalPos()`, но перед закрывающей фигурной скобкой класса.  
+
+        Листинг кода Card.cs
+
+```c#
+public class Card : MonoBehaviour {
+    …
+
+    public void Init(char eSuit, int eRank, bool startFaceUp=true) {
+        …
+        def = JsonParseDeck.GET_CARD_DEF(rank);
+
+        // Build the card from Sprites
+        AddDecorators(); // a
+    }
+    …
+
+    public virtual void SetLocalPos(Vector3 v) { … } // b
+
+    // These private variables that will be reused several times // c
+    private Sprite _tSprite = null;
+    private GameObject _tGO = null;
+    private SpriteRenderer _tSRend = null;
+    // An Euler rotation of 180° around the Z-axis will flip sprites upside down
+    private Quaternion _flipRot = Quaternion.Euler(0, 0, 180); // d
+
+    /// <summary>
+    /// Adds the decorators to the top-left and bottom-right of each card.
+    /// Decorators are the suit and rank in the corners of each card.
+    /// </summary>
+    private void AddDecorators() {
+        // Add Decorators
+        foreach (JsonPip pip in JsonParseDeck.DECORATORS) { // e
+            if (pip.type == "suit") {
+                // Instantiate a Sprite GameObject
+                _tGO = Instantiate<GameObject> (Deck.SPRITE_PREFAB,transform); // f
+                // Get the SpriteRenderer Component
+                _tSRend = _tGO.GetComponent<SpriteRenderer>();
+                // Get the suit Sprite from the CardSpritesSO.SUIT static field
+                _tSRend.sprite = CardSpritesSO.SUITS[suit];
+            } else {
+                _tGO = Instantiate<GameObject> (Deck.SPRITE_PREFAB,transform); // f
+                _tSRend = _tGO.GetComponent<SpriteRenderer>();
+                // Get the rank Sprite from the CardSpritesSO.RANK static field
+                _tSRend.sprite = CardSpritesSO.RANKS[rank];
+                // Set the color of the rank to match the suit
+                _tSRend.color = color;
+            }
+
+            // Make the Decorator Sprites render above the Card
+            _tSRend.sortingOrder = 1; // g
+            // Set the localPosition based on the location from DeckXML
+            _tGO.transform.localPosition = pip.loc;
+            // Flip the decorator if needed
+            if (pip.flip) _tGO.transform.rotation = _flipRot; // h
+            // Set the scale to keep decorators from being too big
+            if (pip.scale != 1) {
+                _tGO.transform.localScale = Vector3.one * pip.scale;
+            }
+            // Name this GameObject so it’s easy to find in the Hierarchy
+            _tGO.name = pip.type;
+            // Add this decorator GameObject to the List card.decoGOs
+            decoGOs.Add(_tGO);
+        }
+    }
+}
+```
+
+    - a. Не забудьте добавить эту строку в конец функции `Init()`, иначе функция
+`AddDecorators()` не будет вызвана.
+    - b. Пожалуйста, не удаляйте содержимое функции `SetLocalPos()`. Это сделано лишь для
+того, чтобы показать вам, где в скрипте следует добавить новый код.
+    - c. Обычно в этой книге я не особо беспокоюсь об эффективности, но эти поля будут
+повторно использоваться в этих методах так много раз, что я решил, что объявить их один
+раз как private-поля будет гораздо лучше, чем создавать и пересоздавать их как локальные
+переменные. Подчеркивание ( `_` ) в имени указывает на то, что они являются частными,
+тогда как буква t означает, что они предназначены для временного использования (в
+отличие от поля, на которое позже будут часто ссылаться). И то, и другое - просто мой
+личный стиль именования.
+
+<Callout>
+### Примечание [!toc]
+Unity, вероятно, выдаст вам в консоли желтое предупреждение о том, что
+_tSprite присвоено, но никогда не используется. Не беспокойтесь об этом.
+Предупреждения - это просто попытка Unity побудить вас к более
+качественному стилю программирования, поэтому их часто можно
+игнорировать. В данном случае код, который мы напишем в листинге будет использовать _tSprite, и предупреждение исчезнет.
+</Callout>
+
+    - d. Поле `_flipRot` здесь кэширует локальное вращение на 180°, которое переворачивает
+спрайты на карте, что позволяет нам вызывать `Quaternion.Euler()` только один раз,
+при инициализации карты. Сохранение вращения в виде кватерниона более эффективно,
+чем вызов функции `Euler()` для каждого вращения каждого перевернутого спрайта.
+    - e. Этот цикл foreach проходит по всем декораторам для каждой карты. Он использует
+статические поля, которые мы настроили в `CardSpritesSO`, чтобы присвоить
+правильные спрайты каждому декоратору.
+    - f. Так же, как мы делали в строке `// f` листинга кода, здесь мы добавляем объект
+Transform в качестве второго параметра вызова `Instantiate()`. Это приводит к
+созданию экземпляра _tGO PrefabSprite в качестве дочернего объекта данного
+GameObject (т. е. текущего GameObject Card), что позволяет избежать необходимости
+вызывать `_tGO.SetParent()` позже.
+    - g. Я расскажу о SortingOrder более подробно позже, но вкратце можно сказать, что Unity не
+выполняет правильную сортировку спрайтов по глубине, поэтому они могут отображаться
+в неправильном порядке. SortingOrder указывает Unity порядок, в котором следует
+рендерить спрайты в пределах одного SortingLayer. В данном случае SortingOrder спрайта
+CardFront равен 0, тогда как SortingOrder всех декоративных спрайтов равен 1, поэтому
+декоративные элементы будут отображаться поверх.
+    - h. Эта строка демонстрирует однострочное условие `if`, использующее кэшированный
+кватернион _flipRot для переворачивания спрайта декоратора, если это необходимо.  
+
+2. Сохраните скрипт Card, вернитесь в Unity и нажмите Play.  
+
+Теперь вы должны увидеть все 52 карты, разложенные по экрану, что позволит вам убедиться,
+что декораторы для каждой карты правильные и расположены в нужном месте. После того как вы
+убедитесь, что все выглядит хорошо, можете остановить воспроизведение.
+
+### Добавление номиналов на карты [!toc]
+
+Далее на очереди - символы в центре каждой карты (кроме фигурных). Вы можете увидеть три
+таких символа на трефе, показанной на рисунке.
+
+1. Откройте скрипт *Card* в Visual Studio и добавьте код из листинга в конец метода
+`Init()` и после метода `AddDecorators()`.    
+
+        Листинг кода Card.cs
+
+```c#
+public class Card : MonoBehaviour {
+    …
+    public void Init(char eSuit, int eRank, bool startFaceUp=true) {
+        …
+        // Build the card from Sprites
+        AddDecorators();
+        AddPips(); // a
+    }
+
+    …
+    private void AddDecorators() { … }
+
+    /// <summary>
+    /// Adds pips to the front of all cards from A to 10
+    /// </summary>
+    private void AddPips() {
+        int pipNum = 0;
+        // For each of the pips in the definition...
+        foreach (JsonPip pip in def.pips) { // b
+            // Instantiate a GameObject from the Deck.SPRITE_PREFAB static field
+            _tGO = Instantiate<GameObject>(Deck.SPRITE_PREFAB, transform);
+            // Set the position to that specified in the XML
+            _tGO.transform.localPosition = pip.loc;
+            // Flip it if necessary
+            if (pip.flip) _tGO.transform.rotation = _flipRot;
+            // Scale it if necessary (only for the Ace)
+            if (pip.scale != 1) {
+                _tGO.transform.localScale = Vector3.one * pip.scale;
+            }
+            // Give this GameObject a name
+            _tGO.name = "pip_"+pipNum++; // c
+            // Get the SpriteRenderer Component
+            _tSRend = _tGO.GetComponent<SpriteRenderer>();
+            // Set the Sprite to the proper suit
+            _tSRend.sprite = CardSpritesSO.SUITS[suit];
+            // sortingOrder=1 renders this pip above the Card_Front
+            _tSRend.sortingOrder = 1;
+            // Add this to the Card’s list of pips
+            pipGOs.Add(_tGO);
+        }
+    }
+}
+```
+
+    - a. Не забудьте добавить эту строку в конец `Init()`, иначе `AddPips()` не будет вызван.
+    - b. Это выполняет итерацию по всем JsonPips в списке pips, определенном в JsonCard
+на Card. Для фигурных карт (от 11 до 13) pips пуст, поэтому для этих карт этот цикл
+foreach выполняет ноль итераций.
+    - c. Здесь используется оператор пост-инкремента (т. е. ++ после имени переменной).
+pipNum инкрементируется после того, как к нему добавляется префикс «pip_», поэтому
+GameObjects pip на карте ранга 3 будут называться «pip_0», «pip_1» и «pip_2». И когда
+цикл foreach завершится, значение pipNum будет равно 3.  
+
+2. Сохраните скрипт Card, вернитесь в Unity и нажмите Play.  
+
+Теперь все карты, кроме фигурных, должны иметь свои пики. Мы почти закончили создание
+колоды!
+
+### Добавление изображений на лицевую сторону [!toc]
+
+Последний шаг в создании лицевой стороны карт - добавление изображений валетов, дам и
+королей.  
+
+1. Откройте скрипт Card в Visual Studio и добавьте код из листинга в конец метода
+`Init()` и после метода `AddPips()`.  
+
+        Листинг кода Card.cs
+
+```c#
+public class Card : MonoBehaviour {
+    …
+    public void Init(char eSuit, int eRank, bool startFaceUp = true) {
+        …
+        // Build the card from Sprites
+        AddDecorators();
+        AddPips();
+        AddFace(); // a
+    }
+    …
+
+    private void AddPips() { … }
+
+    /// <summary>
+    /// Adds the face sprite for card ranks 11 to 13
+    /// </summary>
+    private void AddFace() {
+        if ( def.face == "" )
+        return;// No need to run if this isn’t a face card
+
+        // Find a face sprite in CardSpritesSO with the right name
+        string faceName = def.face + suit; // b
+        _tSprite = CardSpritesSO.GET_FACE( faceName ); // c
+        if ( _tSprite == null ) {
+            Debug.LogError( "Face sprite " + faceName + " not found." );
+            return;
+        }
+
+        _tGO = Instantiate<GameObject>( Deck.SPRITE_PREFAB, transform ); // d
+        _tSRend = _tGO.GetComponent<SpriteRenderer>();
+        _tSRend.sprite = _tSprite;// Assign the face Sprite to _tSRend
+        _tSRend.sortingOrder = 1;// Set the sortingOrder
+        _tGO.transform.localPosition = Vector3.zero;
+        _tGO.name = faceName;
+    }
+}
+```
+
+    - a. Не забудьте добавить эту строку в конец `Init()`, иначе `AddFace()` не будет вызвана.
+    - b. Это генерирует имя спрайта лица на основе def.face (например, «FaceCard_12») и
+масти данной карты (например, «H»), чтобы получить имя спрайта лица в массиве
+faceSprites класса CardSpritesSO (например, «FaceCard_12H» для дамы
+червей).
+    - c. В этой строке используется статический метод CardSpritesSO.GET_FACE() для
+поиска нужного спрайта по имени faceName. Если спрайт не найден, в консоль
+записывается сообщение об ошибке, и метод завершает работу.
+    - d. Добавление параметра transform в качестве опционального второго параметра при
+вызове `Instantiate<>()` приведет к созданию экземпляра SpritePrefab _tGO в
+качестве дочернего объекта transform (т. е. дочернего объекта Transform данного
+GameObject), что более эффективно, чем создание экземпляра без родителя с
+последующим вызовом _tGO.transform.SetParent().  
+
+2. Сохраните скрипт Card, вернитесь в Unity и нажмите Play.  
+
+Наконец-то у нас есть полная колода карт, включая валетов, дам и королей!
+
+### Добавление оборотной стороны карт [!toc]
+
+Последний элемент, необходимый для завершения карт, - это добавление оборотной стороны.
+Это может показаться немного нелогичным, но этот спрайт оборотной стороны должен
+находиться поверх всех остальных спрайтов, чтобы он мог закрывать остальную часть карты,
+когда карта лежит лицевой стороной вниз. Поэтому, вместо того чтобы физически
+переворачивать карту (что не сработало бы в Unity 2D из-за проблем с SortingLayer, которые мы
+скоро подробно обсудим), мы просто накроем остальную часть карты спрайтом «обратной
+стороны», когда она должна лежать лицевой стороной вниз.  
+
+1. В последний раз откройте скрипт *Card* в Visual Studio и добавьте код из листинга в конец метода `Init()` и после метода `AddFace()`.  
+
+    Листинг кода Card.cs
+
+```c#
+public class Card : MonoBehaviour {
+    …
+    public void Init(char eSuit, int eRank, bool startFaceUp=true) {
+        …
+        // Build the card from Sprites
+        AddDecorators();
+        AddPips();
+        AddFace();
+        AddBack(); // a
+        faceUp = startFaceUp;
+    }
+
+    …
+    private void AddFace() { … }
+
+    /// <summary>
+    /// Property to show and hide the back of the card.
+    /// </summary>
+    public bool faceUp {
+        get { return (!back.activeSelf); } // a
+        set { back.SetActive(!value); }
+    }
+
+    /// <summary>
+    /// Adds a back to the card so that renders on top of everything else
+    /// </summary>
+    private void AddBack() {
+        _tGO = Instantiate<GameObject>( Deck.SPRITE_PREFAB, transform );
+        _tSRend = _tGO.GetComponent<SpriteRenderer>();
+        _tSRend.sprite = CardSpritesSO.BACK;
+        _tGO.transform.localPosition = Vector3.zero;
+        // 2 is a higher sortingOrder than anything else
+        _tSRend.sortingOrder = 2; // b
+        _tGO.name = "back";
+        back = _tGO;
+    }
+}
+```
+
+    - a. Не забудьте добавить эти строки в конец функции `Init()`.
+    - b. Свойство `faceUp` предоставляет этому скрипту и другим скриптам противоположное
+значение по отношению к back.activeSelf. Если спрайт back активен (т. е.
+отображается в сцене), faceUp равно false, а если спрайт back неактивен и скрыт,
+faceUp равно true.
+    - c. У спрайта back sortingOrder=2, что означает, что он отображается поверх всех других
+спрайтов карты. (У Card_Front sortingOrder=0. У всех спрайтов мастей, рангов и
+изображений лиц sortingOrder=1.)  
+
+2. Сохраните скрипт Card и вернитесь в Unity.
+3. Выберите MainCamera в иерархии и установите startFaceUp в компоненте Deck
+(Script) инспектора в false (не отмечено).
+4. Нажмите Play, и вы должны увидеть, что все карты теперь закрыты одним и тем же
+спрайтом обратной стороны.
+5. Остановите воспроизведение.
+6. Выберите MainCamera в иерархии и верните значение startFaceUp в true (отмечено).
+Вы можете нажать Play, чтобы еще раз убедиться, что все карты снова лежат лицевой
+стороной вверх.
+7. Сохраните сцену. Всегда сохраняйте сцену.

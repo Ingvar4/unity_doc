@@ -1,0 +1,79 @@
+---
+title: Перетасовка карт
+description: Теперь, когда карты можно создавать и отображать на экране, нам нужно вернуться к классу Deck, чтобы добавить возможность тасования карт.
+---
+
+1. Откройте скрипт Deck в Visual Studio и добавьте строку из листинга кода в конец метода `Start()`, а выделенный жирным шрифтом метод `Shuffle()` - в конец скрипта:  
+
+        Листинг кода Deck.cs
+
+```c#
+public class Deck : MonoBehaviour {
+    …
+    void Start() {
+        InitDeck();
+        Shuffle(ref cards); // a
+    }
+    …
+
+    Card MakeCard( char suit, int rank ) { … }
+
+    /// <summary>
+    /// Shuffle a List(Card) and return the result to the original list. // b
+    /// </summary>
+    /// <param name="refCards">As a ref, this alters on the original list</param>
+    static public void Shuffle(ref List<Card> refCards) { // a
+        // Create a temporary List to hold the new shuffle order
+        List<Card> tCards = new List<Card>();
+
+        int ndx; // This will hold the index of the card to be moved
+        // Repeat as long as there are cards in the original List
+        while (refCards.Count > 0) {
+            // Pick the index of a random card
+            ndx = Random.Range(0,refCards.Count);
+            // Add that card to the temporary List
+            tCards.Add (refCards[ndx]);
+            // And remove that card from the original List
+            refCards.RemoveAt(ndx);
+        }
+        // Replace the original List with the temporary List
+        refCards = tCards; // c
+    }
+}
+```
+
+    - a. Ключевое слово ref, которое вы видите в обеих // строках, используется для того,
+чтобы гарантировать, что `List<Card>`, передаваемый в `List<Card> refCards`,
+передается как ссылка, а не копируется в refCards. Это означает, что все, что
+происходит с refCards, на самом деле происходит и со списком, который был передан.
+Другими словами, если карты колоды передаются по ссылке, эти карты будут
+перемешаны без необходимости возврата переменной.
+    - b. Обратите внимание, что тег `<summary>` здесь содержит List(Card) вместо
+`List<Card>`. `List<Card>` является правильным, но угловые скобки используются для
+тегов в JavaDoc, поэтому любое использование < или > внутри тега `<summary>` для
+чего-либо, кроме тега, сбивает с толку Visual Studio.
+    - c. В этой строке исходный объект `List<Card>`, который был передан, заменяется
+временным объектом `List<Card> tCard`. Поскольку refCards был передан по
+ссылке, мы указываем исходной переданной переменной, что теперь она должна ссылаться
+на место в памяти, где хранится tCard, а не на то, на которое она указывала изначально.
+Таким образом, мы изменяем место в памяти, на которое указывает поле cards данной
+колоды, фактически заменяя этот объект `List<Card>` новым, перетасованным.  
+
+2. Сохраните скрипт, вернитесь в Unity и нажмите «Play».  
+
+Визуальное отображение карт в окне Scene по-прежнему упорядочено, поскольку Shuffle
+был вызван после их размещения; однако, если вы выберете MainCamera и посмотрите на
+порядок списка карт в компоненте Deck (Script), вы увидите, что они были перетасованы.  
+
+3. Выберите _ MainCamera и откройте треугольник раскрытия рядом с cards в
+компоненте Deck (Script).  
+
+Теперь вы создали все необходимое для колоды карт, которую можно использовать практически в
+любой карточной игре (за исключением джокеров). Единственное, что на данный момент является
+уникальным для Prospector в написанном вами коде, - это наличие полей cardBackGold и cardFrontGold в объекте CardSprites ScriptableObject (хотя в этой главе мы их фактически не
+будем использовать).  
+
+Далее мы приступим к разработке деталей игры Prospector. Возможно, сейчас подходящий
+момент, чтобы сделать перерыв, и, конечно же…  
+
+4. Cохраните сцену.
