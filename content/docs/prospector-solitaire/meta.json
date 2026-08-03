@@ -8,8 +8,10 @@
     "cards-from-sprites",
     "shuffling-the-cards",
     "implementing-prospector",
-
-
+    "the-prospector-class",
+    "sorting-layers",
+    "implementing-game-logic",
+    "matching-cards-from-mine",
 
     "code-analysis-ps.mdx"
   ]

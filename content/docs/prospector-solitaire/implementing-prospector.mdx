@@ -1,4 +1,327 @@
 ---
 title: Реализация Prospector в коде
-description: Как вы видели, играя в бумажный прототип в начале главы, Prospector — довольно простая игра, но при этом она очень увлекательна.
+description: Как вы видели, играя в бумажный прототип в начале главы, Prospector - довольно простая игра, но при этом она очень увлекательна.
 ---
+
+Позже мы сможем
+сделать игру еще интереснее с помощью красивой графики и доработок системы подсчета очков,
+но пока давайте просто запустим базовую версию игры.  
+
+### Анализ Mine Tableau Layout из JSON [!toc]
+
+Нам нужно реализовать в цифровой версии Prospector ту же компоновку массива для карт шахт,
+что и в бумажном прототипе, в который вы только что играли. Для этого мы снова
+воспользуемся файлом данных JSON и JsonUtility. Взгляните на файл JSON_Layout.json в папке
+папке Assets/Resources на панели Project, чтобы увидеть, как выглядит JSON для этого макета.
+Информация в этом файле включает в себя положения карт шахт, показанные на рисунке
+
+<img src="/unity_doc/images/ex115.jpeg" alt="1" style={{  height: 'auto' }} />
+Начальная компоновка табло для шахты в игре Prospector с координатами X
+и Y в скобках  
+
+Чтобы проанализировать JSON_Layout, нам снова нужно будет создать простые классы для
+хранения информации, а затем вызвать `JsonUtility.FromJson()` для фактической
+десериализации текста JSON. Вы можете увидеть отрывок из файла JSON_Layout в приведенном
+ниже отрывке из JSON_Layout.  
+
+JSON_Layout Excerpt показывает идентификаторы слотов 0 и 27, которые можно
+увидеть на рисунке
+
+```json
+{
+    "multiplier": { "x": 1.25, "y": 1.5 },
+    "slots": [
+        {
+            "id": 0, "x": -6, "y": -5, "faceUp": false, "layer": "Row0",
+            "hiddenByString": "3,4"
+        },
+    …
+        {
+            "id": 27, "x": 9, "y": -2, "faceUp": true, "layer": "Row3",
+            "hiddenByString": ""
+        }
+    ],
+    "drawPile": {
+        "x": 6, "y": 4, "layer": "Draw", "xStagger": 0.15
+    },
+    "discardPile": {
+        "x": 0, "y": 1, "layer": "Discard", "xStagger": 0
+    }
+}
+```  
+
+В листинге кода мы используем интерфейс ISerializationCallbackReceiver из
+Unity, поэтому, прежде чем продолжить, прочитайте боковую панель «Интерфейс
+ISerializationCallbackReceiver из Unity».
+
+<Callout>
+### Unity's ISerializationCallbackReceiver Interface [!toc]
+В C# интерфейс позволяет рассматривать несколько разных классов или структур как
+один и тот же тип. Сам интерфейс представляет собой простое объявление, в котором
+перечислены различные методы и свойства, которые должны присутствовать в любом
+классе или структуре, реализующих этот интерфейс. Рекомендую вам прочитать раздел
+«Интерфейсы» в главе «Концепции программирования на C# и Unity» в Приложении B
+«Полезные концепции», где вы найдете гораздо более подробное введение. В главах,
+посвященных Dungeon Delver, вы будете реализовывать собственный интерфейс
+(названный IFacingMover), но в данном случае мы используем один из множества
+интерфейсов, встроенных в Unity.  
+
+Любой класс, реализующий интерфейс Unity ISerializationCallbackReceiver9,
+будет получать вызовы от Unity всякий раз, когда класс сериализуется (т. е. преобразуется
+из необработанных данных в формат типа JSON) или десериализуется (т. е. преобразуется
+из JSON обратно в необработанные данные). Это происходит не только при вызовах,
+которые вы делаете в JsonUtility, но и каждый раз, когда Unity Inspector используется
+для просмотра или изменения значения, поскольку все данные должны быть
+сериализованы (преобразованы в JSON) для просмотра в Inspector, а затем любые
+изменения в Inspector должны быть десериализованы для сохранения фактических
+данных в ваших GameObjects и ScriptableObjects.  
+
+Интерфейс ISerializationCallbackReceiver требует включения двух методов
+в любой класс или структуру, реализующую его:
+    - Метод `OnBeforeSerialize()` вызывается Unity непосредственно перед
+сериализацией данных в классе (например, при отображении данных в инспекторе или
+при преобразовании их в файл JSON).
+    - `OnAfterDeserialize()` вызывается Unity сразу после того, как
+сериализованные данные были прочитаны в этот класс (например, при изменении
+значения в инспекторе или чтении значения из JSON).  
+
+В сочетании эти два метода позволяют манипулировать данными класса и способом их
+хранения как в сериализованном, так и в несериализованном виде.  
+
+Расположение шахты в игре Prospector требует, чтобы некоторые слоты в шахте были
+скрыты другими. Если посмотреть на рисунок, слот № 0 скрыт слотами № 3 и № 4,
+поэтому карта в слоте № 0 будет лежать лицевой стороной вниз, пока карты в слотах № 3
+и № 4 не исчезнут. Лучший способ хранить эти данные hiddenBy в объекте JsonLayoutSlot
+на C#, который мы создадим для каждого слота карты, - это `List<int> hiddenBy`. К
+сожалению, как в инспекторе Unity, так и в JSON списки довольно громоздки и неудобны,
+поэтому вместо этого мы будем хранить их в JSON (а также отображать и редактировать в
+инспекторе) в виде строки hiddenByString, где номера слотов разделены запятой,
+как показано в фрагменте JSON_Layout.  
+
+В листинге кода вы увидите, как я использую `OnAfterDeserialize()`, чтобы
+преобразовать hiddenByString в `List<int> hiddenBy`, который проще
+использовать в C#. Это не было обязательным, но позволяет мне показать вам пример
+одного из способов, которыми Unity использует интерфейсы C#. В течение последних
+нескольких лет Unity все больше переходит к использованию подобных интерфейсов,
+особенно для таких вещей, как графические пользовательские интерфейсы (это то же
+слово, но с совершенно иным значением, чем интерфейсы C#). Вы можете найти другой
+пример в разделе «Интерфейсы» Приложения B.
+</Callout>  
+
+Теперь давайте реализуем это в новом скрипте JsonParseLayout:  
+
+1. Создайте новый скрипт C# с именем JsonParseLayout и поместите его в папку *__Scripts*.
+2. В листинге кода показан весь скрипт JsonParseLayout. Новые строки, которые
+необходимо добавить.  
+
+        Листинг JsonParseLayout.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>
+/// Stores information about the Layout of the Prospector mine.
+/// </summary>
+[System.Serializable]
+public class JsonLayout {
+    public Vector2 multiplier;
+    public List<JsonLayoutSlot> slots;
+    public JsonLayoutPile drawPile, discardPile;
+}
+
+/// <summary>
+/// Stores information for each slot in the layout.
+/// Implements Unity's ISerializationCallbackReceiver Interface.
+/// </summary>
+[System.Serializable]
+public class JsonLayoutSlot : ISerializationCallbackReceiver { // a
+    public int id;
+    public int x;
+    public int y;
+    public bool faceUp;
+    public string layer;
+    public string hiddenByString; // b
+
+    [System.NonSerialized] // b
+    public List<int> hiddenBy; // b
+
+    /// <summary>
+    /// Pulls data from hiddenByString and places it into the hiddenBy List
+    /// </summary>
+    public void OnAfterDeserialize() { // c
+        hiddenBy = new List<int>();
+        if (hiddenByString.Length == 0) return;
+
+        string[] bits = hiddenByString.Split(',');
+        for (int i=0; i<bits.Length; i++) {
+            hiddenBy.Add( int.Parse(bits[i]) );
+        }
+    }
+
+    /// <summary>
+    /// Required by ISerializationCallbackReceiver, but empty in this class
+    /// </summary>
+    public void OnBeforeSerialize() {} // Note the empty braces here // d
+}
+
+/// <summary>
+/// Stores information for the draw and discard piles
+/// </summary>
+[System.Serializable]
+public class JsonLayoutPile {
+    public int x, y;
+    public string layer;
+    public float xStagger; // xStagger fans cards to the side for the draw pile
+}
+
+public class JsonParseLayout : MonoBehaviour {
+    public static JsonParseLayout S { get; private set; }
+
+    [Header("Inscribed")]
+    public TextAsset jsonLayoutFile;
+
+    [Header("Dynamic")]
+    public JsonLayout layout;
+
+    void Awake() {
+        layout = JsonUtility.FromJson<JsonLayout>(jsonLayoutFile.text);
+        S = this; // e
+    }
+
+    // void Start() {…} // Don't forget to delete Start() and Update() // f
+    // void Update() {…}
+}
+```
+
+    - a. Реализуя встроенный в Unity интерфейс ISerializationCallbackReceiver, класс
+JsonLayoutSlot сообщает Unity, что методы `OnBeforeSerialize()` и
+`OnAfterDeserialize()` должны вызываться каждый раз, когда этот класс
+сериализуется или десериализуется (соответственно). Один из примеров сериализации -
+это преобразование данных в классе в текст, который вы видите в Инспекторе, или
+наоборот. Другой пример десериализации - чтение данных из файла JSON с помощью
+JsonUtility.FromJson().
+    - b. `List<int> hiddenBy` является публичным, но имеет атрибут
+[System.NonSerialized], что означает: он существует и доступен другим классам, но
+не отображается в инспекторе и не будет включен в файл JSON при преобразовании
+данного класса в JSON.
+    - c. `OnAfterDeserialize()` вызывается Unity сразу после того, как сериализованные
+данные были прочитаны в этот класс (например, когда вы изменяете значение в Инспекторе
+или читаете данные из JSON). В данном случае мы используем его для автоматического
+создания `List<int> hiddenBy` из строки hiddenByString. Это означает, что
+данные о том, какие карты скрывают другие карты в шахте, задаются путем изменения
+hiddenByString либо в файле JSON, либо в Инспекторе, и эти данные затем
+преобразуются Unity в `List<int>` при десериализации. Это подробно объясняется в
+боковом блоке «Интерфейс ISerializationCallbackReceiver в Unity».
+    - d. Метод OnBeforeSerialize() вызывается Unity непосредственно перед
+сериализацией данных в этом классе (например, при отображении данных в Инспекторе
+или преобразовании их в файл JSON). В данном классе он ничего не делает, но требуется
+интерфейсом ISerializationCallbackReceiver, поэтому этот метод должен
+присутствовать в JsonLayoutSlot, даже если он полностью пуст.
+    - e. Обратите внимание, что JsonParseLayout не включает тот же уровень защиты для
+своего синглатона, что и другие классы в этой главе. Вы можете добавить его
+самостоятельно, если хотите.
+    - f. Зачеркнутый текст в этих строках означает, что вам следует удалить оба метода
+`Start()`, так и `Update()` из JsonParseLayout.
+
+3. Сохраните скрипт JsonParseLayout и вернитесь в Unity.
+4. Прикрепите скрипт JsonParseLayout к MainCamera в иерархии, а затем выберите
+MainCamera.
+5. Перетащите файл макета JSON_ из папки Assets/Resources панели «Проект» в поле
+поле jsonLayoutFile компонента JsonParseLayout (Script)
+MainCamera.
+6. Сохраните сцену и нажмите «Play».  
+
+Вы должны увидеть, что информация о макете из файла JSON_Layout теперь заполнила поле
+динамического макета компонента JsonParseLayout (Script) в _MainCamera. Поскольку
+публичный `List<int> hiddenBy` каждого JsonLayoutSlot имеет атрибут NonSerialized, вы
+не видите hiddenBy в инспекторе, но он там есть, и к нему могут обращаться другие классы в
+рамках Prospector.
+
+### Удаление метода Start из класса Deck [!toc]
+
+Мы использовали метод Start() в классе Deck в качестве тестового метода, чтобы убедиться,
+что все в Deck работает правильно. Теперь, когда мы убедились, что все работает, пришло время удалить метод `Start()` из Deck. Вскоре новый класс Prospector будет вызывать
+`InitDeck()` для Deck, а не Deck будет делать это самостоятельно.  
+
+1. Откройте скрипт Deck в Visual Studio и закомментируйте весь метод `Start()`, поместив /*
+перед методом и */ после него, как показано в листинге кода.  
+
+        Листинг кода Deck.cs
+```c#
+public class Deck : MonoBehaviour {
+…
+static public GameObject SPRITE_PREFAB { get; private set; }
+
+/* Use the slash-star and star-slash to comment out everything between them
+void Start() {
+InitDeck();
+Shuffle(ref cards);
+}
+*/
+…
+}
+```  
+
+2. Сохраните скрипт Deck. При нажатии кнопки «Play» в Unity теперь больше не будет
+отображаться сетка карт.  
+
+### Работа с CardProspector - подклассом Card [!toc]
+
+Прежде чем размещать карты на игровом поле, нам необходимо добавить в класс Card
+некоторые функции, специфичные для игры Prospector. Поскольку классы Card и Deck
+предполагают повторное использование в других карточных играх, мы создадим класс
+CardProspector как подкласс Card, а не будем изменять класс Card таким образом, что
+это не подойдет для других игр.  
+
+1. Создайте новый скрипт C# в папке Scripts с именем CardProspector и введите код из
+листинга.  
+
+      Листинг кода CardProspector.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+// This enum defines the variable type eCardState with four named values. // a
+public enum eCardState { drawpile, mine, target, discard }
+
+public class CardProspector : Card { // Make CardProspector extend Card // b
+    [Header("Dynamic: CardProspector")]
+    public eCardState state = eCardState.drawpile; // c
+    // The hiddenBy list stores which other cards will keep this one face down
+    public List<CardProspector> hiddenBy = new List<CardProspector>();
+    // The layoutID matches this card to the tableau JSON if it’s a tableau card
+    public int layoutID;
+    // The JsonLayoutSlot class stores information pulled in from JSON_Layout
+    public JsonLayoutSlot layoutSlot;
+
+    // void Start() {…} // Please remove the unused Start() & Update() methods
+    // void Update() {…}
+}
+```
+
+    - a. eCardState - это перечисление (enum), которое определяет тип переменной, имеющей
+лишь несколько возможных именованных значений. Тип переменной eCardState
+принимает одно из четырех значений: drawpile, mine, target или discard, что
+поможет экземплярам CardProspector отслеживать, где они должны находиться в игре. Мне
+нравится использовать строчную букву «e» в начале имен перечислений.
+    - b. Убедитесь, что вы заменили MonoBehaviour на Card в качестве суперкласса
+CardProspector. Этот шаг часто упускают, поэтому я выделил его здесь жирным шрифтом.
+    - c. Вот пример использования перечисления eCardState.  
+
+Расширения класса Card в новом классе CardProspector будут обрабатывать такие аспекты,
+как:
+    - state: четыре типа положений, которые карта может занимать в игре. Значения каждого из
+этих состояний:
+    - eCardState.drawpile: одна из стопок закрытых карт, из которых игрок может взять
+карту для замены целевой карты
+    - eCardState.mine: одна из 28 начальных карт на столе «шахта»
+    - eCardState.target: активная целевая карта, лежащая сверху стопки сброса
+    - eCardState.discard: одна из карт в стопке сброса
+    - hiddenBy и layoutID: Информация, определяющая, когда карта должна быть лицевой
+стороной вверх или вниз
+    - layoutSlot: хранилище информации о макете для данного CardProspector, которая
+изначально была извлечена из файла JSON_Layout.json

@@ -1,0 +1,211 @@
+---
+title: Сопоставление карт из колоды
+description: Чтобы карты в колоде работали, нам нужно добавить код, который проверяет, что щелкнутая карта на один номер выше или ниже целевой карты, а также обрабатывает циклическое переключение от туза к королю, чтобы король мог быть сыгран на туз или наоборот.
+---
+
+Если номиналы двух карт отличаются всего на один номер, как в этом случае, мы будем говорить, что
+эти карты соседствуют.  
+
+1. Добавьте строки из листинга кода  в метод `CARD_CLICKED()` скрипта Prospector:  
+
+Листинг кода Prospector.cs
+
+```c#
+public class Prospector : MonoBehaviour {
+    …
+    static public void CARD_CLICKED(CardProspector cp) {
+        // The reaction is determined by the state of the clicked card
+        switch (cp.state) {
+            …
+            case eCardState.mine:
+            // More to come here // a 
+            // Clicking a card in the mine will check if it’s a valid play
+            bool validMatch = true; // Initially assume that it’s valid
+
+            // If the card is face-down, it’s not valid
+            if (!cp.faceUp) validMatch = false;
+
+            // If it’s not an adjacent rank, it’s not valid
+            if (!cp.AdjacentTo(S.target)) validMatch = false; // b
+
+            if (validMatch) { // If it’s a valid card
+            S.mine.Remove(cp); // Remove it from the tableau List
+            S.MoveToTarget(cp); // Make it the target card
+            }
+            break;
+        }
+    }
+}
+``` 
+
+- a. Красная зачеркнутая строка означает, что вам следует удалить эту строку.
+- b. Метод `AdjacentTo()` подчеркнут красным в Visual Studio, потому что мы его еще не
+написали. Prospector не скомпилируется, пока вы не выполните код из листинга.  
+
+2. Откройте файл Card в Visual Studio и добавьте новый метод `AdjacentTo()` в конец класса. Этот метод может использоваться в нескольких карточных
+играх, поэтому мы добавляем его в класс Card, а не в CardProspector. Как
+подкласс Card, CardProspector унаследует этот метод.  
+
+Листинг Card.cs
+
+```c#
+public class Card : MonoBehaviour {
+    …
+
+    virtual public void OnMouseUpAsButton() { … }
+
+    /// <summary>
+    /// Return true if the two cards are adjacent in rank.
+    /// If wrap is true, Ace and King are adjacent.
+    /// </summary>
+    /// <param name="otherCard">The card to compare to</param>
+    /// <param name="wrap">If true (default) Ace and King wrap</param>
+    /// <returns>true, if the cards are adjacent</returns>
+    public bool AdjacentTo(Card otherCard, bool wrap=true) {
+        // If either card is face-down, it’s not a valid match.
+        if (!faceUp || !otherCard.faceUp) return (false);
+
+        // If the ranks are 1 apart, they are adjacent
+        if (Mathf.Abs(rank - otherCard.rank) == 1) return (true);
+
+        if (wrap) { // If wrap == true, Ace and King are treated as adjacent
+            // If one Card is Ace and the other King, they are adjacent
+            if (rank == 1 && otherCard.rank == 13) return (true);
+            if (rank == 13 && otherCard.rank == 1) return (true);
+        }
+
+        return (false); // Otherwise, return false
+    }
+}
+```  
+
+3. Сохраните все скрипты в Visual Studio и вернитесь в Unity.  
+
+Если вы нажмете «Play» в Unity, теперь вы сможете правильно разыграть верхний ряд карт,
+нажимая на любую карту, соседствующую с целевой картой (или нажимая на колоду, чтобы
+заменить целевую карту), и если вам повезет увидеть туза и короля, они будут действовать,
+находясь рядом друг с другом.  
+
+Однако, по мере игры, вы заметите, что карты, лежащие лицевой стороной вниз, никогда не
+переворачиваются лицевой стороной вверх. Именно для этого используется массив int[]
+hiddenBy, который мы создали ранее при разборе JSON_Layout. Значение hiddenBy
+каждого слота хранит идентификационные номера других слотов расположения мин, которые
+его покрывают.  
+
+Если мы создадим словарь, связывающий идентификационный номер каждого слота
+расположения мин с CardProspector, который был в него помещен, а затем установим эти
+слоты в null, когда карта в слоте будет разыграна, мы сможем проверить, следует ли
+перевернуть какую-либо карту в мине лицевой стороной вверх. Если два слота карт, скрывающих
+любую закрытую карту, равны null, то эту карту следует перевернуть лицевой стороной вверх.  
+
+Для этого необходимо добавить код в Prospector в нескольких местах.  
+
+4. Добавьте следующий выделенный жирным шрифтом код по всему скрипту Prospector. Сюда
+входит следующее (что вы можете увидеть, отмеченное от `// a` до `// e` в листинге кода):
+    - a. Новое поле `mineIdToCardDict` над `Start()`
+    - b. Инициализация `mineIdToCardDict` в `LayoutMine()`
+    - c. Добавление каждого `slot.id` и `CardProspector` в `mineIdToCardDict` в `LayoutMine()`
+    - d. Новый метод `SetMineFaceUps()` между `UpdateDrawPile()` и `CARD_CLICKED()`.
+Мы оставим статический метод `CARD_CLICKED()` внизу класса, чтобы отделить его от
+нестатических методов.
+    - e. Одно дополнение к статическому методу `CARD_CLICKED()`  
+
+Листинг кода Prospector.cs
+
+```c#
+public class Prospector : MonoBehaviour {
+    …
+    private Deck deck;
+    private JsonLayout jsonLayout;
+
+    // A Dictionary to pair mine layout IDs and actual Cards
+    private Dictionary<int, CardProspector> mineIdToCardDict; // a
+
+    void Start () { … }
+    …
+
+    void LayoutMine() {
+        …
+
+        CardProspector cp;
+
+        // Generate the Dictionary to match mine layout ID to CardProspector
+        mineIdToCardDict = new Dictionary<int, CardProspector>(); // b
+
+        // Iterate through the JsonLayoutSlots pulled from the JSON_Layout
+        foreach (JsonLayoutSlot slot in jsonLayout.slots) {
+            …
+            // Set the sorting layer of all SpriteRenderers on the Card
+            cp.SetSpriteSortingLayer(slot.layer);
+
+            mine.Add(cp); // Add this CardProspector to the List<> mine
+
+            // Add this CardProspector to the mineIDtoCardDict Dictionary
+            mineIdToCardDict.Add(slot.id, cp); // c
+        }
+    }
+    …
+
+    void UpdateDrawPile() { … }
+
+    /// <summary>
+    /// This turns cards in the Mine face-up and face-down
+    /// </summary>
+    public void SetMineFaceUps() { // d
+        CardProspector coverCP;
+        foreach (CardProspector cp in mine) {
+            bool faceUp = true; // Assume the card will be face-up
+
+            // Iterate through the covering cards by mine layout ID
+            foreach (int coverID in cp.layoutSlot.hiddenBy) {
+                coverCP = mineIdToCardDict[coverID];
+                // If the covering card is null or still in the mine...
+                if (coverCP == null || coverCP.state == eCardState.mine) {
+                    faceUp = false; // then this card is face-down
+                }
+            }
+            cp.faceUp = faceUp; // Set the value on the card
+        }
+    }
+
+    /// <summary>
+    /// Handler for any time a card in the game is clicked
+    /// </summary>
+    /// <param name="cp">The CardProspector that was clicked</param>
+    static public void CARD_CLICKED(CardProspector cp) {
+    // The reaction is determined by the state of the clicked card
+    switch (cp.state) {
+        …
+        case eCardState.mine:
+        …
+
+        if (validMatch) { // If it’s a valid card
+            S.mine.Remove(cp); // Remove it from the tableau List
+            S.MoveToTarget(cp); // Make it the target card
+
+            S.SetMineFaceUps(); // Be sure to add this line!! // e
+        }
+        break;
+        }
+    }
+}
+```  
+
+5. Сохраните все скрипты в Visual Studio, вернитесь в Unity и нажмите «Play».  
+
+Наконец-то можно сыграть полный раунд игры! (И, если вы еще этого не сделали, сейчас самое
+подходящее время сохранить сцену)  
+
+>Если что-то, похоже, не работает как следует, пожалуйста, проверьте последние изменения кода в листинге кода. Мы внесли много изменений, и легко что-то упустить.  
+
+### Резюме [!toc]
+В этой главе вы создали полный набор инструментов для карточных игр, который собирается из
+JSON-файлов, а также играбельный прототип игры «Проспектор-пасьянс».  
+
+### Следующие шаги [!toc]
+В следующей главе вы превратите этот грубый прототип в полноценную первую играбельную
+версию с подсчетом очков за несколько раундов, анимированными картами и текстом
+результатов, а также гораздо более проработанной графической тематикой.  
+
+Поскольку следующая глава начинается сразу там, где закончилась эта, в конце этой главы нет
+дополнительных заданий.

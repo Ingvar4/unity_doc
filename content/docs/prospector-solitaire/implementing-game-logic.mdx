@@ -1,0 +1,129 @@
+---
+title: Реализация игровой логики
+description: Начнем с определения возможных действий, которые могут происходить в игре-
+---
+
+- A. Карта может переместиться из колоды раздачи и стать целевой картой.
+- B. Карта в шахте, которая на одну выше или ниже по рангу, чем целевая карта, может
+переместиться из шахты и стать целевой картой (туз и король замыкают ряд, поэтому, если
+целевая карта - туз, на нее можно сыграть либо двойку, либо короля).
+- C. Если целевая карта заменяется любой другой картой, заменяемая целевая карта
+перемещается в сброс.
+- D. Если закрытая карта больше не скрыта другими картами, она переворачивается лицевой
+стороной вверх.
+- E. Игра заканчивается при выполнении одного из двух условий:
+    - Игрок выигрывает, потому что шахта пуста
+    - Игрок проигрывает, потому что колода раздачи пуста и больше нет возможных ходов  
+
+Действия A и B в списке являются активными ходами - когда игрок совершает действие, чтобы
+переместить карту - а остальные три являются пассивными действиями, которые происходят в
+результате действия A или B.
+
+### Сделаем карты кликабельными [!toc]
+
+Поскольку все действия в игре инициируются щелчком по одной из карт, теперь нам нужно
+сделать карты кликабельными.  
+
+1. Это необходимо для любой карточной игры, поэтому добавьте виртуальный метод
+`OnMouseUpAsButton()` из листинга кода в конец класса Card:  
+
+Листинг Card.cs
+
+```c#
+public class Card : MonoBehaviour {
+    …
+
+    public void SetSortingOrder(int sOrd) { … }
+
+    // Virtual methods can be overridden by subclass methods with the same name
+    virtual public void OnMouseUpAsButton() {
+        print (name); // When clicked, this outputs the card name
+    }
+}
+```  
+
+3. Сохраните скрипт Card и вернитесь в Unity.  
+
+Теперь, когда вы нажмете «Play», вы сможете щелкнуть любую карту в сцене, и она выведет свое
+имя. `OnMouseUpAsButton()` - это метод, который вызывается Unity каждый раз, когда мышь
+нажимается и отпускается над одним и тем же коллайдером. Определение метода как
+виртуального позволяет переопределять его в подклассах (т. е. мы можем создать метод
+`OnMouseUpAsButton()` в CardProspector, который будет вызываться вместо этого). Сейчас мы добавим этот переопределяющий метод в CardProspector, так как нам нужно, чтобы щелчки по картам в
+Prospector выполняли не только вывод названия карты.  
+
+4. Откройте CardProspector в Visual Studio и добавьте метод переопределения
+`OnMouseUpAsButton()`
+в конец класса CardProspector, как показано в листинге кода.  
+
+Листинг CardProspector.cs  
+
+```c#
+public class CardProspector : Card {
+    …
+    // The JsonLayoutSlot class stores information pulled in from JSON_Layout
+    public JsonLayoutSlot layoutSlot;
+
+    /// <summary>
+    /// Informs the Prospector class that this card has been clicked.
+    /// </summary>
+    override public void OnMouseUpAsButton() {
+        // Uncomment the next line to call the base class version of this method
+        // base.OnMouseUpAsButton(); // a
+        // Call the CardClicked method on the Prospector Singleton
+        Prospector.CARD_CLICKED(this); // b
+    }
+}
+```  
+
+- a. Если вы удалите комментарий из этой строки, это приведет к тому, что данный метод будет
+вызывать версию `OnMouseUpAsButton()` из базового класса (т. е. версию из класса
+Card). Если вы это сделаете, то при нажатии CardProspectors будет выводить своё имя в
+панель консоли в дополнение к вызову `Prospector.CARD_CLICKED()`. Это может быть
+полезно, если вам нужно отладить проблему, связанную с нажатием на карточки.
+- b. `CARD_CLICKED` подчеркнуто красным в Visual Studio, потому что мы его еще не
+написали. Это не позволяет скомпилировать Card, пока вы не выполните также код из
+листинга.  
+
+5. Откройте скрипт Prospector в Visual Studio и добавьте новый статический метод
+`CARD_CLICKED()`  в конец класса.  
+
+Листинг Prospector.cs
+
+```c#
+public class Prospector : MonoBehaviour {
+    …
+
+    void UpdateDrawPile() { … }
+
+    /// <summary>
+    /// Handler for any time a card in the game is clicked
+    /// </summary>
+    /// <param name="cp">The CardProspector that was clicked</param>
+    static public void CARD_CLICKED(CardProspector cp) {
+        // The reaction is determined by the state of the clicked card
+        switch (cp.state) {
+            case eCardState.target:
+            // Clicking the target card does nothing
+            break;
+            case eCardState.drawpile:
+            // Clicking *any* card in the drawPile will draw the next card
+            // Call two methods on the Prospector Singleton S
+            S.MoveToTarget( S.Draw() ); // Draw a new target card
+            S.UpdateDrawPile(); // Restack the drawPile
+            break;
+            case eCardState.mine:
+            // More to come here
+            break;
+        }
+    }
+}
+```  
+
+5. Сохраните все скрипты в Visual Studio, вернитесь в Unity и нажмите «Play».  
+
+Теперь вы можете нажать на drawPile (в правом верхнем углу экрана), чтобы раздать новую
+целевую карту. Как упомянуто в комментариях к коду, нажатие на любую карту в drawPile
+приведет к раздаче верхней карты из стопки. Затем `MoveToTarget()` делает разданную карту
+целевой, а `UpdateDrawPile()` перемещает все остальные карты из drawPile на их новые
+позиции на экране. Мы уже близки к тому, чтобы получить полноценную игру! Последний шаг в
+базовой игровой логике - это реализация работы «мин».

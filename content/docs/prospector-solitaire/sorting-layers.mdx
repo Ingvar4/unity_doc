@@ -1,0 +1,277 @@
+---
+title: Настройка слоев сортировки
+description: Чтобы настроить слой сортировки, выполните следующие действия-
+---
+
+1. В строке меню выберите *Edit > Project Settings* , а затем выберите *Tags and Layers* в списке панелей настроек в левой части окна «Настройки проекта». Вы уже
+использовали панель «Теги и слои» для физических слоев и тегов, но мы еще не
+затрагивали тему сортировочных слоев.  
+
+Вероятно, вам придется увеличить размер окна «Настройки проекта», перетащив его правый
+нижний угол вниз и вправо.  
+
+2. Раскройте треугольник раскрытия рядом с пунктом «Сортировочные слои» и введите слои,
+как показано на рисунке. Вам нужно будет нажать кнопку «+» в правом нижнем углу
+списка, чтобы добавить каждый из новых сортировочных слоев (я рекомендую нажать ее
+семь раз, а затем вводить текст, используя клавишу Tab для перехода к следующей строке).
+В этом Инспекторе нижняя строка «Цель» находится перед всеми остальными слоями.
+Убедитесь, что вы не добавляете пробелы в названия сортировочных слоев.  
+
+<img src="/unity_doc/images/ex117.jpeg" alt="1" style={{  height: 'auto' }} />
+Семь новых сортировочных слоев, необходимых для Prospector  
+
+Поскольку SpriteRenderers и сортировка по глубине необходимы для любой карточной игры,
+созданной с использованием нашего кода, код для работы с сортировкой по глубине следует
+добавить в класс Card (а не в класс CardProspector, который используется только в этой
+игре).  
+
+3. Откройте класс Card в Visual Studio и добавьте строки из
+листинга кода  в конец скрипта, после всего остального кода, но перед закрывающей
+фигурной скобкой.  
+
+      Листинг кода  Card.cs
+
+```c#
+public class Card : MonoBehaviour {
+    …
+
+    private void AddBack() { … }
+
+    private SpriteRenderer[] spriteRenderers;
+
+    /// <summary>
+    /// Gather all SpriteRenderers on this and its children into an array.
+    /// </summary>
+    void PopulateSpriteRenderers() {
+        // If we’ve already populated spriteRenderers, just return. // a
+        if (spriteRenderers != null) return;
+        // GetComponentsInChildren is slow, but we’re only doing it once per card
+        spriteRenderers = GetComponentsInChildren<SpriteRenderer>();
+    }
+
+    /// <summary>
+    /// Moves the Sprites of this Card into a specified sorting layer
+    /// </summary>
+    /// <param name="layerName">The name of the layer to move to</param>
+    public void SetSpriteSortingLayer(string layerName) {
+        PopulateSpriteRenderers();
+
+        foreach (SpriteRenderer srend in spriteRenderers) {
+            srend.sortingLayerName = layerName;
+        }
+    }
+
+    /// <summary>
+    /// Sets the sortingOrder of the Sprites on this Card. This allows multiple
+    /// Cards to be in the same sorting layer and still overlap properly, and
+    /// it is used by both the draw and discard piles.
+    /// </summary>
+    /// <param name="sOrd">The sortingOrder for the face of the Card</param>
+    public void SetSortingOrder(int sOrd) { // b
+        PopulateSpriteRenderers();
+
+        foreach (SpriteRenderer srend in spriteRenderers) {
+            if (srend.gameObject == this.gameObject) {
+                // If the gameObject is this.gameObject, it’s the card face
+                srend.sortingOrder = sOrd; // Set its order to sOrd
+            } else if (srend.gameObject.name == "back") {
+                // If it’s the back, set it to the highest layer
+                srend.sortingOrder = sOrd + 2;
+            } else {
+                // If it’s anything else, put it in between.
+                srend.sortingOrder = sOrd + 1;
+            }
+        }
+    }
+}
+```
+
+    - a. `GetComponentsInChildren<>()` - довольно ресурсоемкая операция, а мы будем
+устанавливать уровень сортировки наших карт каждый раз, когда они перемещаются из
+одной позиции в другую в игре. Чтобы оптимизировать это, мы вызываем
+`GetComponentsInChildren<>()` только один раз - при первом вызове
+PopulateSpriteRenderers() - и с этого момента spriteRenderers не равен
+null, поэтому мы возвращаемся, не вызывая `GetComponentsInChildren<>()` во
+второй раз.
+    - b. Если бы в каждом слое сортировки была только одна карта, то `SetSortingOrder()`
+имела бы тот же эффект, что и присваивание значения sprite sortingOrder в методах
+`AddDecorators()`, `AddPips()`, `AddFace()` и `AddBack()`, уже имеющихся в классе
+Card. Однако в сортировочных слоях, таких как «Draw», будет несколько карт, и если бы
+sortingOrders всех Card_Fronts были равны 0, а всех пип - 1, то пипы каждой карты
+отображались бы над Card_Fronts каждой карты. Мы будем использовать
+`SetSortingOrder()`, чтобы присвоить разные значения sortingOrder каждому спрайту
+каждой карты в одном и том же сортировочном слое, гарантируя, что карты в одном
+сортировочном слое будут отрисовываться правильно.  
+
+Далее нам нужно использовать этот новый метод внутри метода LayoutMine() класса
+Prospector.  
+
+4. Откройте скрипт Prospector и добавьте строки из листинга кода в `LayoutMine()`:  
+
+Листинг кода Prospector.cs
+
+```c#
+public class Prospector : MonoBehaviour {
+    …
+
+    void LayoutMine() {
+        …
+        foreach (JsonLayoutSlot slot in jsonLayout.slots) {
+            …
+            // CardProspectors in the mine have the state CardState.mine
+            cp.state = eCardState.mine;
+
+            // Set the sorting layer of all SpriteRenderers on the Card
+            cp.SetSpriteSortingLayer(slot.layer);
+
+            mine.Add(cp); // Add this CardProspector to the List<> mine
+        }
+    }
+}
+```
+
+5. Сохраните все скрипты, вернитесь в Unity и нажмите «Play».  
+
+Теперь вы должны увидеть, что карты накладываются друг на друга гораздо лучше, как показано
+на нижнем изображении на рисунке. Далее мы соберем оставшиеся карты в колоду розыгрыша и сделаем так, чтобы карты могли перемещаться из одного места в другое.  
+
+Размещение целевой карты, колоды розыгрыша и колоды сброса
+
+После завершения этого раздела все карты будут расложены так, как показано на рисунке.  
+
+<img src="/unity_doc/images/ex118.jpeg" alt="1" style={{  height: 'auto' }} />
+Окончательная раскладка всех карт для игры Prospector.  
+
+Чтобы это сделать, выполните следующие шаги:  
+
+1. Выберите MainCamera в иерархии и установите для параметра *Size* компонента *Camera*
+(находящегося прямо под раскрывающимся списком Projection) значение 10 (обратите внимание,
+что в коде это поле называется orthographicSize). Ранее мы устанавливали для него
+значение 15, чтобы видеть все карты, разложенные в виде сетки, но теперь пришло время
+задать правильное значение orthographicSize для самой игры.
+2. Откройте скрипт Prospector в Visual Studio и добавьте методы `MoveToDiscard()`,
+`MoveToTarget()` и `UpdateDrawPile()`, показанные в листинге кода в конец класса Prospector.  
+
+Листинг кода Prospector.cs  
+
+```c#
+public class Prospector : MonoBehaviour {
+    …
+
+    void LayoutMine() { … }
+
+    /// <summary>
+    /// Moves the current target card to the discardPile
+    /// </summary>
+    /// <param name="cp">The CardProspector to be moved</param>
+    void MoveToDiscard(CardProspector cp) {
+        // Set the state of the card to discard
+        cp.state = eCardState.discard;
+        discardPile.Add(cp); // Add it to the discardPile List<>
+        cp.transform.SetParent(layoutAnchor); // Update its transform parent
+
+        // Position it on the discardPile
+        cp.SetLocalPos(new Vector3(
+            jsonLayout.multiplier.x * jsonLayout.discardPile.x,
+            jsonLayout.multiplier.y * jsonLayout.discardPile.y,
+            0));
+
+        cp.faceUp = true;
+
+        // Place it on top of the pile for depth sorting
+        cp.SetSpriteSortingLayer(jsonLayout.discardPile.layer); // a
+        cp.SetSortingOrder(-200 + (discardPile.Count * 3) ); // b
+    }
+
+    /// <summary>
+    /// Make cp the new target card
+    /// </summary>
+    /// <param name="cp">The CardProspector to be moved</param>
+    void MoveToTarget(CardProspector cp) {
+        // If there is currently a target card, move it to discardPile
+        if (target != null) MoveToDiscard(target);
+
+        // Use MoveToDiscard to move the target card to the correct location
+        MoveToDiscard(cp); // c
+
+        // Then set a few additional things to make cp the new target
+        target = cp; // cp is the new target
+        cp.state = eCardState.target;
+
+        // Set the depth sorting so that cp is on top of the discardPile
+        cp.SetSpriteSortingLayer( "Target" ); // c
+        cp.SetSortingOrder(0);
+    }
+
+    /// <summary>
+    /// Arranges all the cards of the drawPile to show how many are left
+    /// </summary>
+    void UpdateDrawPile() {
+        CardProspector cp;
+        // Go through all the cards of the drawPile
+        for (int i = 0; i < drawPile.Count; i++) {
+            cp = drawPile[i];
+            cp.transform.SetParent(layoutAnchor);
+
+            // Position it correctly with the layout.drawPile.stagger
+            Vector3 cpPos = new Vector3();
+            cpPos.x = jsonLayout.multiplier.x * jsonLayout.drawPile.x;
+            // Add the staggering for the drawPile
+            cpPos.x += jsonLayout.drawPile.xStagger * i;
+            cpPos.y = jsonLayout.multiplier.y * jsonLayout.drawPile.y;
+            cpPos.z = 0.1f * i;
+            cp.SetLocalPos(cpPos);
+
+            cp.faceUp = false; // DrawPile Cards are all face-down
+            cp.state = eCardState.drawpile;
+            // Set depth sorting
+            cp.SetSpriteSortingLayer(jsonLayout.drawPile.layer);
+            cp.SetSortingOrder(-10 * i);
+        }
+    }
+}
+```
+
+- a. Для большинства карт уровень сортировки определяется полем layer их
+JsonLayoutSlot или JsonLayoutPile.
+- b. В стопке сброса никогда не будет более 51 карты, поэтому, если sortingOrder
+начинается с -200 и увеличивается на 3 для каждой карты (чтобы учесть три значения
+sortingOrder, заданные методом `SetSortingOrder()` в листинге кода), то
+максимальное значение sortingOrder, заданное здесь, будет -47.
+- c. Целевая карта использует ту же информацию о расположении, что и стопка сброса, поэтому
+мы используем метод `MoveToDiscard()`, чтобы переместить её в нужное место.
+- d. Однако целевая карта настолько важна, что заслуживает собственного уровня
+сортировки, поэтому мы вручную назначаем ей уровень сортировки «Target».
+Убедитесь, что слово «Target» написано правильно.  
+
+3. Давайте добавим несколько строк в конец метода `Prospector.Start()`, чтобы
+нарисовать начальную целевую карту и сформировать колоду раздачи.  
+
+Листинг кода Prospector.cs
+
+```c#
+public class Prospector : MonoBehaviour {
+    …
+
+    void Start () {
+    …
+    drawPile = ConvertCardsToCardProspectors(deck.cards);
+
+    LayoutMine();
+
+    // Set up the initial target card
+    MoveToTarget( Draw () );
+
+    // Set up the draw pile
+    UpdateDrawPile();
+    }
+    …
+}
+```  
+
+4. Сохраните все скрипты в Visual Studio и вернитесь в Unity.
+5. Сохраните и запустите сцену.  
+
+Вы увидите, что карты теперь правильно распределяются в стопках раздачи и сброса. УРА!  
+
+Теперь пришло время добавить больше интерактивности.

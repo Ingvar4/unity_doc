@@ -1,0 +1,288 @@
+---
+title: Класс Prospector (наконец-то!)
+description: Я уверен, что кажется, что это заняло некоторое время, но теперь мы, наконец, создадим класс Prospector, который будет управлять игрой.
+---
+
+Вся эта настройка окупится, потому что остальная часть главы пройдет довольно быстро.  
+
+Начнем с извлечения карт из колоды и преобразования их в
+CardProspectors, которые можно использовать в этой игре.  
+
+1. Создайте новый скрипт на C# с именем Prospector и поместите его в папку *__Scripts*.
+2. Откройте скрипт Prospector в Visual Studio и введите код из листинга.  
+
+        Листинг кода Prospector.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement; // We’ll need this line later in the chapter
+
+[RequireComponent(typeof(Deck))] // a
+[RequireComponent(typeof(JsonParseLayout))]
+public class Prospector : MonoBehaviour {
+    private static Prospector S; // A private Singleton for Prospector
+
+    [Header("Dynamic")]
+    public List<CardProspector> drawPile;
+
+    private Deck deck;
+    private JsonLayout jsonLayout;
+
+    void Start () {
+        // Set the private Singleton. We’ll use this later.
+        if (S != null) Debug.LogError("Attempted to set S more than once!"); // b
+        S = this;
+
+        jsonLayout = GetComponent<JsonParseLayout>().layout;
+
+        deck = GetComponent<Deck>();
+        // These two lines replace the Start() call we commented out in Deck
+        deck.InitDeck();
+        Deck.Shuffle(ref deck.cards);
+
+        drawPile = ConvertCardsToCardProspectors(deck.cards);
+    }
+
+    /// <summary>
+    /// Converts each Card in a List(Card) into a List(CardProspector) so that it
+    /// can be used in the Prospector game.
+    /// </summary>
+    /// <param name="listCard">A List(Card) to be converted</param>
+    /// <returns>A List(CardProspector) of the converted cards</returns>
+    List<CardProspector> ConvertCardsToCardProspectors(List<Card> listCard) { 
+        List<CardProspector> listCP = new List<CardProspector>();
+        CardProspector cp;
+        foreach( Card card in listCard) {
+            cp = card as CardProspector; // c
+            listCP.Add( cp );
+        }
+        return( listCP );
+    }
+
+    // void Update() {…} // Please delete the unused Update() method
+}
+```
+
+    - a. Эти две строки требуют компонентов Deck и JsonParseLayout, которые
+понадобятся Prospector для работы. Класс Deck уже требует JsonParseDeck,
+поэтому нам не нужно требовать его здесь.
+    - b. Эта строка зафиксирует ошибку, если второй экземпляр класса Prospector
+попытается установить S во второй раз, но она не использует return; для выхода из
+метода Start(). Моя идея здесь заключается в том, что если вы увидите эту ошибку, вы
+исправите проблему, найдя и удалив второй скрипт Prospector в сцене, поэтому вам не нужно использовать код для обработки этого случая.
+    - c. Ключевое слово as попытается преобразовать Card в CardProspector. Подробнее
+об этом вскоре.
+
+3. Сохраните скрипт Prospector и вернитесь в Unity.
+4. Прикрепите новый скрипт Prospector к объекту _MainCamera в иерархии.
+5. Сохраните сцену и нажмите «Play» в Unity. 
+
+Теперь посмотрите на drawPile в компоненте Prospector (Script) панели
+панели инспектора _ MainCamera. Вы заметите, что все карты в drawPile имеют значение None
+(Card Prospector), что означает, что они равны null. (Вы также можете увидеть это, установив
+точку останова на строке, помеченной `// c` в предыдущем коде, и запустив отладчик.) Когда мы
+пытаемся преобразовать Card в CardProspector, в строке `// c`
+as возвращает null вместо CardProspector, преобразованного из Card. Это связано с тем,
+как работает объектно-ориентированное программирование в C# (см. боковую панель
+«Суперклассы нельзя привести к подклассам»).
+
+<Callout>
+### Суперклассы нельзя привести к подклассам [!toc]
+Вы, конечно, знакомы с суперклассами и подклассами из главы «Классы». Однако у
+вас может возникнуть вопрос, почему нельзя привести суперкласс к подклассу.  
+
+В Prospector класс Card является суперклассом, а подклассом - CardProspector.
+Аналогичным примером может служить суперкласс Animal и подкласс Scorpion. Все
+Скорпионы являются Животными, но не все Животные являются Скорпионами. Вы
+всегда можете назвать Скорпиона «тем Животным», но не можете назвать любое
+Животное «тем Скорпионом». Вот почему: у Scorpion может быть функция `Sting()`,
+а у Cow - нет. Таким образом, нельзя рассматривать любое Animal как Scorpion,
+потому что попытка вызвать `Sting()` на Cow (или любом другом типе Animal)
+приведет к ошибке.  
+
+В Prospector мы хотим использовать набор карт, созданных скриптом Deck, как если
+бы они были CardProspectors. Это похоже на то, как если бы у нас был набор
+животных, которых мы хотим рассматривать как скорпионов, но мы уже решили, что
+это невозможно.  
+
+К счастью, благодаря полиморфизму в C# всегда можно рассматривать «Скорпиона»
+как «Животное», поэтому в Prospector мы используем следующее решение: добавляем к
+префабу PrefabCard компонент CardProspector (Script) вместо компонента Card (Script).
+Если мы с самого начала просто создадим Scorpions, а затем будем обращаться с ними
+как с Animals через несколько функций (что мы можем сделать, поскольку Scorpion
+является подклассом Animal), то когда мы позже решим назвать `Scorpion s = Animal` a как Scorpion, это будет работать отлично, потому что C# знает, что
+Animal всегда был Scorpion.
+</Callout>  
+
+Решение в данном случае заключается в том, чтобы убедиться, что CardProspector всегда
+был CardProspector и просто использовал полиморфизм, чтобы действовать как Card для
+всего кода в классе Deck.  
+
+6. Для этого выберите PrefabCard на панели Project, и вы увидите, что он появляется в
+Inspector с компонентом Card (Script).
+7. В панели меню Unity выберите *Component > Scripts > CardProspector*. Это добавит компонент
+CardProspector (Script) к GameObject PrefabCard (прокрутите вниз в Inspector, чтобы его
+увидеть).
+8. Чтобы удалить старый компонент Card (Script), щелкните значок с тремя вертикальными
+точками ( ⋮ ) в правом верхнем углу инспектора Card (Script) и выберите Remove Component в
+всплывающем меню.
+9. Выберите MainCamera в иерархии и запустите сцену. Вы увидите, что все записи в поле
+drawPile класса Prospector теперь являются действительными экземплярами
+CardProspector, а не None.  
+
+Когда скрипт Deck создает экземпляр PrefabCard и получает его компонент Card, это по-
+прежнему будет работать отлично, поскольку полиморфизм позволяет обращаться к
+CardProspector как к Card. Затем, когда функция
+ConvertCardsToCardProspectors() пытается вызвать cp = card как
+CardProspector, все работает нормально.  
+
+10. Остановите воспроизведение и сохраните сцену. Вы знаете, что делать.  
+
+### Размещение карт в шахте [!toc]  
+
+Теперь, когда все готово, пришло время добавить в класс Prospector код для фактического
+размещения элементов игры.  
+
+1. Откройте скрипт Prospector в Visual Studio и добавьте строки из листинга кода.  
+
+        Листинг кода Prospector.cs
+```c#
+public class Prospector : MonoBehaviour {
+    private static Prospector S; // A private Singleton for Prospector
+
+    [Header("Dynamic")]
+    public List<CardProspector> drawPile;
+    public List<CardProspector> discardPile;
+    public List<CardProspector> mine;
+    public CardProspector target;
+
+    private Transform layoutAnchor;
+    private Deck deck;
+    private JsonLayout jsonLayout;
+
+    void Start () {
+        …
+
+        drawPile = ConvertCardsToCardProspectors(deck.cards);
+
+        LayoutMine(); // Please don’t forget this line
+    }
+
+    List<CardProspector> ConvertCardsToCardProspectors(List<Card> listCard)
+    { … }
+
+    /// <summary>
+    /// Pulls a single card from the beginning of the drawPile and returns it
+    /// Note: There is no protection against trying to draw from an empty pile!
+    /// </summary>
+    /// <returns>The top card of drawPile</returns>
+    CardProspector Draw() {
+        CardProspector cp = drawPile[0]; // Pull the 0th CardProspector
+        drawPile.RemoveAt(0); // Then remove it from drawPile
+        return(cp); // And return it
+    }
+
+    /// <summary>
+    /// Positions the initial tableau of cards, a.k.a. the "mine"
+    /// </summary>
+    void LayoutMine() {
+        // Create an empty GameObject to serve as an anchor for the tableau // a
+        if (layoutAnchor == null) {
+            // Create an empty GameObject named _LayoutAnchor in the Hierarchy
+            GameObject tGO = new GameObject("_LayoutAnchor");
+            layoutAnchor = tGO.transform; // Grab its Transform
+        }
+
+        CardProspector cp; // b
+
+        // Iterate through the JsonLayoutSlots pulled from the JSON_Layout
+        foreach (JsonLayoutSlot slot in jsonLayout.slots) {
+            cp = Draw(); // Pull a card from the top (beginning) of the draw Pile
+            cp.faceUp = slot.faceUp; // Set its faceUp to the value in SlotDef
+            // Make the CardProspector a child of layoutAnchor
+            cp.transform.SetParent(layoutAnchor);
+
+            // Convert the last char of the layer string to an int (e.g. "Row 0")
+            int z = int.Parse(slot.layer[slot.layer.Length - 1].ToString()); // c
+
+            // Set the localPosition of the card based on the slot information
+            cp.SetLocalPos( new Vector3(
+            jsonLayout.multiplier.x * slot.x,
+            jsonLayout.multiplier.y * slot.y,
+            -z ) ); // d
+
+            cp.layoutID = slot.id;
+            cp.layoutSlot = slot;
+            // CardProspectors in the mine have the state CardState.mine
+            cp.state = eCardState.mine;
+
+            mine.Add(cp); // Add this CardProspector to the List<> mine
+        }
+    }
+}
+```
+
+    - a. Так же, как мы поступили с GameObject _Deck в строке `// c` листинга кода, здесь
+мы создаем пустой GameObject _LayoutAnchor, который будет выступать в качестве
+родительского Transform для всех карт в mine (а в конечном итоге - также в колоде
+розыгрыша и стопке сброса).
+    - b. cp объявляется вне цикла foreach, чтобы память выделялась для него только один
+раз, а не при каждой итерации цикла.
+    - c. Эта строка немного сложна, но в основном она извлекает число в конце имен слоев для
+колоды (например, «Row0», «Row1» и т. д.) и преобразует его в целое число. Затем это
+целое число используется в следующей строке для установки 3D-глубины карты,
+перемещая карты в более высоких рядах ближе к игроку. Это необходимо, чтобы игрок мог
+щелкнуть по нужной карте. Несмотря на то, что визуальные элементы карт должны быть
+правильно расположени по слоям и отсортированы с помощью SortingLayers и sortingOrder
+(о которых вы прочитаете через несколько страниц),
+SortingLayers и sortingOrder не влияют на то, какой Box Collider2D считается верхним.
+    - d. Все от cp.SetLocalPos( до ); в этих четырех строках считается одним оператором,
+даже если он разбит на несколько строк. C# на самом деле не обращает внимания на то,
+ставите ли вы пробелы или переносы строк между частями оператора; все они считаются
+пробелами и обрабатываются одинаково. Это одна из причин, по которой операторы
+требуют точки с запятой
+`;` в конце.  
+
+2. Сохраните скрипт Prospector и вернитесь в Unity.  
+
+Когда вы нажмете «Play», вы увидите, что первые 28 карт действительно расставлены в шахте в
+соответствии с макетом, описанным в JSON_Layout.json, и верхний ряд лежит лицевой стороной
+вверх, а три нижних ряда - лицевой стороной вниз, но есть серьезные проблемы с
+расположением слоев (см. верхнее изображение на рисунке)
+
+<img src="/unity_doc/images/ex116.jpeg" alt="1" style={{  height: 'auto' }} />  
+
+Расположение шахты до (верхнее изображение) и после (нижнее изображение)
+исправления проблем с Sorting Layer. Также видны карты из исходной сетки.  
+
+>Если при нажатии кнопки «Play» здесь возникает исключение NullReferenceException, вероятно, вы что-то упустили в
+шагах 6–9 под предыдущим заголовком «Класс Prospector (наконец-то!)». Эти шаги заменили компонент Card (Script) в
+PrefabCard на CardProspector (Script) и необходимы для работы этого кода.  
+
+Чтобы увидеть эти проблемы, сначала убедитесь, что вы не находитесь в 2D-режиме (то есть
+нажмите кнопку «2D» в верхней части панели «Сцена», пока она не будет отключена). Затем
+удерживайте нажатой клавишу Option/Alt и используйте левую кнопку мыши в окне «Сцена»,
+чтобы осмотреться, и вы увидите, что при использовании 2D-инструментов Unity расстояние 2D-
+объекта до камеры практически не влияет на сортировку объектов по глубине (т. е. на порядок, в
+котором объекты отображаются друг над другом). Мы правильно справились с этим для мастей,
+оборотных сторон и т. д. каждой отдельной карты с помощью sortingOrder, но когда карты
+размещаются друг на друге, масти и декоративные элементы всех карт появляются поверх
+лицевых сторон всех карт. Теперь пришло время настроить 2D-сортировку по глубине карт
+относительно друг друга, чтобы избежать проблем, которые вы можете увидеть на рисунке  
+
+В Unity 2D есть два метода работы с сортировкой по глубине:  
+
+- Сортировочные слои: Сортировочные слои используются для группировки 2D-объектов.
+Все, что находится в нижнем сортировочном слое, прорисовывается раньше (т. е. находится
+позади) всего, что находится в более высоком сортировочном слое. Каждый компонент SpriteRenderer имеет строковую переменную sortingLayerName, которой
+можно присвоить имя сортировочного слоя.
+- Порядок сортировки: каждый компонент SpriteRenderer также имеет переменную
+sortingOrder. Она используется для расположения элементов внутри каждого
+сортировочного слоя относительно друг друга. Вы уже видели это на примере лицевой
+стороны, пиков, граней, украшений и оборотной стороны каждой карты.  
+
+При отсутствии слоев сортировки и параметра sortingOrder спрайты часто рендерируются от
+заднего плана к переднему в том порядке, в котором они были созданы, но это вовсе не
+надежно.
