@@ -1,0 +1,140 @@
+---
+title: Добавление паузы между раундами
+description: Я уверен, что вы заметили, что раунды игры заканчиваются довольно резко.
+---
+
+Давайте что-нибудь с этим сделаем. Во-первых, мы задержим
+фактическую перезагрузку уровня с помощью функции `Invoke()`.
+
+1. Добавьте выделенный жирным шрифтом код из листинга в скрипт
+Prospector: заголовок и поле в верхней части класса, несколько строк
+в методе `GameOver()` и новый метод `ReloadLevel()`: 
+
+        Листинг Prospector.cs
+```c#
+public class Prospector : MonoBehaviour {
+    private static Prospector S; // A private Singleton for Prospector
+
+    [Header("Inscribed")]
+    public float roundDelay = 2f; // 2 sec delay between rounds
+
+    [Header("Dynamic")]
+    public List<CardProspector> drawPile;
+    …
+
+    /// <summary>
+    /// Called when the game is over. Simple for now, but expandable
+    /// </summary>
+    /// <param name="won">true if the player won</param>
+    void GameOver( bool won ) {
+        if ( won ) {
+            ScoreManager.TALLY( eScoreEvent.gameWin );
+        } else {
+            ScoreManager.TALLY( eScoreEvent.gameLoss );
+        }
+
+        // Reset the CardSpritesSO singleton to null
+        CardSpritesSO.RESET();
+        // Reload the scene, resetting the game
+        // But wait a moment first, giving the final score a moment to travel
+        Invoke ("ReloadLevel", roundDelay); // a
+        // SceneManager.LoadScene("__Prospector_Scene_0");
+        // Now commented out!
+    }
+
+    void ReloadLevel() {
+        // Reload the scene, resetting the game
+        SceneManager.LoadScene("__Prospector_Scene_0");
+    }
+    …
+
+    static public void CARD_CLICKED(CardProspector cp) { …
+    }
+}
+```
+- a. Команда `Invoke()` вызывает функцию `ReloadLevel()` через
+roundDelay секунд. Теперь при запуске игры будет наблюдаться
+пауза длительностью две секунды перед перезагрузкой уровня. 
+
+2. Сохраните скрипт Prospector, вернитесь в Unity и запустите игру.
+Теперь вы заметите приятную паузу между раундами.
+
+### Предоставление игроку обратной связи о его результатах [!toc]
+
+Мы также хотим предоставлять игроку больше обратной связи в конце
+каждого раунда.  
+
+1. Добавьте в сцену новый элемент интерфейса UI Text – TextMeshPro:
+    - a. Выберите Canvas в иерархии.
+    - b. В панели меню выберите *GameObject > UI > Текст - TPtexMsehro*.
+    - c. Переименуйте Text (TMP) в GameOver.
+2. Установите для GameOver настройки, показанные в левой части
+рисунка. Если вы нажмете кнопку R справа от параметра Height в
+Rect Transform (как я это сделал), то Rect Transform не будет
+автоматически изменять значения Pos при изменении значений
+Anchors. Лично я предпочитаю именно так.
+
+<img src="/unity_doc/images/ex123.jpeg" alt="1" style={{  height: 'auto' }} />
+
+Настройки полей GameOver и RoundResult в UI TextMeshPro  
+
+3. Добавьте в сцену еще один UI Text – TextMeshPro:
+    - a. Щелкните правой кнопкой мыши по GameOver в иерархии и
+выберите «Duplicate» (Дублировать) в всплывающем меню.
+    - b. Переименуйте этот текст GameOver (1) в RoundResult.
+    - c. Установите для RoundResult настройки, показанные в правой
+части рисунка 34.5.
+4. Добавьте третий элемент UI Text – TextMeshPro:
+    - a. Скопируйте RoundResult в качестве дочернего элемента Canvas.
+    - b. Переименуйте его в HighScore.
+    - c. Установите для HighScore настройки, показанные на рисунке, за исключением всего, что связано с Liberation Sans SDF - High Score (Material), который вы создадите на следующем шаге.
+
+<img src="/unity_doc/images/ex124.jpeg" alt="1" style={{  height: 'auto' }} />
+Настройки текста интерфейса HighScore  
+
+Значения в этих настройках были определены методом проб и ошибок, и
+вы можете свободно корректировать их по своему усмотрению. Это
+должно расположить GameObject HighScore прямо между кольцами знака
+в правом верхнем углу фона.  
+
+Вы можете заметить, что буквы HighScore выглядят немного размытыми.
+Это потому, что настройки материала Liberation Sans SDF для параметров
+Face.Dilate и
+Outline одинаковы для всех полей TextMeshPro в сцене, поэтому черный
+текст HighScore имеет черную обводку, как и белый текст. Я изучил
+различные пресеты для материала Liberation Sans SDF и обнаружил, что это
+не лучший способ создавать различные варианты шрифтов в TextMesh Pro,
+поэтому вместо этого я создал дубликат материала, что сработало гораздо
+лучше.  
+
+5. Создайте новую версию материала Liberation Sans SDF для
+GameObject HighScore:
+    - a. Выберите GameObject HighScore в разделе Canvas в иерархии.
+    - b. В разделе TextMeshPro панели «Инспектор» в разделе «Основные
+настройки» щелкните по ресурсу шрифта (не по целевому объекту, а
+по самому ресурсу шрифта с именем LiberationSans SDF).  
+
+Это откроет несколько вложенных папок в разделе TextMesh Pro на панели
+«Проект», где будут отображены версия шрифта для TextMesh Pro, а также
+два материала: LiberationSans SDF - Drop Shadow и LiberationSans SDF
+- Outline. Именно в этих материалах хранятся изображения каждого
+символа шрифта (вместе с красивыми границами в оттенках серого вокруг
+них, которые позволяют использовать такие функции, как наложение
+контуров на буквы).  
+
+    - c. Выберите LiberationSans SDF - Outline на панели «Проект» и
+скопируйте его (меню Unity: «Правка» > Duplicate).
+    - d. Переименуйте этот дубликат в LiberationSans SDF - HighScore.
+    - e. В инспекторе для LiberationSans SDF - HighScore установите для
+параметра Face: Dilate значение 0,2.
+    - f. В инспекторе LiberationSans SDF - HighScore снимите флажок Outline.
+6. Присвойте эту новую версию материала объекту
+HighScore:
+    - a. Выберите GameObject HighScore в разделе Canvas в иерархии.
+    - b. В разделе TextMeshPro инспектора, в разделе Main Settings,
+щелкните раскрывающееся меню Material Preset и выберите
+LiberationSans SDF - HighScore.
+7. Сохраните сцену.  
+
+Теперь поле HighScore над висящей вывеской должно иметь настройки,
+отличные от остальных полей, и все должно выглядеть довольно хорошо.

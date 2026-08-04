@@ -1,0 +1,209 @@
+---
+title: Реализация реального скрипта FloatingScore
+description: Чтобы реализовать описанное нами поведение, FloatingScore должен взаимодействовать с Prospector, другими экземплярами FloatingScore и ScoreBoard.
+---
+
+В игре Prospector первая карта в
+цепочке порождает GameObject FloatingScore, который взлетает с нажатой
+карты и останавливается в центре экрана. По мере нажатия на
+дополнительные карты в цепочке будут появляться новые FloatingScore, их
+значения будут добавляться к первому элементу цепочки, а затем
+дополнительный FloatingScore будет уничтожен. Когда цепочка будет
+завершена (либо потому, что игрок вытащил карту, либо потому, что игра
+закончилась), первый FloatingScore поднимется в верхнюю часть экрана и,
+наконец, добавит свое значение к общему счету игры. В этом есть много
+сложностей, которые зависят от того, что callback completionEvent из
+компонента BezierMover (прикрепленного к GameObject FloatingScore)
+запускает событие делегата (называемое FSCallbackEvent) на
+движущемся экземпляре FloatingScore, который затем вызывает
+методы `FSCallback()` на первом экземпляре FloatingScore или на
+ScoreBoard (который затем показывает общий счет за игру).  
+
+Такую цепочку событий нелегко реализовать и понять. Мне бы хотелось
+придумать более простой способ реализации, но это отличный пример
+того, как использовать паттерн Observer для связывания действий и
+перемещений.  
+
+После того как вы реализуете в своей игре все листинги кода и
+увидите, как по экрану летают FloatingScores, я рекомендую вам добавить
+несколько точек останова и перейти в режим отладки в Visual Studio, чтобы
+более подробно посмотреть, что происходит.  
+
+1. Откройте скрипт FloatingScore в Visual Studio и удалите весь
+методы `Awake()` и `MoverCompleteCallback()`.
+2. Вставьте код, в листинге, в скрипт FloatingScore.  
+
+        Листинг FloatingScore.cs  
+
+```c#
+public class FloatingScore : MonoBehaviour {
+    static List<FloatingScore> FS_ALL = new List<FloatingScore>();
+
+    [Header("Inscribed")]
+    public float[] fontSizes = { 10, 56, 48 }; // Scaled via a Bezier curve // a
+
+    [Header("Dynamic")]
+    [SerializeField]
+    private int _score = 0; // The backing field for score // b
+    public int score {
+        get { return (_score); } // c
+        set {
+            _score = value;
+            textField.text = _score.ToString("#,##0");// The 0 is a zero // d
+        }
+    }
+
+    // Define a function delegate type with one FloatingScore parameter.
+    public delegate void FloatingScoreDelegate(FloatingScore fs); // e
+    public event FloatingScoreDelegate FSCallbackEvent; // f
+    private TMP_Text textField;
+    private BezierMover mover;
+
+    void Awake() { // Remember to replace the entire Awake method!
+        textField = GetComponent<TMP_Text>();
+        mover = GetComponent<BezierMover>();
+    }
+
+    /// <summary>
+    /// This is largely a passthrough for BezierMover
+    /// </summary>
+    /// <param name="ePts">List of Vector3 Bezier points</param>
+    /// <param name="eTimeD">The duration of the movement</param>
+    /// <param name="eTimeS">The start time (default of 0 is now)</param>
+    public void Init(List<Vector2> ePts, float eTimeD = 1, float eTimeS = 0) {
+        mover.completionEvent.AddListener(MoverCompleteCallback);
+        mover.Init(ePts, eTimeD, eTimeS);
+    }
+
+    /// <summary>
+    /// Update here largely manages the font scaling of textField
+    /// </summary>
+    void Update() {
+        if (mover.state == BezierMover.eState.active) {
+            // If the mover is active, we may need to scale fonts
+            if (fontSizes != null && fontSizes.Length > 0) { 
+                float size = Utils.Bezier(mover.uCurved, fontSizes); // g
+                textField.fontSize = size;
+            }
+        }
+    }
+    /// <summary>
+    /// Called by the UnityEvent in BezierMover when movement is complete
+    /// </summary>
+    void MoverCompleteCallback() { // Remember to replace this entire method!
+        // If there is a listener registered with this callback...
+        if (FSCallbackEvent != null) { // h
+            // then invoke the callback...
+            FSCallbackEvent(this);
+            FSCallbackEvent = null; // Clear out any registered methods
+            // and destroy this GameObject
+            Destroy(gameObject);
+        }
+        // If there was no listener registered, don’t destroy this GameObject
+    }
+
+    /// <summary>
+    /// This is called by the FSCallbackEvent on other FloatingScores, which
+    /// allows them to add their score to this one.
+    /// </summary>
+    /// <param name="fs">A FloatingScore passing its score to this one</param>
+    public void FSCallback(FloatingScore fs) { score += fs.score; } // i
+
+    void OnEnable() { FS_ALL.Add( this ); } // j
+    void OnDisable() { FS_ALL.Remove( this ); }
+
+    /// <summary>
+    /// Reroute all existing FloatingScores to ScoreBoard at end of game
+    /// </summary>
+    static public void REROUTE_TO_SCOREBOARD() { // k
+        Vector2 fsPosEnd = new Vector2( 0.5f, 0.95f );
+        foreach (FloatingScore fs in FS_ALL) {
+            fs.mover.bezierPts[fs.mover.bezierPts.Count - 1] = fsPosEnd;
+            fs.FSCallbackEvent = null;
+            fs.FSCallbackEvent += ScoreBoard.FS_CALLBACK; // l
+        }
+        // Clear FS_ALL
+        FS_ALL.Clear();
+    }
+}
+```
+
+- a. Мы можем использовать кривую Безье для интерполяции
+всевозможных значений, включая размер шрифта. Это приведет к
+тому, что шрифт сначала будет маленьким, затем увеличится, а
+затем установится на размере 48.
+- b. Поскольку в блоке set свойства score содержится
+пользовательский код, мы не можем использовать автоматическое
+свойство и вместо этого должны создать частную переменную
+float _score в качестве вспомогательного поля для хранения
+данных, к которым обращается свойство score. Атрибут
+[SerializeField] на _score делает его видимым и
+доступным для редактирования в инспекторе Unity, даже несмотря
+на то, что он является частным.
+- c. Вполне допустимо написать весь этот оператор get в одной строке.
+- d. См. примечание `//g` в листинге кода, чтобы узнать
+больше об этом форматировании числа int,
+преобразованного в строку.
+- e. В этой строке мы объявляем тип делегата с именем
+FloatingScoreDelegate с типом возвращаемого значения
+void, который принимает в качестве параметра один объект
+FloatingScore.
+- f. Здесь мы создаём экземпляр события этого делегата с именем
+FSCallbackEvent. Подобно UnityEvent, к этому событию
+можно регистрировать методы, а FSCallbackEvent можно
+вызывать как функцию для запуска этих методов. Ключевое слово
+event в данном случае обеспечивает некоторую защиту, не
+позволяя никаким классам, кроме FloatingScore, манипулировать
+FSCallbackEvent каким-либо иным способом, кроме операторов
+`+=` и `-=`, которые добавляют и удаляют методы-слушателей. Для
+получения дополнительной информации о делегатах и событиях см.
+Приложение B.
+- g. Поскольку движок BezierMover предоставляет публичный
+доступ к своему свойству uCurve, мы можем считывать это
+значение из FloatingScore и использовать его для плавной
+интерполяции размера шрифта в нашем тексте TextMeshPro. Кроме
+того, метод `Utils.Bezier()` имеет перегрузки как для списков,
+так и для массивов значений Vector3, Vector2, float и
+Quaternion, поэтому в данном случае мы можем передать
+`Utils.Bezier()` массив float, и он будет работать без проблем.
+- h. Если у делегата или события нет зарегистрированных методов,
+его значение равно null, поэтому, в отличие от UnityEvents,
+перед вызовом события FSCallbackEvent мы должны сначала
+проверить, что оно не равно null. Если оно не равно null, мы
+вызываем FSCallbackEvent, а затем сбрасываем его,
+устанавливая `FSCallbackEvent = null` (что может сделать
+только класс FloatingScore, поскольку FSCallbackEvent
+является событием). Этот сброс в null гарантирует, что метод(ы),
+зарегистрированный(ые) в FSCallbackEvent, вызывается(ются)
+только один раз.
+- i. Это метод, который мы зарегистрируем для вызова
+FSCallbackEvent на других экземплярах FloatingScore.
+Он настолько маленький, что его можно написать в одной строке.
+- j. `OnEnable()` вызывается автоматически во всех подклассах
+MonoBehaviour, когда GameObject включается, создается или
+становится активным. `OnDisable()` вызывается, когда GameObject
+отключается, уничтожается или становится неактивным. В результате
+все FloatingScores добавляются в статический список FS_ALL при
+создании и удаляются из списка при уничтожении. Это позволяет
+нам использовать FS_ALL для вызова кода очистки для любых
+существующих FloatingScores.
+- k. Иногда возникала редкая проблема, когда FloatingScores не успевали
+завершить движение в конце раунда. Этот метод использует FS_ALL
+для перенаправления всех существующих FloatingScores в ScoreBoard
+в конце раунда, гарантируя, что ScoreBoard показывает правильный
+суммарный счет за игру.
+Помимо физического перемещения объектов FloatingScore в папку
+ScoreBoard, этот метод также заменяет метод FSCallbackEvent в
+каждом объекте FloatingScore на статический метод
+`ScoreBoard.FS_CALLBACK()`. Поскольку FSCallbackEvent
+является событием, его невозможно присвоить значению null из
+любого класса, кроме FloatingScore.
+- l. Имя класса ScoreBoard будет подчеркнуто красным (а класс
+FloatingScore не скомпилируется), пока вы не закончите
+определение класса ScoreBoard в листинге кода.  
+
+3. Сохраните FloatingScore и вернитесь в Unity.
+4. В Unity перетащите GameObject FloatingScore из иерархии в папку
+*Assets/_Prefabs* на панели Project, чтобы сделать его префабом. После этого название FloatingScore в панели Hierarchy станет синим.
+5. После того как вы убедитесь, что префаб FloatingScore был создан
+правильно, удалите экземпляр FloatingScore из панели Hierarchy.

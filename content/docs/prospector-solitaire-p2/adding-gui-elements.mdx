@@ -1,0 +1,251 @@
+---
+title: Добавление элементов графического интерфейса 
+description: для отображения счета
+---
+
+Для этой игры мы создадим пару повторно используемых компонентов,
+которые могут отображать счет. Один из них будет классом ScoreBoard,
+который будет управлять отображением счета. Другой будет
+FloatingScore, который будет представлять собой число на экране,
+которое может самостоятельно перемещаться по экрану. Класс
+FloatingScore будет использовать класс BezierMover для плавного
+перемещения по экрану.  
+
+Как показано на рисунке, когда игрок начинает прохождение (щелкая
+по карте в шахте), создается экземпляр FloatingScore (который мы
+назовем fsFirstInRun) и он летит от места щелчка по карте к центру
+экрана (белые стрелки показывают возможные траектории из трёх разных
+ячеек с картами). Каждая последующая карта «шахта», на которую
+нажимают в том же прохождении, создает новый объект
+FloatingScore, который летит к середине экрана, а затем добавляет
+свой счет к FloatingScore fsFirstInRun, который все еще
+находится там. Когда прохождение заканчивается (потому что игрок
+нажимает на карту в стопке розыгрыша или игра заканчивается),
+FloatingScore fsFirstInRun поднимается к ScoreBoard вверху (серая стрелка) и добавит свой балл к
+общий счет ScoreBoard, прежде чем исчезнуть.
+
+<img src="/unity_doc/images/ex120.jpeg" alt="1" style={{  height: 'auto' }} />
+Примеры движения FloatingScores в игре Prospector  
+
+Эта последовательность включает в себя много ожидания завершения
+различных действий, а затем выполнение действий, когда они
+завершаются. Есть несколько различных способов, которыми мы могли бы
+это осуществить, но один из лучших - это использование
+шаблона Observer в объектно-ориентированном программировании. В
+шаблоне Observer мы используем делегат функции в нашем классе. Другие
+функции могут регистрироваться в этом делегате, а затем делегат может
+вызываться как функция, которая, в свою очередь, вызывает
+зарегистрированные в ней функции. Помимо стандартных делегатов C# (и
+событий C#, которые являются более защищенной версией делегатов),
+Unity также позволяет использовать специальную версию делегата под
+названием UnityEvent. UnityEvent обладают некоторыми дополнительными
+средствами защиты, которых нет у стандартного делегата, и их можно
+настроить в инспекторе Unity. Вы можете узнать больше как о делегатах и шаблоне Observer в разделах «Делегаты» и «Шаблоны объектно-
+ориентированного проектирования» Приложения B.
+
+### The BézierMover Class [!toc]
+
+Кривая Безье (произносится «без-и-э») - это математически определённая
+кривая, которая может состоять из любого числа точек (хотя кривые с
+тремя и четырьмя точками являются, безусловно, наиболее
+распространёнными). Вы можете узнать гораздо больше о кривых Безье в
+Приложении B; они также используются в прототипе Space SHMUP, но на
+данный момент важно знать, что они позволяют легко добавлять в наши
+игры плавные, изогнутые и легко управляемые траектории (а также
+движение по этим траекториям). Класс BezierMover в листинге кода - это многоразовый скрипт, который обеспечит криволинейное
+движение для GameObject FloatingScore. Поскольку это многоразовый
+скрипт, вы можете заметить, что в этом классе широко используется
+документация JavaDoc.  
+
+1. Создайте новый скрипт C# в папке Scripts с именем BezierMover и
+введите код из листинга.  
+
+      Листинг BezierMover.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Events; // a
+
+/// <summary>
+/// This class enables controllable, fire-and-forget motion for GameObjects that
+/// use it. It includes a UnityEvent completionEvent that is invoked when the
+/// motion has concluded. This class requires and makes use of the Utils class,
+/// particularly the Bezier() and Easing() methods.
+/// </summary>
+public class BezierMover : MonoBehaviour {
+    // An enum to track the possible states of a Bezier movement
+    public enum eState { idle, pre, active, post }
+
+    // An enum to set the way position is set (see Tooltip that follows)
+    public enum ePosMode { world, local, ugui }
+
+    [Header( "Inscribed" )]
+    [Tooltip( "world sets transform.position, " +
+    "local sets transform.localPosition, " +
+    "ugui sets anchorMin and anchorMax of RectTransform." )]
+    public ePosMode posMode = ePosMode.ugui;
+
+    [Header( "Dynamic" )]
+    public eState state = eState.idle;
+    public float timeStart = -1f;
+    public float timeDuration = 1f;
+    public string easingCurve = Easing.InOut;// Uses Easing() in Utils.cs
+    public List<Vector3> bezierPts;// Bézier points for movement
+
+    public UnityEvent completionEvent; // b
+
+    // Allow others to see but not set u and uCurved
+    public float u { get; private set; } // c
+    public float uCurved { get; private set; }
+
+    private RectTransform rectTrans;
+
+    /// <summary>
+    /// Initialize the movement of this BezierMover. The BezierMover will always
+    /// jump to the 0th point in the pts list and wait until timeS to begin
+    /// moving. If timeS is set to the default 0 value, then timeS will be set
+    /// to Time.time (the current time).
+    /// </summary>
+    /// <param name="pts">List of Vector3 Bezier points</param>
+    /// <param name="timeD">The duration of the movement in seconds</param>
+    /// <param name="timeS">The start time (default of 0 is now)</param>
+    public void Init( List<Vector3> pts, float timeD = 1, float timeS = 0 ) {
+        // Note the use of parameter default values for timeD & timeS
+        if ( pts == null || pts.Count == 0 ) {
+            Debug.LogError( "You must pass at least one point into Init()!" );
+            return;
+        }
+
+        rectTrans = GetComponent<RectTransform>();
+
+        // Always jump to the 0th point
+        pos = pts[0];
+
+        // And if there’s only that one point, then just callback
+        if ( pts.Count == 1 ) {
+            completionEvent.Invoke(); // d
+            return;
+        }
+
+        bezierPts = new List<Vector3>( pts );
+
+        // If timeS is the default, just start at the current time
+        if ( timeS == 0 ) timeS = Time.time;
+        timeStart = timeS;
+        timeDuration = timeD;
+
+        state = eState.pre;// Set it to the pre state, ready to start moving
+    }
+
+    /// <summary>
+    /// An overload of <see cref="Init(List{UnityEngine.Vector3},float,float)"/>
+    /// that accepts Vector2 overload method to initialize the movement of this
+    /// BezierMover. The ptsV2 Vector2s are converted to Vector3s and the
+    /// Vector3 version is called.
+    /// </summary>
+    /// <param name="ptsV2">List of Vector2 Bezier points</param>
+    /// <param name="timeD">The duration of the movement in seconds</param>
+    /// <param name="timeS">The start time (default of 0 is now)</param>
+    public void Init( List<Vector2> ptsV2, float timeD = 1, float timeS = 0 ) {
+        // Cannot implicitly convert from List<Vector2> to List<Vector3>
+        // so we’ll do it manually.
+        List<Vector3> ptsV3 = new List<Vector3>();
+        foreach ( Vector2 v2 in ptsV2 ) { ptsV3.Add( (Vector3) v2 ); } // e
+
+        // Then call the Vector3 overload of Init()
+        Init( ptsV3, timeD, timeS );
+    }
+
+    /// <summary>
+    /// <para>pos is a property that acts differently based on posMode:</para>
+    /// <para>– world affects transform.position,</para>
+    /// <para>– local affects transform.localPosition, </para>
+    /// <para>– ugui affects the RectTransform.anchorMin and .anchorMax.</para>
+    /// </summary>
+    public Vector3 pos { // f
+        get {
+            if ( posMode == ePosMode.ugui ) {
+                return rectTrans.anchorMin;
+            } else if ( posMode == ePosMode.local ) {
+                return transform.localPosition;
+            } else {
+                return transform.position;
+            }
+        }
+        private set {
+            if ( posMode == ePosMode.ugui ) {
+                rectTrans.anchorMin = rectTrans.anchorMax = value;
+            } else if ( posMode == ePosMode.local ) {
+                transform.localPosition = value;
+            } else {
+                transform.position = value;
+            }
+        }
+    }
+
+    // void Start() {…} // Please delete the unused Start() method
+
+    void Update() {
+        // If this is not moving, just return
+        if ( state == eState.idle || state == eState.post ) return;
+
+        // Get u from the current time and duration
+        // u ranges from 0 to 1 (usually)
+        u = ( Time.time - timeStart ) / timeDuration;
+        // Use Easing class from Utils to curve the u value
+        uCurved = Easing.Ease( u, easingCurve );
+
+        if ( u < 0 ) { // If u<0, then we shouldn’t move yet.
+            state = eState.pre;
+        } else {
+            if ( u < 1 ) { // 0<=u<1, which means this is active and moving
+
+                state = eState.active;
+            } else { // u>=1, which means this is done moving
+                uCurved = 1;// Set uCurved=1 so we don’t overshoot
+                state = eState.post;
+                completionEvent.Invoke();
+            }
+
+            // Use the Utils Bézier curve method to move this to the right point
+            pos = Utils.Bezier( uCurved, bezierPts );
+        }
+    }
+}
+```
+
+- a. Чтобы использовать UnityEvents, необходимо подключить
+библиотеку UnityEngine.Events.
+- b. Это первый пример использования UnityEvent, о котором
+упоминалось несколько страниц назад в тексте.
+- c. Эти два автоматических свойства (u и uCurve) доступны для
+чтения извне класса BezierMover, но их значения может
+устанавливать только экземпляр этого класса. Поскольку это
+автоматические свойства, поле-подложка, в котором хранятся
+фактические данные, создается для нас автоматически.
+- d. Вот как вызываются методы, зарегистрированные с помощью
+UnityEvent. В отличие от стандартных делегатов или событий C#,
+вызов UnityEvent без зарегистрированных функций не вызовет
+ошибку (обычный делегат имеет значение null, если к нему не
+зарегистрировано ни одной функции, и если делегат вызывается при
+значении null, он вызовет исключение NullReferenceException). Вы можете вызвать Invoke() на
+UnityEvent в любое время, и он сам позаботится о вызове
+зарегистрированных методов без риска возникновения ошибки.
+- e. Каждый Vector2 в ptsV2 явно приводится к Vector3 и
+добавляется в ptsV3 в этой однострочной версии цикла
+foreach.
+- f. Свойство `pos` предусмотрено для того, чтобы код
+`BezierMover` можно было использовать как для задания
+координат в мировой или локальной системе координат в 3D, так и
+для задания 2D-координат в uGUI, в зависимости от значения
+`posMode` (по умолчанию - `ePosMode.ugui`). Именно эта
+гибкость делает `BezierMover` удобным компонентом,
+пригодным для повторного использования.  
+
+2. Сохраните скрипт BezierMover и вернитесь в Unity.  
+
+UnityEvent completionEvent позволит нам связывать движения
+воедино, уведомляя другие классы, когда BezierMover завершит
+движение. Вскоре вы увидите, насколько это полезно.

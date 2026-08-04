@@ -19,6 +19,7 @@
     "space-shmup",
     "space-shmup-part2",
     "prospector-solitaire",
+    "prospector-solitaire-p2",
     
     "---DOCUMENTATION---",
     "methods-classes",
@@ -27,6 +28,6 @@
     "rigidbody-unity",
     "movement-unity",
     "interpolation"
-    
+  
   ]
 }

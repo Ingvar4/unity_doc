@@ -1,0 +1,402 @@
+---
+title: Добавление подсчета очков в Prospector
+description: В оригинальной карточной игре Tri-Peaks, на которой основана Prospector, нет механизма подсчета очков, кроме победы или поражения игрока. 
+---
+
+Но в цифровой игре очень полезно вести счет, сделать подсчет очков
+интересным и вести рейтинг лучших результатов, чтобы у игроков был
+стимул продолжать играть (чтобы побить свой рекорд).
+
+### Набор очков в игре [!toc]
+В игре Prospector будет реализовано несколько способов заработка очков:  
+
+- A. Перемещение карты из шахты на целевую карту приносит 1 очко.
+- B. Каждая последующая карта, удаленная из шахты без добора из колоды,
+увеличивает количество очков, начисляемых за карту, на 1, так что
+серия из пяти карт из шахты без добора будет стоить 1, 2, 3, 4 и 5 очков
+соответственно, что в сумме даст 15 очков за серию (1 + 2 + 3 + 4 + 5 =
+15).
+- C. Если игрок выигрывает раунд, он переносит свой счет в следующий
+раунд. При проигрыше раунда его счет за все раунды суммируется и
+сравнивается со списком лучших результатов.
+- D. Серебряные карты: Серебряная карта считается за две обычные карты
+в последовательности. Таким образом, если четвертая карта в
+последовательности - серебряная, она будет считаться и четвертой, и
+пятой картой в последовательности (принося сначала 4 очка, а затем 5
+очков). Следующая карта будет считаться шестой картой в
+последовательности (принося 6 очков).
+- E. Золотые карты: каждая золотая карта в серии увеличивает множитель
+очков на единицу. Обычная серия без золотых карт имеет множитель,
+равный единице. Если бы одна из карт в примере серии из пункта B
+была золотой, то множитель увеличился бы до 2, и серия принесла бы
+30 очков (15 x 2 = 30). Если бы две карты в серии были золотыми, то
+множитель составил бы 3, и серия принесла бы 45 очков (15 x 3
+= 45).  
+
+Подсчёт очков будет осуществляться классом Prospector, поскольку
+он знает все условия, которые могут повлиять на результат. Мы также
+создадим скрипт под названием ScoreBoard для управления всеми
+визуальными элементами отображения результата игроку.  
+
+В этой главе мы реализуем буквы от A до C, а буквы D и E я оставлю вам
+для самостоятельной реализации позже.
+
+### Реализация подсчета очков за цепочки [!toc]
+
+Чтобы отслеживать счет в этой игре, мы создадим скрипт ScoreManager
+для добавления к _MainCamera. Поскольку мы включаем серии (и в
+конечном итоге умножаем значение серии на золотые карты), имеет смысл
+хранить счет за серию отдельно, а затем применять его к общему
+множителю серии после того, как серия закончилась (путем сдачи карты из
+drawPile).  
+
+1. Создайте новый скрипт C# в папке Scripts с именем ScoreManager.
+2. Прикрепите скрипт ScoreManager к _MainCamera.
+3. Сохраните сцену. Главным моментом сцены, которую вы сохраняете,
+является добавление скрипта ScoreManager к объекту _MainCamera,
+поэтому сейчас лучше сохранить сцену.
+4. Откройте ScoreManager в Visual Studio и введите код, в листинге.  
+
+Листинг кода ScoreManager.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+// An enum to handle all the possible scoring events
+// For gold and silver cards, you would add mineGold and mineSilver to this enum
+public enum eScoreEvent {
+    draw,
+    mine,
+    gameWin,
+    gameLoss
+}
+
+// ScoreManager handles all of the scoring
+public class ScoreManager : MonoBehaviour { // a
+    static private ScoreManager S; // b
+
+    static public int SCORE_FROM_PREV_ROUND = 0;
+    static public int SCORE_THIS_ROUND = 0;
+    static public int HIGH_SCORE = 0;
+
+    [Header("Inscribed")]
+    [Tooltip("If true, then score events are logged to the Console.")]
+    public bool logScoreEvents = true;
+
+    [Header("Dynamic")]
+    // Fields to track score info
+    public int chain = 0;
+    public int scoreRun = 0;
+    public int score = 0;
+
+    [Header( "Check this box to reset the ProspectorHighScore to 100" )] // c
+    public bool checkToResetHighScore = false;
+
+    void Awake() {
+        if (S != null) Debug.LogError("ScoreManager.S is already set!"); // d
+        S = this; // Set the private singleton
+
+        // Check for a high score in PlayerPrefs
+        if (PlayerPrefs.HasKey ("ProspectorHighScore")) {
+            HIGH_SCORE = PlayerPrefs.GetInt("ProspectorHighScore");
+        }
+        // Add the score from last round, which will not be 0 if it was a win
+        score += SCORE_FROM_PREV_ROUND;
+        // And reset SCORE_THIS_ROUND to 0 (it is not used until GameOver(win))
+        SCORE_THIS_ROUND = 0;
+    }
+
+    /// <summary>
+    /// This static method enables any other class to post an eScoreEvent.
+    /// </summary>
+    static public void TALLY( eScoreEvent evt ) { // e
+        S.Tally( evt );
+    }
+
+    /// <summary>
+    /// Handle eScoreEvents (mostly sent by the Prospector class).
+    /// </summary>
+    void Tally( eScoreEvent evt ) {
+        switch ( evt ) {
+            // When a mine card is clicked...
+            case eScoreEvent.mine: // Remove a mine card
+            chain++; // increase the score chain
+            scoreRun += chain; // add score for this card to run
+            break;
+
+            // These same things need to happen whether it's a draw, win, or loss
+            case eScoreEvent.draw: // Drawing a card // f
+            case eScoreEvent.gameWin: // Won the round // f
+            case eScoreEvent.gameLoss: // Lost the round
+            chain = 0; // resets the score chain
+            score += scoreRun; // add scoreRun to total score
+            scoreRun = 0; // reset scoreRun
+            break;
+        }
+
+        string scoreStr = score.ToString( "#,##0" ); // The 0 is a zero // g
+        // This second switch statement handles round wins and losses
+        switch ( evt ) {
+            case eScoreEvent.gameWin:
+            // SCORE_THIS_ROUND is used here and in UITextManager
+            SCORE_THIS_ROUND = score - SCORE_FROM_PREV_ROUND; // h
+            // The next line shows a new syntax for string interpolation
+            Log($"You won this round! Round score: {SCORE_THIS_ROUND}"); // i
+
+            // If it's a win, add the score to the next round
+            // static fields are NOT reset by SceneManager.LoadScene()
+            SCORE_FROM_PREV_ROUND = score;
+
+            // If it's higher than the HIGH_SCORE, update HIGH_SCORE
+            if (HIGH_SCORE <= score) {
+                Log($"Game Win. Your new high score was: {scoreStr}");
+                HIGH_SCORE = score;
+                PlayerPrefs.SetInt("ProspectorHighScore", score);
+            }
+            break;
+
+            case eScoreEvent.gameLoss:
+            // If it's a loss, check against the high score
+            if (HIGH_SCORE <= score) {
+                Log($"Game Over. Your new high score was: {scoreStr}");
+                HIGH_SCORE = score;
+                PlayerPrefs.SetInt("ProspectorHighScore", score);
+            } else {
+                Log($"Game Over. Your final score was: {scoreStr}");
+            }
+            // Reset SCORE_FROM_PREV_ROUND to 0 for a new game
+            SCORE_FROM_PREV_ROUND = 0;
+            break;
+
+            default:
+            Log($"score:{scoreStr} scoreRun: {scoreRun} chain:{chain}");
+            break;
+        }
+    }
+
+    /// <summary>
+    /// The Log method allows us to only send logs to the Console if the bool
+    /// logScoreEvents is checked in the Inspector.
+    /// </summary>
+    /// <param name="str">The string to be sent to the Console.</param>
+    void Log(string str) { // i
+        if ( logScoreEvents ) Debug.Log( str );
+    }
+
+    /// <summary>
+    /// If the public bool checkToResetHighScore is checked in the Editor, then
+    /// it will be set to false, and ProspectorHighScore in PlayerPrefs will be
+    /// reset to 100. I use this OnDrawGizmos() trick frequently to manage
+    /// PlayerPrefs resets like this.
+    /// </summary>
+    void OnDrawGizmos() { // c
+        if (checkToResetHighScore) {
+            checkToResetHighScore = false;
+            PlayerPrefs.SetInt( "ProspectorHighScore", 100 );
+            Debug.LogWarning( "PlayerPrefs.ProspectorHighScore reset to 100!" );
+        }
+    }
+
+    // These static properties allow other classes to get ScoreManager's state
+    static public int CHAIN { get { return S.chain; } } // j
+    static public int SCORE { get { return S.score; } }
+    static public int SCORE_RUN { get { return S.scoreRun; } }
+
+    // void Start() {…} // Please delete Start() and Update()
+    // void Update() {…}
+}
+```
+
+    - a. В предыдущих изданиях книги ScoreManager был методом класса
+Prospector, а не отдельным классом, но с тех пор я стал твердо
+верить в компонентный паттерн проектирования программного
+обеспечения. В компонентном паттерне разработчики стремятся
+создавать небольшие, самодостаточные классы, которые можно
+повторно использовать. Сделав ScoreManager отдельным классом,
+я создал нечто, что смогу использовать снова в другой игре в
+будущем, и упростил свой код. Вы можете узнать больше о шаблоне
+компонентов в разделе «Шаблоны объектно-ориентированного
+проектирования» приложения B «Полезные концепции», и вы будете
+широко использовать его в прототипе Dungeon Delver.
+    - b. ScoreManager.S - еще один пример частного паттерна
+Singleton.
+    - c. Установка флага checkToResetHighScore в Unity Inspector
+приведет к тому, что метод `OnDrawGizmos()`, расположенный ближе к
+концу скрипта, сбросит значение ProspectorHighScore, хранящееся в
+PlayerPrefs, до 100. `OnDrawGizmos()` вызывается Unity как в
+редакторе, так и в сборках, поэтому это один из немногих методов,
+которые могут вызываться независимо от того, идет ли игра.
+    - d. Эта проверка на null гарантирует, что будет сгенерирована ошибка,
+если два разных экземпляра ScoreManager попытаются
+присвоить себя синглтону S, что произойдет, если к двум
+GameObjects в вашей сцене будет прикреплен компонент
+ScoreManager (Script).
+    - e. Эта статическая публичная версия метода `TALLY()` позволяет
+другим классам (таким как Prospector) отправлять события
+eScoreEvents классу ScoreManager. Когда они это делают,
+`TALLY()` вызывает метод `Tally()` на частном синглатоне S
+класса ScoreManager.  
+
+>Это почти противоположно шаблону Observer для объектно-ориентированного
+программирования, который был определен «Бандой четырёх» (см. «Шаблоны объектно-
+ориентированного проектирования» в Приложении B для получения дополнительной
+информации). В этом шаблоне любое количество наблюдателей может
+зарегистрироваться, чтобы получать уведомления о событиях, происходящих с
+субъектами, при этом субъектам не нужно ничего знать о них. С другой стороны, этот код
+позволяет любому субъекту попросить ScoreManager подсчитать результаты любого
+eScoreEvent, который произошел, при этом ScoreManager ничего не знает о классе
+субъекта, который вызвал `TALLY()`.  
+
+    - f. Два пустых варианта в блоке switch в этих строках будут
+перенаправлены в вариант eScoreEvent.gameLoss, то есть в них
+будет выполнен тот же код, что и в варианте gameLoss.
+Перенаправление вариантов в C# допускается только в том случае,
+если они не содержат собственного кода (то есть если бы в случае draw был какой-либо код, то там обязательно должен был
+бы быть оператор break;
+и не смог бы перейти в следующий блок).
+    - g. C# включает в себя несколько очень классных возможностей
+форматирования чисел для преобразования чисел в строки. Символы
+#,##0 здесь означают, что для разделения тысяч следует
+использовать запятую, а после запятой не должно быть цифр. Цифра
+0 заставляет число отображаться с разрядом единиц (то есть для
+значения нуль будет отображаться «0»), а символы # позволяют
+отображать цифры только в том случае, если значение достаточно
+велико, чтобы они были необходимы (так что при форматировании
+#,##0 число пятьдесят будет отображаться просто как «50», а не как
+«0,050»). Если вы живете в стране, где в качестве десятичной запятой
+используется запятая, или не хотите использовать этот формат по
+какой-либо другой причине, вы можете поискать в Интернете
+«Стандартные числовые форматные строки C#», чтобы узнать больше
+о различных форматах ToString().
+    - h. SCORE_THIS_ROUND вычисляется путем вычитания
+SCORE_FROM_PREV_ROUND из текущего счета. Переменная
+SCORE_THIS_ROUND является статической, поскольку
+используется как здесь, так и классом UITextManager, который
+будет представлен в листинге кода.
+    - i. Эта строка и несколько других в этом же операторе switch
+демонстрируют синтаксис интерполяции строк (сочетание строк и
+числовых переменных), который был введен в C# 6.0. См. боковую
+панель «Интерполяция строк в C# с использованием $».
+В этой строке также вызывается пользовательский метод Log()
+вместо `print()` или `Debug.Log()`. Преимущество этого
+пользовательского метода заключается в том, что вместо постоянной
+записи в консоль он будет записывать сообщения только в том случае,
+если установлен флаг public bool logScoreEvents (т. е.
+true).
+    - j. Эти статические свойства обеспечивают доступ только для чтения к
+общедоступным
+полей частного синглатона ScoreManager S.
+
+<Callout>
+### C# String Interpolation Using $ [!toc]
+Интерполяция строк с помощью $, как показано в листинге,
+может упростить компактное объединение строк и чисел. Чтобы это
+работало, открывающая кавычка строкового литерала должна
+непосредственно следовать за символом $ (без пробела между ними), а любое
+имя переменной должно быть заключено в фигурные скобки.  
+
+Помимо простых примеров, приведённых в листинге кода,
+форматирование числовых строк (такое, как описано в примечании `// g`
+листинга кода) также можно использовать в синтаксисе
+интерполяции строк:
+
+```c#
+int z = 0;
+print( $"zero: a:{z} b:{z:0} c:{z:#} d:{z:0,000}" );
+// Output: zero: a:0 b:0 c: d:0,000 // Note that c:
+has no output
+int n = 12345;
+print( $"12345: a:{n} b:{n:#,##0} c:{n:000,000.00}" );
+// Output: 12345: a:12345 b:12,345 c:012,345.00
+float f = 91.3f;
+print( $"91.3 a:{f} b:{f:#} c:{f:#.#} d:{f:#.00}" );
+// Output: 91.3 a:91.3 b:91 c:91.3 d:91.30
+```
+И даже можно использовать тернарные операторы (т. е. ? и :)):
+
+```c#
+int numP = 2, numC = 1;
+print( $"I have {numP} parent{( numP == 1 ? "" : "s" )}." );
+// Output: I have 2 parents.
+print( $"I have {numC} {( numC == 1 ? "child" : "children"
+)}." );
+// Output: I have 1 child.
+```
+Дополнительную информацию см. в разделе «Интерполяция
+строк» Приложения B или в документации по Microsoft C# по
+адресу: https://docs.microsoft.com/en-us/dotnet/csharp/languagereference/tokens/interpolated
+</Callout>  
+
+4. Измените следующие строки класса
+Prospector, как показано в листинге кода (в коде вы увидите
+следующие символы в виде комментариев //):
+    - a. В методе `GameOver()` удалите или закомментируйте две
+зачеркнутые строки.
+    - b. В методе `GameOver()` добавьте две другие строки, которые вызывают
+`ScoreManager.TALLY()`.
+    - c. В `CARD_CLICKED()` добавьте две строки из листинга кода, которые вызывают
+`ScoreManager.TALLY()`.  
+
+      Листинг кода Prospector.cs
+
+```c#
+public class Prospector : MonoBehaviour {
+    …
+
+    void GameOver( bool won ) {
+    if ( won ) {
+        //Debug.Log("Game Over. You won! :)"); // a
+        ScoreManager.TALLY( eScoreEvent.gameWin ); // b
+    } else {
+        //Debug.Log("Game Over. You Lost. :("); // a
+        ScoreManager.TALLY( eScoreEvent.gameLoss ); // b
+    }
+    …
+    }
+    …
+
+    static public void CARD_CLICKED(CardProspector cp) {
+        // The reaction is determined by the state of the clicked card
+        switch (cp.state) {
+            …
+            case eCardState.drawpile:
+            // Clicking *any* card in the drawPile will draw the next card
+            // Call two methods on the Prospector Singleton S
+            S.MoveToTarget(S.Draw()); // Draw a new target card
+            S.UpdateDrawPile(); // Restack the drawPile
+            ScoreManager.TALLY( eScoreEvent.draw ); // c
+            break;
+            case eCardState.mine:
+            …
+            if (validMatch) { // If it’s a valid card
+                S.mine.Remove(cp); // Remove it from the tableau List
+                S.MoveToTarget(cp); // Make it the target card
+
+                S.SetMineFaceUps();
+                ScoreManager.TALLY( eScoreEvent.mine ); // c
+            }
+            break;
+        }
+        S.CheckForGameOver();
+    }
+}
+```
+
+5. Сохраните все скрипты в Visual Studio, вернитесь в Unity и нажмите
+«Play».  
+
+Теперь, когда вы играете в игру, в панели «Консоль» будут появляться
+небольшие заметки с указанием вашего счета. Кроме того, если вы
+выберете MainCamera в иерархии и посмотрите на инспектор
+«ScoreManager (Script)», то увидите, что при победе в раунде ваш счет
+сохраняется при переходе к следующему раунду. Я часто использую
+`print()` для отображения информации в консоли, чтобы как можно
+проще получать обратную связь от своего кода (как вы можете видеть в
+листинге кода). Это отлично подходит нам, разработчикам, но теперь
+давайте сделаем так, чтобы всё выглядело лучше для наших игроков.  
+
+Если вы посмотрите на рисунок, то увидите, как в конечном итоге будет
+выглядеть эта игра. В оставшейся части этой главы мы добавим визуальные
+элементы, которые позволят это реализовать.

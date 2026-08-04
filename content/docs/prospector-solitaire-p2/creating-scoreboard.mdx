@@ -1,0 +1,108 @@
+---
+title: Создание класса и GameObject ScoreBoard
+description: GameObject ScoreBoard выглядит аналогично GameObject FloatingScore, но он немного больше и не имеет движения от BezierMover.
+---
+
+### GameObject ScoreBoard [!toc]
+
+Чтобы создать GameObject ScoreBoard:  
+
+1. В панели меню Unity выберите *GameObject > UI > Tex t - TextMeshPro*.
+2. Измените имя нового GameObject Tex t (TMP) на ScoreBoard.
+3. Большинство настроек TextMeshPro для ScoreBoard и
+FloatingScore одинаковы, поэтому вы можете либо снова
+настроить их вручную, как показано на рис., либо выполнить
+следующее:
+    - a. Выберите префаб FloatingScore в папке Assets/_Prefabs на панели
+Project.
+    - b. В инспекторе для FloatingScore нажмите на три точки ( ⋮ ) в крайнем
+правом углу компонента TextMeshPro UGUI (Script) и
+выберите «Copy Component».
+    - c. Выберите GameObject ScoreBoard в иерархии.
+    - d. Щелкните ту же иконку с тремя точками в крайнем правом углу
+компонента TextMeshPro UGUI (Script) в инспекторе ScoreBoard и
+на этот раз выберите Paste Component Values.  
+
+Это вставит все значения TextMeshPro из FloatingScore в ScoreBoard, избавив
+вас от немалого количества хлопот.  
+
+4. Мы хотим, чтобы размер шрифта ScoreBoard был немного больше,
+поэтому установите значение FontSize в компоненте TextMeshPro
+UGUI (Script) ScoreBoard равным 60.
+
+5. Также убедитесь, что у вас есть следующие настройки в
+RectTransform ScoreBoard (единственные значения, которые вам
+нужно изменить, - это Min Y и Max Y):
+    - a. Координата X: 0, Координата Y: 0, Координата Z: 0
+    - b. Ширина: 200, Высота: 50
+    - c. Якоря: Мин. X: 0,5, Мин. Y: 0,95, Макс. X: 0,5, Макс. Y: 0,95
+6. Сохраните сцену.  
+
+Теперь в верхней центральной части панели «Игра» должно
+появиться текстовое поле большего размера с надписью «+104».  
+
+### Класс ScoreBoard [!toc]  
+
+Класс ScoreBoard будет получать обратные вызовы от FloatingScores при
+завершении каждого прохождения. Он довольно прост и включает
+статическую версию метода FS_CALLBACK, который вызывается
+FloatingScores по завершении движения.  
+
+1. Создайте новый скрипт на C# с именем ScoreBoard.
+    - a. Поместите скрипт ScoreBoard в папку папку Scripts.
+    - b. Прикрепите скрипт ScoreBoard к GameObject ScoreBoard в иерархии.
+2. Откройте скрипт ScoreBoard в Visual Studio и введите код, в листинге кода.  
+
+      Листинг ScoreBoard.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using TMPro; // Be sure not to miss this line. TextMeshPro needs it to work!
+
+// The ScoreBoard class manages showing the score to the player
+[RequireComponent(typeof(TMP_Text))]
+public class ScoreBoard : MonoBehaviour {
+    private static ScoreBoard S; // The singleton for ScoreBoard
+
+    [Header("Dynamic")]
+    [SerializeField]
+    private int _score = 0;
+    // The score property also sets the text of the TMP_Text
+    public int score {
+        get { return ( _score ); }
+        set {
+            _score = value;
+            textMP.text = _score.ToString( "#,##0" );// The 0 in #,##0 is a zero
+        }
+    }
+
+    private TMP_Text textMP;
+
+    void Awake() {
+        if ( S != null ) Debug.LogError( "ScoreBoard.S is already set!" );
+        S = this;// Set the private singleton
+
+        textMP = GetComponent<TMP_Text>();
+    }
+
+    /// <summary>
+    /// A static accessor for the score of the ScoreBoard Singleton
+    /// </summary>
+    public static int SCORE {
+        get { return S.score; }
+        set { S.score = value; }
+    }
+
+    // When called by SendMessage, this adds the fs.score to S.score
+    static public void FS_CALLBACK( FloatingScore fs ) {
+        SCORE += fs.score;
+    }
+
+    // void Start() {…} // Please delete Start() and Update()
+    // void Update() {…}
+}
+```
+
+3. Сохраните все скрипты в Visual Studio.

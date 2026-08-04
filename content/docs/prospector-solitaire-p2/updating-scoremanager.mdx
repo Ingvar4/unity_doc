@@ -1,0 +1,225 @@
+---
+title: Обновление ScoreManager
+description: Теперь внесем изменения в ScoreManager, чтобы он использовал FloatingScore и ScoreBoard.
+---
+
+1. Откройте скрипт ScoreManager в Visual Studio и введите
+дополнительный код, в листинге кода.  
+
+        Листинг ScoreManager.cs
+
+```c#
+public class ScoreManager : MonoBehaviour {
+    static private ScoreManager S;
+
+    static public int SCORE_FROM_PREV_ROUND = 0;
+    static public int SCORE_THIS_ROUND = 0;
+    static public int HIGH_SCORE = 0;
+
+    [Header("Inscribed")]
+    public GameObject floatingScorePrefab;
+    public float floatDuration = 0.75f;
+    public Vector2 fsPosMid = new Vector2(0.5f, 0.90f);
+    public Vector2 fsPosRun = new Vector2(0.5f, 0.75f);
+    public Vector2 fsPosMid2 = new Vector2(0.4f, 1.0f );
+    public Vector2 fsPosEnd = new Vector2(0.5f, 0.95f);
+    [Tooltip("If true, then score events are logged to the Console.")]
+    public bool logScoreEvents = true;
+    …
+
+    void Tally( eScoreEvent evt ) {
+        switch ( evt ) { … }
+
+        string scoreStr = score.ToString( "#,##0" );
+        // This second switch statement handles round wins and losses
+        switch ( evt ) { … }
+
+        // Call FloatingScoreHandler to show the score moving
+        FloatingScoreHandler(evt); // a
+
+        // If the game is over, REROUTE_TO_SCOREBOARD all FloatingScores
+        if (evt == eScoreEvent.gameWin || evt == eScoreEvent.gameLoss) { // b
+            FloatingScore.REROUTE_TO_SCOREBOARD();
+        }
+    }
+
+    /// <summary> … </summary>
+    void OnDrawGizmos() { … }
+
+    // These static properties allow other classes to get ScoreManager’s state
+    static public int CHAIN { get { return S.chain; } }
+    static public int SCORE { get { return S.score; } }
+    static public int SCORE_RUN { get { return S.scoreRun; } }
+
+    private Transform canvasTrans;
+    private FloatingScore fsFirstInRun; // The first FloatingScore of this run
+
+    void Start() {
+        ScoreBoard.SCORE = SCORE;// Show the score on the ScoreBoard
+        canvasTrans = GameObject.Find( "Canvas" ).transform;
+    }
+
+    /// <summary>
+    /// Turns the eScoreEvents posted to Event into FloatingScore movement.
+    /// </summary>
+    void FloatingScoreHandler(eScoreEvent evt) {
+        List<Vector2> fsPts;
+        switch ( evt ) {
+            case eScoreEvent.mine:// Remove a mine card
+            // Create a FloatingScore for this score
+            GameObject go = Instantiate<GameObject>( floatingScorePrefab );
+            go.transform.SetParent( canvasTrans );
+            go.transform.localScale = Vector3.one; // c
+            go.transform.localPosition = Vector3.zero;
+            FloatingScore fs = go.GetComponent<FloatingScore>();
+
+            fs.score = chain;// Set score of fs to the current chain value
+
+            // Get the current mousePosition in Canvas anchor coordinates
+            Vector2 mousePos = Input.mousePosition;
+            mousePos.x /= Screen.width;
+            mousePos.y /= Screen.height;
+
+            // Make Bezier points to move fs from mousePos to fsPosRun
+            fsPts = new List<Vector2>();
+            fsPts.Add( mousePos );
+            fsPts.Add( fsPosMid );
+            fsPts.Add( fsPosRun );
+
+            // Set the fs fontSizes
+            fs.fontSizes = new float[] { 10, 56, 10 }; // d
+
+            // If this is the first FloatingScore in this run
+            if ( fsFirstInRun == null ) {
+                // Set it to stick around when it’s done // e
+                fsFirstInRun = fs;
+                fs.fontSizes[2] = 48;
+            } else {
+                // Else, report finish to the first FS of this run
+                fs.FSCallbackEvent += fsFirstInRun.FSCallback; // f
+            }
+
+            fs.Init( fsPts, floatDuration );
+            break;
+
+            // Same things need to happen whether it’s a draw, a win, or a loss
+            case eScoreEvent.draw:// Drawing a card
+            case eScoreEvent.gameWin:// Won the round
+            case eScoreEvent.gameLoss:// Lost the round
+            // Add fsFirstInRun to the ScoreBoard score
+            if ( fsFirstInRun != null ) {
+                // Create points for the Bézier curve
+                fsPts = new List<Vector2>();
+                fsPts.Add( fsPosRun );
+                fsPts.Add( fsPosMid2 );
+                fsPts.Add( fsPosEnd );
+                // Also adjust the fontSize
+                fsFirstInRun.fontSizes = new float[] { 48, 56, 10 };
+
+                // Add a ScoreBoard listener to the fsFirstInRun.FSCallbackEvent
+                fsFirstInRun.FSCallbackEvent += ScoreBoard.FS_CALLBACK; // g
+
+                fsFirstInRun.Init( fsPts, floatDuration, 0 );// Init the movement
+
+                fsFirstInRun = null; // Clear fsFirstInRun so it’s created again
+            }
+
+            break;
+
+        }
+    }
+}
+```
+
+- a. Поскольку новый метод `FloatingScoreHandler()` реагирует на
+те же события eScoreEvents, что и `Tally()`, добавление этой
+одной строки позволяет ему реагировать на все события eScoreEvents,
+генерируемые классом Prospector. Это передаст любое событие
+eScoreEvent, отправленное в `ScoreManager.TALLY()`, в метод
+`FloatingScoreHandler()`, так что любое событие
+eScoreEvent по-прежнему нужно будет передать только в
+`ScoreManager.TALLY()`, чтобы оно было полностью
+обработано.
+- b. Если это событие является одним из событий окончания игры,
+вызывается `FloatingScore.REROUTE_TO_SCOREBOARD()`.
+- c. В том, что я считаю ошибкой, когда GameObject устанавливается в
+качестве дочернего объекта Canvas, имеющего активный
+CanvasScaler, CanvasScaler настраивает localScale RectTransform (и
+Transform). В этом случае, поскольку фактическая панель Game имеет
+размер 2048x1536, а эталонное разрешение CanvasScaler - 1024x768,
+для любого GameObject, установленного в качестве дочернего
+элемента Canvas, localScale устанавливается в [ 0.5, 0.5, 0.5 ].
+Следующая строка устраняет эту проблему, сбрасывая localScale в
+значение [1, 1, 1 ].
+
+>Другой способ избежать этой проблемы - создать экземпляр floatingScorePrefab в
+качестве дочернего объекта canvas, а не привязывать его к canvas уже после создания. В
+этом случае строка создания экземпляра будет выглядеть так:
+```c#
+GameObject go = Instantiate<GameObject>( floatingScorePrefab, canvasTrans );
+```
+
+- d. В этом списке показаны размеры шрифтов, которые будут
+интерполироваться при перемещении этого FloatingScore. Так
+же, как и с позициями Vector3, три числа с плавающей запятой
+могут быть интерполированы в кривой Безье, точно так же, как три
+Vector3.
+- e. fsFirstInRun устанавливается в null перед каждым
+прохождением карт, поэтому, если сейчас он равен null, то это
+должен быть первый FloatingScore в этом прохождении. В этом
+случае установите fsFirstInRun равным этому FloatingScore
+и настройте fontSizes немного иначе, чтобы этот
+FloatingScore завершил свое движение при fontSize 48
+(вместо 10).
+- f. Если fsFirstInRun не равен null, то это не первый
+FloatingScore в прогоне. В этом случае скажите этому
+FloatingScore уведомить fsFirstInRun, когда он закончит
+движение. Эти последующие FloatingScores будут лететь к первому
+FloatingScore прогона, передадут ему свой счет, а затем
+уничтожат себя.
+- g. Каждый раз, когда игрок нажимает на карту в колоде, выигрывает или
+проигрывает игру, первый объект FloatingScore в данном раунде
+должен «подниматься» к ScoreBoard и суммировать свой счет со
+счётом ScoreBoard. ScoreBoard имеет статический метод
+`FS_CALLBACK()`, который можно добавить в качестве слушателя к
+FSCallbackEvent на fsFirstInRun, что позволяет
+fsFirstInRun добавлять свои очки к ScoreBoard по
+завершении этого второго хода.  
+
+2. Сохраните все скрипты в Visual Studio и вернитесь в Unity.
+3. Установите поле floatingScorePrefab в ScoreManager в инспекторе:
+    - a. Выберите MainCamera в иерархии.
+    - b. В разделе ScoreManager (Script) инспектора щелкните круглую
+мишень справа от поля floatingScorePrefab. Откроется окно Select
+GameObject.
+    - c. Нажмите вкладку Assets в верхней части окна Select GameObject.
+    - d. Дважды щелкните префаб FloatingScore, чтобы назначить его полю floatingScorePrefab.
+4. Сохраните сцену!  
+
+Теперь, когда вы нажмете «Play» в Unity, вы должны увидеть, как счет
+летает вокруг. Это мелочь, но благодаря ей игра кажется игрокам гораздо
+более интерактивной. Я полагаю, что именно эту концепцию Кайл Гэблер
+(основатель компании 2D Boy и создатель таких игр, как World of Goo)
+первым назвал «juice». Игра считается «сочной», если она чрезмерно
+реагирует на ввод. В реальном мире бетонная стена не является «сочной», в
+то время как желатин - да. Если ты ткнешь пальцем в бетонную стену, она
+просто останется на месте… ничего не произойдет. С другой стороны,
+когда ты тыкаешь в желатин, он колышется и мерцает, казалось бы,
+отскакивая с большей энергией, чем твой первоначальный толчок.
+Прыгучее, основанное на кривых Безье движение счета создает ощущение,
+что в игре происходит больше, чем когда мы просто выплевывали
+консольные сообщения.  
+
+>Есть отличная лекция о juice под названием «Juice It or Lose It» от Мартина Йонассона и Петри
+Пурхо, которую можно посмотреть по адресу https://www.youtube.com/watch?v=Fy0aCDmgnxg  
+
+Изменение счета в этой игре также служит другой цели: оно помогает
+игрокам понять, откуда берется счет, и раскрывает им механику игры в
+процессе игры (вместо того, чтобы заставлять их читать инструкции).  
+
+Когда вы сейчас играете в игру, она должна выглядеть примерно так, как
+показано на рисунке.
+
+<img src="/unity_doc/images/ex122.jpeg" alt="1" style={{  height: 'auto' }} />
+Игра «Проспектор» с фоном, первым плавающим счетчиком
+(FloatingScore) и табло (ScoreBoard)  

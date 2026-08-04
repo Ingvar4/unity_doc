@@ -1,0 +1,14 @@
+{
+  "pages": [ 
+    "adding-scoring-prospector",
+    "prospector-background",
+    "adding-gui-elements",
+    "floatingscore-gameobject",
+    "real-floatingscore",
+    "creating-scoreboard",
+    "updating-scoremanager",
+    "adding-a-pause",
+    "uitextmanager-script",
+    "building-and-running"
+  ]
+}
