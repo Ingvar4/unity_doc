@@ -1,5 +1,6 @@
 {
   "pages": [ 
-    "understanding-dungeon-data"
+    "understanding-dungeon-data",
+    "generating-a-tilemap"
   ]
 }
