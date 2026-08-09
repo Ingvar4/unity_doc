@@ -5,4 +5,318 @@ description: Теперь, когда у вас есть палитра плит
 
 Для этого вам нужно создать класс MapInfo, который будет анализировать
 данные DelverLevel_Eagle, и класс TilemapManager, который будет размещать их в карте плиток
-Tilemap_Visual.
+Tilemap_Visual.  
+
+### MapInfo - чтение из DelverLevel_Eagle [!toc]
+Как упоминалось ранее в этой главе, документ DelverLevel_Eagle представляет собой простой
+текстовый файл с рядом шестнадцатеричных чисел, разделенных пробелами. Нам нужно прочитать
+текст из этого файла, разбить его на строки, разделить каждую строку на шестнадцатеричные числа,
+а затем преобразовать каждое шестнадцатеричное число в число от 0 до 255.  
+
+1. Создайте новый скрипт на C# в папке Scripts с именем *MapInfo*.
+2. Откройте скрипт *MapInfo* и введите код, в листинге кода:  
+    Листинг кода MapInfo.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using System.Globalization; // a
+
+public class MapInfo : MonoBehaviour {
+    static public int W { get; private set; } // b
+    static public int H { get; private set; }
+    static public int[,] MAP { get; private set; }
+    static public Vector3 OFFSET = new Vector3( 0.5f, 0.5f, 0 ); // c
+
+    [Header( "Inscribed" )]
+    public TextAsset delverLevel;
+
+    void Start() {
+        LoadMap();
+    }
+
+    /// <summary>
+    /// Load map data from the delverLevel TextAsset (e.g., DelverLevel_Eagle)
+    /// </summary>
+    void LoadMap() {
+        // Read in the map data as an array of lines
+        string[] lines = delverLevel.text.Split('\n'); // d
+        H = lines.Length;
+        string[] tileNums = lines[0].Trim().Split(' ');// A space between ' ' // e
+        W = tileNums.Length;
+
+        // Place the map data into a 2D Array for very fast access
+        MAP = new int[W, H]; // Generate a 2D array of the right size
+        for ( int j = 0; j < H; j++ ) { // Iterate over every line in lines
+            tileNums = lines[j].Trim().Split(' '); // A space between ' ' // f
+            for ( int i = 0; i < W; i++ ) { // Iterate over every tileNum string
+                if ( tileNums[i] == ".." ) { // g
+                    MAP[i, j] = 0;
+                } else { // h
+                    MAP[i, j] = int.Parse( tileNums[i], NumberStyles.HexNumber );
+                }
+            }
+        }
+        Debug.Log( "Map size: " + W + " wide by " + H + " high" );
+    }
+
+    /// <summary>
+    /// Used by TilemapManager to get the bounds of the map
+    /// </summary>
+    /// <returns></returns>
+    public static BoundsInt GET_MAP_BOUNDS() { // i
+        BoundsInt bounds = new BoundsInt( 0, 0, 0, W, H, 1 );
+        return bounds;
+    }
+    // void Update() {…} // Please delete the unused Update() method
+}
+```
+
+        - a. Нам нужно использовать библиотеку `System.Globalization`, чтобы получить доступ к
+классу `NumberStyles`, который мы используем для преобразования
+шестнадцатеричного текста (например, «ff», «2e») в числовые значения типа `int`.
+        - b. W, H и MAP являются статическими и общедоступными, что позволяет видеть их всем
+классам, но они также являются автоматическими свойствами с частным условием `set`, что
+означает, что любой другой класс может получить к ним доступ, но устанавливать их может
+только данный класс `MapInfo`.  
+
+> См. Приложение B, «Полезные концепции», для получения дополнительной информации об автоматических свойствах.  
+
+        - c. Статический объект `Vector3 OFFSET` поможет нам выровнять различные GameObjects по
+сетке Tilemap в следующей главе. Это необходимо, поскольку все спрайты плиток настроены на
+поворот вокруг своей центральной точки (а не левого нижнего угла), поэтому `OFFSET` сместит
+их вверх и вправо для выравнивания по сетке.
+        - d. Метод `Split()` можно вызвать для любой строки, чтобы разбить её на `string[]` (массив
+строк) на основе определённого разделительного символа. В этой строке разделительным
+символом является `'\n'` - это символ перевода строки (который разделяет строки в
+DelverLevel_Eagle), поэтому полный текст файла DelverLevel_Eagle разбивается на массив строк.
+        - e. Здесь 0-я строка `lines[]` разбивается по пробелам (' '). Метод `Trim()` вызывается перед
+`Split()`, чтобы гарантировать удаление из строки всех лишних пробелов (т. е. пробелов, '\r'
+(возврат каретки), '\t' (табуляции) и т. д.) перед ее разделением. Здесь разбивается только 0-я строка, поскольку мы используем эту строку для определения W - количества плиток, на
+которое равна ширина этой карты.
+        - f. Здесь мы разбиваем каждую строку так же, как мы делали в `// d`.
+        - g. В файлах DelverLevel_ я заменил «00» на «..», чтобы облегчить чтение для человека.
+Однако `int.Parse()` этого не знает, поэтому, если мы встречаем «..», мы вручную
+устанавливаем номер плитки в этом месте на MAP равным 0.
+        - h. При обнаружении любого символа, отличного от «..», он передается в метод `int.Parse()`
+для преобразования из строки в целое число. Параметр NumberStyles.HexNumber
+указывает методу `int.Parse()`, что текст представляет шестнадцатеричное число, поэтому,
+например, в данном случае `int.Parse()` преобразует «ff» в целое число 255.
+Затем преобразованное число помещается в массив MAP[,], заполняя MAP числом для
+каждой плитки, которое соответствует числу в конце имени плитки (например,
+DelverTiles_255).
+        - i. Это возвращает границы MAP в виде BoundsInt , (10),который начинается с [0, 0, 0]
+и имеет размер [ W, H, 1 ].  
+
+>См. документацию Unity: https://docs.unity3d.com/2020.3/Documentation/ScriptReference/BoundsInt.html. Такое использование не обязательно соответствует тому, для чего был разработан класс BoundsInt, но оно отлично подходит для данных, которые нам нужно передать обратно при вызове `GET_MAP_BOUNDS()`.
+
+3. Сохраните скрипт MapInfo и вернитесь в Unity.
+4. Перетащите скрипт MapInfo на объект Grid в иерархии.
+5. Выберите Grid в иерархии и посмотрите на панель Inspector.
+6. В инспекторе MapInfo на Grid присвойте поле delverLevel текстовому ресурсу
+DelverLevel_Eagle (в папке Resources панели Project).
+7. Сохраните сцену, а затем нажмите «Play» в Unity.  
+
+В панели Console должно появиться простое сообщение: «Размер карты: 96 в ширину и 66 в высоту».
+Если это так, значит, все сработало правильно. Теперь этот большой текстовый файл был
+преобразован в компактный массив `int[,] MAP`, который можно использовать для генерации
+уровня!  
+
+### TilemapManager - заполнение Tilemap_Visual [!toc]
+
+Теперь, когда у вас есть данные, извлеченные из текстового файла уровня и преобразованные в
+целые числа, пришло время построить из них Tilemap. Первый шаг - добавить все Tiles из папки
+Resources / Tiles_Visual, чтобы мы могли использовать их в нашем коде. Папка Resources
+особенная, потому что все, что в ней хранится, будет включено в вашу сборку Unity (для всех
+платформ сборки), даже если это не находится в сцене. Это делает её идеальным местом для
+хранения таких вещей, как эти Tiles, которые нам нужно загружать вручную, чтобы использовать
+(см. `// a` ниже).
+
+1. Создайте новый скрипт на C# в папке Scripts с именем TilemapManager.
+2. Присвойте скрипт TilemapManager объекту Grid в иерархии.
+3. Откройте скрипт TilemapManager и введите код, в листинге кода:  
+
+Листинг кода TilemapManager.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Tilemaps; // We need this to make Tiles & Tilemaps work
+
+public class TilemapManager : MonoBehaviour {
+    static public Tile[] DELVER_TILES;
+
+    void Awake() {
+        LoadTiles();
+    }
+
+    /// <summary>
+    /// Load all the Tiles from the Resources/Tiles_Visual folder into an array.
+    /// </summary>
+    void LoadTiles() {
+        int num;
+
+        // Load all of the Sprites from DelverTiles
+        Tile[] tempTiles = Resources.LoadAll<Tile>( "Tiles_Visual" ); // a
+
+        // The order of the Tiles is not guaranteed, so arrange them by number
+        DELVER_TILES = new Tile[tempTiles.Length];
+        for ( int i = 0; i < tempTiles.Length; i++ ) {
+            string[] bits = tempTiles[i].name.Split( '_' ); // b
+            if ( int.TryParse( bits[1], out num ) ) { // c
+                DELVER_TILES[num] = tempTiles[i];
+            } else {
+                Debug.LogError("Failed to parse num of: "+tempTiles[i].name); // d
+            }
+        }
+        Debug.Log("Parsed "+DELVER_TILES.Length+" tiles into TILES_VISUAL.");
+    }
+    // void Update() {…} // Please delete the unused Update() method
+    // You will add code to the Start() method in Code Listing 35.3
+}
+```
+
+        - a. `Resources.LoadAll<Tile>( 'Tiles_Visual' )` загружает все ресурсы типа Tile из
+папки Resources / Tiles_ Visual в массив tempTiles. Это работает только в том случае, если
+ресурсы хранятся в папке с именем Resources.
+        - b. Здесь мы используем Split(), чтобы сделать нечто немного иное. Мы знаем, что все плитки
+имеют имена типа DelverTiles20 , например. Разделив это имя по символу «_» (подчеркиванию), мы получаем
+два элемента в массиве bits (['DelverTiles', '20'] ).
+        - c. Затем мы пытаемся преобразовать первыйэлемент битовой строки (например, «20») в число.
+Стандартная функция `int.Parse()` завершит работу с ошибкой в случае неудачи, поэтому
+здесь мы используем `int.TryParse()`, которая возвращает true в случае успеха или
+false в случае неудачи. В случае успеха num присваивается значением преобразованного числа (через out num в вызове
+`TryParse()`). Затем текущему tempTiles[i] присваивается место num в статическом
+массиве DELVER_TILES, чтобы к нему можно было легко получить доступ из любого места.  
+
+Ключевое слово out используется, когда нам нужно получить значение из функции в
+дополнение к возвращаемому значению функции. В случае int.TryParse()
+возвращаемое значение - это bool (true, если разбор прошел успешно, и false, если
+он завершился сбоем), но нам также нужно получить обратно значение int, которое было
+проанализировано, и которое присваивается num с помощью ключевого слова out. Аргумент
+out num гарантирует, что функция TryParse() присвоит значение num, прежде чем
+вернет true или false.  
+
+        - d. Если вызов `int.TryParse()` завершился сбоем, мы выводим в консоль сообщение об
+ошибке, в котором указано имя плитки, которую не удалось проанализировать (с помощью
+`LogError()` оно будет выведено с красным знаком остановки).
+
+4. Сохраните скрипт TilemapManager и вернитесь в Unity.
+5. Нажмите «Play» в Unity.  
+
+Теперь вы должны увидеть дополнительное небольшое сообщение в консоли: «Parsed 256 tiles into
+TILES_VISUAL». Это говорит нам о том, что всё прошло идеально!  
+
+Теперь пришло время использовать эту информацию для построения нашей визуальной Tilemap.
+Чтобы программно назначить плитки в Tilemap в виде блока, Unity требует, чтобы мы назначили
+плитки в массив TileBase[] (TileBase - это суперкласс для всех типов плиток, которые могут
+быть размещены в Unity Tilemap). Несмотря на то, что блок, заполняемый массивом TileBase[],
+является двумерным, сам массив TileBase[] является одномерным, поэтому нам придется
+выполнить несколько простых математических вычислений, чтобы все работало. Но хорошая новость
+заключается в том, что после этого шага мы впервые увидим визуальный результат в панели «Сцена».  
+
+6. Откройте скрипт TilemapManager в Visual Studio и добавьте код из листинга:  
+        Листинг кода TilemapManager.cs
+
+```c#
+public class TilemapManager : MonoBehaviour {
+    static public Tile[] DELVER_TILES;
+
+    [Header( "Inscribed" )] // a
+    public Tilemap visualMap; // a
+
+    private TileBase[] visualTileBaseArray; // a
+
+    void Awake() {
+        LoadTiles();
+    }
+
+    void Start() {
+        ShowTiles(); // a
+    }
+
+    void LoadTiles() { … }
+
+    /// <summary>
+    /// Uses GetMapTiles() to generate an array of TileBases with the right tile
+    /// in each position on the map. Then set them as a block on visualMap.
+    /// </summary>
+    void ShowTiles() {
+        visualTileBaseArray = GetMapTiles(); // b
+        visualMap.SetTilesBlock(MapInfo.GET_MAP_BOUNDS(), visualTileBaseArray);
+    }
+
+    /// <summary>
+    /// Use MapInfo.MAP to create a TileBase[] array holding the tiles to fill
+    /// the visualMap Tilemap.
+    /// </summary>
+    /// <returns>The TileBases for visualMap</returns>
+    public TileBase[] GetMapTiles() {
+        int tileNum;
+        Tile tile;
+        TileBase[] mapTiles = new TileBase[MapInfo.W * MapInfo.H];
+        for ( int y = 0; y < MapInfo.H; y++ ) {
+            for ( int x = 0; x < MapInfo.W; x++ ) {
+                tileNum = MapInfo.MAP[ x, y ]; // c
+                tile = DELVER_TILES[ tileNum ]; // d
+                mapTiles[ y * MapInfo.W + x ] = tile; // e
+            }
+        }
+        return mapTiles;
+    }
+}
+```
+
+        - a. Убедитесь, что вы не пропустили ни одну из этих четырех строк.
+        - b. Функция` GetMapTiles()` возвращает массив `TileBase[]` со всеми плитками,
+расположенными в нужном месте. В следующей строке каждая плитка в визуальной карте
+`Tilemap` устанавливается одновременно с помощью вызова `SetTilesBlock()`, который
+принимает два аргумента: BoundsInt, описывающий область `Tilemap` для заполнения
+(предоставляется `GET_MAP_BOUNDS()` в листинге кода), и массив `TileBase[]` со
+всеми плитками, которые нужно поместить в `Tilemap`.
+Вызов `SetTilesBlock()` требует массива `TileBase[]` (а не подкласса Tile от
+TileBase), поскольку это позволяет разработчикам создавать собственные подклассы
+TileBase и использовать их в Tilemap Unity.
+        - c. Все это можно было бы сделать в одной строке, но я разделил код здесь, чтобы облегчить
+понимание, что важно не только при написании книги, но и в любой момент, когда вы
+работаете над проектом с другим разработчиком.
+Здесь tileNum устанавливается в значение int, которое было прочитано в точке [x,y] на карте
+MAP. Это
+целое число представляет плитку, которая в конечном итоге должна быть размещена в Tilemap.
+        - d. Далее мы используем этот tileNum, чтобы извлечь нужную плитку из словаря
+DELVER_TILES.
+        - e. Наконец, мы присваиваем этот Tile правильному месту в массиве TileBase[] mapTiles
+. Поскольку Tile является подклассом TileBase, плитку Tile можно добавить в массив массив без необходимости преобразования. Это используется методом SetTilesBlock() в
+нашем
+ShowTiles().
+Математика здесь может показаться немного странной, если вы с ней раньше не
+сталкивались. Для получения дополнительной информации см. боковую панель «Хранение
+двумерных данных в линейном массиве».
+7. Сохраните скрипт TilemapManager и вернитесь в Unity.  
+
+<Callout>
+### Хранение двумерных данных в линейном массиве [!toc]
+Стандартная реализация двумерного массива в C# несколько неэффективна. Это связано с тем,
+что любое присвоение или чтение из массива требует проверки на корректность по обоим
+измерениям массива. Из-за этого в тех областях программирования, где скорость и
+эффективность имеют первостепенное значение (например, в разработке игр), вы часто будете
+сталкиваться с двумерными данными, хранящимися в линейном (т. е. одномерном) массиве.
+К ним относятся как хранение пикселей в изображениях, так и одномерный массив
+TileBase[] mapTiles, который мы заполняем в листинге кода.  
+
+При хранении двумерных данных в стандартном массиве формула для нахождения нужного
+элемента массива довольно проста: номер элемента равен (y * width) + x, как показано на
+рисунке.
+<img src="/unity_doc/images/ex134.jpeg" alt="1" style={{  height: 'auto' }} />
+Номера элементов двумерного массива размером 10x4, хранящегося в виде
+линейного массива  
+
+Ширина массива на рисунке равна 10, поэтому для поиска элемента с координатами [x=4, y=2]
+формула (y * ширина) + x дает результат (2 * 10) + 4 = 24. Конечно, ширина, равная 10
+(и, следовательно, идеально согласующаяся с десятичной системой счисления),
+встречается нечасто, но это хороший пример. Концептуально это практически
+то же самое, что и нумерация тайлов в текстуре DelverTiles размером 16x16
+(как показано на рисунке).
+</Callout>
