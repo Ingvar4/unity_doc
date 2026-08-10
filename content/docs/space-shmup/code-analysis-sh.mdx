@@ -5,6 +5,7 @@ description: построчный разбор
 
 ## Скрипт Hero.cs
 
+- Реализация паттерна синглтон
 - Считывание значений осей ввода с помощью `Input.GetAxis()` (метод считается устаревшим)
 - Настройка перемещения объекта в зависимости от полученых значений с осей
 - Добавление Rotation объекта при его движении
@@ -114,6 +115,8 @@ public class Hero : MonoBehaviour {
 
 ## Скрипт Shield.cs
 
+- Формула для вращения объекта в 2d
+
 ```c# title="C# Shield.cs"
 using System.Collections;
 using System.Collections.Generic;
@@ -150,6 +153,9 @@ public class Shield : MonoBehaviour {
 ```
 
 ## Скрипт BoundsCheck.cs
+
+- Использование `LateUpdate()` для избегания race condition
+- Использование `enum` (перечисление) для добавления нескольких условий проверки ухода за границы экрана
 
 ```c# title="C# BoundsCheck.cs"
 using System.Collections;
