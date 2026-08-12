@@ -19,7 +19,7 @@ public class Hero : MonoBehaviour {
     void OnTriggerEnter(Collider other) {
         Transform rootT = other.gameObject.transform.root; // a
         GameObject go = rootT.gameObject;
-        Debug.Log("Shield trigger hit by: " +go.gameObject.name);
+        Debug.Log("Shield trigger hit by: " + go.gameObject.name);
     }
 }
 ```
@@ -27,11 +27,6 @@ public class Hero : MonoBehaviour {
 Теперь, если запустить сцену и направить корабль на врагов, вы увидите, что метод `OnTriggerEnter()` сообщает о столкновении с Enemy_0(Clone) - экземпляром объекта Enemy_0.  
 
 >Если вы не получаете эти сообщения, убедитесь, что для компонента Sphere Collider щита установлен режим триггера (шаг 1.c). Еще одна распространенная проблема, с которой я сталкиваюсь, заключается в том, что враги или объект _Hero находятся не на позиции Z=0.
-
-<Callout type='error'>
-### Error [!toc]
-Тригер не срабатывает для щита. Пришлось настраивать теги и слои для Shield дополнительно.
-</Callout>
 
 <Callout>
 ### Совет [!toc]
@@ -70,7 +65,7 @@ public class Hero : MonoBehaviour {
             shieldLevel--; // Decrease the level of the shield by 1
             Destroy(go); // … and Destroy the enemy // f
         } else {
-            Debug.LogWarning("Shield trigger hit by non-Enemy: "+go.name); // g
+            Debug.LogWarning("Shield trigger hit by non-Enemy: "+ go.name); // g
         }
     }
 }

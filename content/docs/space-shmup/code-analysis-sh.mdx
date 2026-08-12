@@ -13,39 +13,40 @@ description: построчный разбор
 ```c# title="C# Hero.cs"
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
+using UnityEngine; // Подключение библиотек
 
 public class Hero : MonoBehaviour {
-    static public Hero S { get; private set; } // Объявляем синглтон где set приватный, что позволяет вносить в него изменения только из кода класса Hero
+    // Hero S - реализация паттерна синглтон. Объект существует в единственном экземпляре. Обращение к нему через Hero.S
+    static public Hero S {get; private set;} //static - поле S принадлежит конкретному классу Hero. public - глобальный доступ к нему. get - свойство можно читать. private set - менять свойства можно только внутри самого класса Hero.
 
-    [Header("Inscribed")]
+    [Header("Inscribed")] // Заголовок для отображения групп переменных в инспекторе
     // Эти поля управляют движением корабля
     public float speed = 30;
     public float rollMult = -45;
     public float pitchMult = 30;
-    public GameObject projectilePrefab;
-    public float projectileSpeed = 40;
+    public GameObject projectilePrefab; // Объявляем переменную для хранения снаряда
+    public float projectileSpeed = 40; // Скорость полёта снаряда
 
-    [Header("Dynamic")] [Range(0,4)] [SerializeField] // Атрибут [Range(0,4)] здесь добавляет ползунок в Инспектор и не позволяет нам использовать Инспектор для установки shieldLevel в значение меньше 0 или больше 4
+    [Header("Dynamic")] [Range(0, 4)] [SerializeField] // Атрибут [Range(0,4)] добавляет ползунок в инспектор и не позволяет нам использовать инспектор для установки shieldLevel в значение меньше 0 или больше 4
     private float _shieldLevel = 1;
+    // public float shieldLevel = 1;
     [Tooltip( "This field holds a reference to the last triggering GameObject" )]
-    private GameObject lastTriggerGo = null; // В этом закрытом поле lastTriggerGo будет храниться ссылка на последний объект GameObject, который активировал коллайдер _Hero. Изначально оно имеет значение null
+    private GameObject lastTriggerGo = null; // В этом закрытом поле будет храниться ссылка на последний объект GameObject, который активировал коллайдер _Hero. Изначально оно имеет значение null
 
-    void Awake() {
-        if (S == null) {
-            S = this; // Выдает ошибку в панели Console, если вы попытаетесь установить Hero.S после того, как он уже был установлен
-        } else {
-            Debug.LogError("Hero.Awake() - Attempted to assign second Hero.S!");
+    void Awake() { // Вызывается самым первым при создании и загрузке объекта в сцену до Start(). Как один из вариантов - для создания синглтона
+        if (S == null) { // Если синглтон Hero S отсутствует
+            S = this; // То назначить текущий Hero синглтоном
+        } else { // В ином случае, если Hero уже существует, либо скрипт Hero прикреплён уже к другому объекту - выдать ошибку
+            Debug.LogError("Hero.Awake() = Attempted to assign second Hero.S!"); // Но при таком условии 2й Hero всё равно будет создан потому что нет Destroy() дубликата
         }
-        // Это еще одна мера защиты от ошибок (например, если в одной сцене было два GameObject, 
-        // к которым были прикреплены скрипты Hero, или два компонента Hero, прикрепленных к одному GameObject)
     }
 
-    void Update() {
+  [System.Obsolete] // Обозначение для методов в коде, которые устарели и потенциально могут не работать в следующих версиях UNITY
+  // В данном случае устарел метод TempFire()
+  void Update() {
         // Получаем информацию из класса Input
-        // Эти две строки используют класс Input Unity для извлечения информации из Unity Input Manager
-        float hAxis = Input.GetAxis("Horizontal");
-        float vAxis = Input.GetAxis("Vertical");
+        float hAxis = Input.GetAxis("Horizontal"); // Эти две строки используют класс Input Unity для извлечения информации из Unity Input Manager
+        float vAxis = Input.GetAxis("Vertical"); // В переменные записывается информация о 
 
         // Изменяем transform.position в зависимости от осей
         Vector3 pos = transform.position; // Получаем позицию объекта
@@ -55,45 +56,48 @@ public class Hero : MonoBehaviour {
 
         // Поворот корабля (Rotate), для большей динамики
         transform.rotation = Quaternion.Euler(vAxis * pitchMult, hAxis * rollMult, 0); //pitchMult и rollMult умножаются на vAxis и hAxis (каждый из которых находится в диапазоне от [-1..1]), чтобы наклонять корабль вперед и назад (от –30 до 30 градусов) и кренить его влево и вправо (от 45 до –45 градусов)
-        // Allow the ship to fire
-        if ( Input.GetKeyDown( KeyCode.Space ) ) { // Из-за этого корабль стреляет при каждом нажатии клавиши пробела. Ось «Jump» привязана к пробелу, но если бы мы использовали здесь условие Input.GetAxis("Jump") == 1, выстрел происходил бы в каждом кадре!
+
+        // Добавляем возможность кораблю стрелять
+        if (Input.GetKeyDown(KeyCode.Space)) { // Корабль стреляет при каждом нажатии клавиши пробела
             TempFire();
         }
     }
 
-    void TempFire() { 
-        GameObject projGO = Instantiate<GameObject>( projectilePrefab );
-        projGO.transform.position = transform.position;
-        Rigidbody rigidB = projGO.GetComponent<Rigidbody>();
-        rigidB.velocity = Vector3.up * projectileSpeed;
+  [System.Obsolete] // Обозначение для методов в коде, которые устарели и потенциально могут не работать в следующих версиях UNITY
+  // В данном случае устарел метод rigidB.velocity
+  void TempFire() { // TempFire потому что это временный метод, рассматриваемый в 1й части SH
+        GameObject projGO = Instantiate<GameObject>(projectilePrefab); // Присваиваем вызов снаряда projGO
+        projGO.transform.position = transform.position; // Снаряд берёт данные позиции _Hero. Без этой строки он появится на трансформе своего префаба
+        Rigidbody rigidB = projGO.GetComponent<Rigidbody>(); // Получение данных Rigidbody объекта снаряда
+        rigidB.velocity = Vector3.up * projectileSpeed; // Движение снаряда вверх со скоростью, заданной в projectileSpeed
     }
 
     void OnTriggerEnter(Collider other) {
         Transform rootT = other.gameObject.transform.root;
         GameObject go = rootT.gameObject;
-        // Debug.Log("Shield trigger hit by: " +go.gameObject.name); 
+        // Debug.Log("Shield trigger hit by: " +go.gameObject.name);
 
         // Убедитесь, что это не тот же самый триггер, что и в прошлый раз
-        if ( go == lastTriggerGo ) return; // Если lastTriggerGo совпадает с go (текущим объектом GameObject, вызвавшим срабатывание триггера), 
-        // то это событие игнорируется как дубликат, и выполнение функции прекращается (происходит выход из нее). Такая ситуация может возникнуть, 
-        // если два дочерних объекта GameObject одного и того же врага (Enemy) одновременно (то есть в течение одного кадра) активируют коллайдер героя
+        if ( go == lastTriggerGo ) return; // Если lastTriggerGo совпадает с go (текущим объектом GameObject, вызвавшим срабатывание триггера), то это событие игнорируется как дубликат, и выполнение функции прекращается
+        // Такая ситуация может возникнуть, если два дочерних объекта GameObject одного и того же врага (Enemy) одновременно (то есть в течение одного кадра) активируют коллайдер героя
         lastTriggerGo = go; // Присвойте переменной lastTriggerGo значение go, чтобы подготовить ее к последующим вызовам OnTriggerEnter()
-        Enemy enemy = go.GetComponent<Enemy>(); // проверка наличия определенного скрипта на объекте GameObject - гораздо более надежный способ определить, что это за объект (поскольку это позволяет избежать ошибок, вызванных возможными опечатками в названии тега)
-        if (enemy != null) { // Если щит был активирован врагом
-            shieldLevel--; // Уменьшите уровень щита на 1
-            Destroy(go); // … и уничтожить врага 
+        Enemy enemy = go.GetComponent<Enemy>(); // Проверка наличия определенного скрипта на объекте
+        if (enemy != null) { // Если щит был активирован enemy
+            shieldLevel--; // Уменьшить уровень щита на 1
+            Destroy(go); // … и уничтожить enemy
         } else {
-            Debug.LogWarning("Shield trigger hit by non-Enemy: "+go.name); // Если _Hero столкнется с объектом, не имеющим тега Enemy, в консоль будет выведено сообщение с информацией об этом объекте
+            Debug.LogWarning("Shield trigger hit by non-Enemy: "+ go.name); // Если _Hero столкнется с объектом, не имеющим тега Enemy, в консоль будет выведено сообщение с информацией об этом объекте
         }
     }
 
     public float shieldLevel {
-        get { return ( _shieldLevel ); } // Блок get просто возвращает значение переменной _shieldLevel. Вполне допустимо записывать этот блок в одну строку
+        get { return ( _shieldLevel ); }
         private set { // Ключевое слово private гарантирует, что, хотя получить значение shieldLevel может любой класс, изменить его способен только класс Hero
-            _shieldLevel = Mathf.Min( value, 4 ); // Метод Mathf.Min() гарантирует, что значение _shieldLevel никогда не превысит 4
-            if (value < 0) { // Если значение, переданное в блок set, меньше 0, объект _Hero уничтожается
-                Destroy(this.gameObject); // Уничтожьте Hero
-                Main.HERO_DIED();
+            _shieldLevel = Mathf.Min(value, 4); // Метод Mathf.Min() гарантирует, что значение _shieldLevel никогда не превысит 4
+            
+            if (value < 0) { // Если значение защиты будет установлено меньше нуля…
+                Destroy(this.gameObject); // Destroy the Hero
+                Main.HERO_DIED(); // И вызов метода HERO_DIED() из Main, который вызывает отложенный рестарт игры
             }
         }
     }
@@ -106,11 +110,6 @@ public class Hero : MonoBehaviour {
 - Входные данные: Принимает три числа (или Vector3) — градусы поворота по осям X (pitch), Y (yaw) и Z (roll).
 - Результат: Возвращает тип данных Quaternion, который понятен компоненту transform.rotation.
 - Порядок вращения: Поворот происходит в порядке: сначала по оси Z, затем по оси X и в конце по оси Y.
-</Callout>
-
-<Callout type='error'>
-### Error [!toc]
-Тригер не срабатывает для щита (OnTriggerEnter). Пришлось настраивать теги и слои для Shield дополнительно.
 </Callout>
 
 ## Скрипт Shield.cs
@@ -127,27 +126,25 @@ public class Shield : MonoBehaviour {
     public float rotationsPerSecond = 0.1f;
 
     [Header("Dynamic")]
-    public int levelShown = 0; 
+    public int levelShown = 0;
 
-    // Эта переменная не будет отображаться в инспекторе
-    Material mat; // Поле Material mat не объявлено как public, поэтому оно не будет отображаться в инспекторе и к нему не будет доступа за пределами класса Shield
+    Material mat; // Не объявлено как public, поэтому оно не будет отображаться в инспекторе и к нему не будет доступа за пределами класса Shield
 
     void Start() {
-        mat = GetComponent<Renderer>().material; // В Start() mat определяется как материал компонента Renderer на этом GameObject (т. е. компонента Renderer Shield в иерархии). Это позволяет быстро установить смещение текстуры в строке mat.mainTextureOffset
+        // // В Start() mat определяется как материал компонента Renderer на этом GameObject (т. е. компонента Renderer Shield в иерархии). Это позволяет быстро установить смещение текстуры в строке mat.mainTextureOffset
+        mat = GetComponent<Renderer>().material; // Создаём ссылку на текстуру Mat_Shield
     }
 
     void Update() {
-        // Считываем текущий уровень щита у Hero Singleton
-        int currLevel = Mathf.FloorToInt( Hero.S.shieldLevel ); // currLevel устанавливается на целое значение текущего числа Hero.S.shieldLevel. Округление shieldLevel к меньшему значению гарантирует, что щит переместится на новое смещение по оси X, а не покажет смещение между двумя участками текстуры щита
-        // Если это отличается от levelShown...
-        if (levelShown != currLevel) {
-            levelShown = currLevel;
-            // Отрегулируйте смещение текстуры, чтобы отображать разные уровни защиты
-            mat.mainTextureOffset = new Vector2( 0.2f * levelShown, 0 ); // Настраивает смещение по оси X Mat_Shield, чтобы отобразить правильный уровень щита
+        int currLevel = Mathf.FloorToInt(Hero.S.shieldLevel); // Получаем shieldLevel из Hero и округляем Mathf.FloorToInt до ближайшего целого числа в меньшую сторону (получаем результат в формате int)
+        // Округление shieldLevel к меньшему значению гарантирует, что щит переместится на новое смещение по оси X, а не покажет смещение между двумя участками текстуры щита
+        if (levelShown != currLevel) { // Если есть разница между levelShown и значением щита в Hero,
+            levelShown = currLevel; // то значение щита в Hero присваивается levelShown Shield
+            mat.mainTextureOffset = new Vector2 (0.2f * levelShown, 0); // Настраивает смещение по оси X Mat_Shield c помощью mainTextureOffset, чтобы отобразить правильный уровень щита
         }
-        // Поворот щита каждый кадр с задержкой по времени
-        float rZ = -(rotationsPerSecond * Time.time * 360) % 360f; // Эта строка и следующая за ней заставляют GameObject Shield медленно вращаться вокруг оси z
-        transform.rotation = Quaternion.Euler( 0, 0, rZ );
+        // Небольшой поворот щита каждый кадр с привязкой ко времени
+        float rZ = -(rotationsPerSecond * Time.time * 360) % 360f; // Time.time - считает время с начала сцены. Update() его не волнует (время отделено от количества кадров)
+        transform.rotation = Quaternion.Euler(0, 0, rZ); // Quaternion.Euler работает с 3мя параметрами (x,y,z) В данном случае он получает параметр для вращения по оси Z потому что наш объект в 2d сцене 
     }
 }
 ```
@@ -162,73 +159,74 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-// If you type /// in Visual Studio, it will automatically expand to a <summary>
 /// <summary>
 /// Keeps a GameObject on screen.
 /// Note that this ONLY works for an orthographic Main Camera.
 /// </summary>
-// система интерпретирует текст между тегами <summary> как краткое описание назначения класса
 public class BoundsCheck : MonoBehaviour {
+    public enum eType { center, inset, outset }; // Создаём именованные константы перечисления enum для контроля, будет ли BoundsCheck центрированным, смещенным внутрь или наружу, а общедоступный eType boundsType можно установить в Инспекторе
 
-    [System.Flags]
-    public enum eScreenLocs { // Для перечислений с атрибутом [System.Flags] следует явно задавать значение каждого элемента. 
-    // В данном случае: onScreen=0 (ноль), offRight=1, offLeft=2, offUp=4, offDown=8. Двоичное представление каждого из этих 
-    // чисел приведено в комментарии рядом с соответствующим элементом. Обратите внимание, что всё это - одна инструкция 
-    // (то есть одна логическая «строка» кода); элементы разделяются запятыми, а не точками с запятой
+    [System.Flags] // Если перечисление (enum) имеет атрибут компилятора [System.Flags], оно может хранить несколько значений одновременно
+    public enum eScreenLocs { // Для перечислений с атрибутом [System.Flags] следует явно задавать значение каждого элемента
         onScreen = 0, // 0000 in binary (zero)
         offRight = 1, // 0001 in binary
         offLeft = 2, // 0010 in binary
         offUp = 4, // 0100 in binary
         offDown = 8 // 1000 in binary
     }
-    public enum eType { center, inset, outset }; // Позволяет нам контролировать, будет ли BoundsCheck центрированным, смещенным внутрь или наружу, а общедоступный eType boundsType можно установить в Инспекторе
 
     [Header("Inscribed")]
-    public eType boundsType = eType.center; 
-    public float radius = 1f;
-    public bool keepOnScreen = true; // Компонент BoundsCheck принудительно удерживает игровой объект в пределах экрана
+    public eType boundsType = eType.center; // center как начальное значение для boundsType
+    public float radius = 1f; // Это значение радуса в метрах, при котором объект не будет покидать гранцы экрана
+    public bool keepOnScreen = true; // Если параметр keepOnScreen имеет значение true, компонент BoundsCheck принудительно удерживает игровой объект в пределах экрана
 
     [Header("Dynamic")]
     public eScreenLocs screenLocs = eScreenLocs.onScreen;
-    // public bool isOnScreen = true; // принимает значение false, если игровой объект покидает пределы экрана. Точнее говоря, при типе границ outset значение isOnScreen становится false, если игровой объект выходит за край экрана на расстояние, превышающее радиус
-    public float camWidth; 
-    public float camHeight;
+    // public bool isOnScreen = true; // Переменная isOnScreen принимает значение false, если игровой объект покидает пределы экрана. Точнее говоря, при типе границ outset значение isOnScreen становится false, если игровой объект выходит за край экрана на расстояние, превышающее радиус
+    public float camWidth; // 30
+    public float camHeight; // 40
 
-    void Awake() {
-        camHeight = Camera.main.orthographicSize; // .orthographicSize возвращает значение Size из инспектора камеры (в данном случае 40). Таким образом, camHeight представляет собой расстояние от начала координат мира (позиция 0,0,0) до верхнего или нижнего края экрана в мировых координатах
-        camWidth = camHeight * Camera.main.aspect; // Camera.main.aspect - это соотношение сторон камеры по ширине/высоте, определяемое соотношением сторон панели Game, что делает aspect равным 0.75f. Умножив camHeight на .aspect, можно получить расстояние от начала координат до левого или правого края экрана
+    void Awake() { // Вызывается самым первым. Основное назначение метода - внутренняя инициализация объекта до того, как игра начнет с ним взаимодействовать.
+        camHeight = Camera.main.orthographicSize; // Присваивает значение размера Main камеры переменной camHeight. Таким образом, camHeight представляет собой расстояние от начала координат мира (позиция 0,0,0) до верхнего или нижнего края экрана в мировых координатах
+        camWidth = camHeight * Camera.main.aspect; // aspect = 3 : 4 Portrait (768 x 1024) = 0.75f. Умножив camHeight на aspect, можно получить расстояние от начала координат до левого или правого края экрана
     }
 
-    void LateUpdate () { 
-        // Нахождение значения checkRadius, которое позволит выбрать center, inset, или outset
-        float checkRadius = 0;
-        if (boundsType == eType.inset) checkRadius = -radius;
-        if (boundsType == eType.outset) checkRadius = radius;
+    void LateUpdate() { // Вызывается в каждом кадре после того, как Update() был вызван для всех GameObjects
+        // В данном случае смысл в том, чтобы Hero осуществил перемещение в Update() раньше, чем сработает BoundsCheck в LateUpdate(). 
+        float checkRadius = 0; // Стандартное значение, будет использовано для center
+        if (boundsType == eType.inset) checkRadius = -radius; // Добавление или вычитание 1 метра радиуса к checkRadius
+        if (boundsType == eType.outset) checkRadius = radius; // В зависимости от заданной константы inset или outset
 
-        Vector3 pos = transform.position;
-        screenLocs = eScreenLocs.onScreen; // В начале каждого метода LateUpdate() мы устанавливаем screenLocs в значение eScreenLocs.onScreen. Это заменяет старую строку, которая присваивала isOnScreen значение true
-        // isOnScreen = true; // Изначально присваивается значение true, пока не будет доказано обратное. Это позволяет isOnScreen снова стать true, если в предыдущем кадре объект находился за пределами экрана, а в текущем - вернулся в его границы
+        Vector3 pos = transform.position; // Получаем значения позиции объекта (x,y,z), к которому прикреплён скрипт
+        screenLocs = eScreenLocs.onScreen;
+        // isOnScreen = true; // Переменной isOnScreen изначально присваивается значение true, пока не будет доказано обратное. Это позволяет isOnScreen снова стать true, если в предыдущем кадре объект находился за пределами экрана, а в текущем - вернулся в его границы
         // Ограничение положения по оси X значением camWidth
-        if ( pos.x > camWidth + checkRadius ) {
+        if (pos.x > camWidth + checkRadius) {
             pos.x = camWidth + checkRadius;
             screenLocs |= eScreenLocs.offRight;
             // isOnScreen = false;
         }
-        if ( pos.x < -camWidth - checkRadius ) {
+        if (pos.x < -camWidth - checkRadius) {
             pos.x = -camWidth - checkRadius;
             screenLocs |= eScreenLocs.offLeft;
             // isOnScreen = false;
         }
-        if ( pos.y > camHeight + checkRadius ) {
+        // Ограничение положения по оси Y значением camHeight
+        if (pos.y > camHeight + checkRadius) {
             pos.y = camHeight + checkRadius;
             screenLocs |= eScreenLocs.offUp;
             // isOnScreen = false;
         }
-            if ( pos.y < -camHeight - checkRadius ) {
+        if (pos.y < -camHeight - checkRadius) {
             pos.y = -camHeight - checkRadius;
             screenLocs |= eScreenLocs.offDown;
-            // isOnScreen = false;
+            // isOnScreen = false; // Если условие в любой из этих четырех инструкций if выполняется, значит, 
+            // игровой объект вышел за пределы допустимой зоны. В результате isOnScreen устанавливается в false, а переменная 
+            // pos корректируется так, чтобы вернуть объект в границы экрана
         }
+        // Если keepOnScreen равен true, это означает, что вы пытаетесь удержать игровой объект в пределах экрана. 
+        // Если keepOnScreen равен true, а isOnScreen - false, значит, объект вышел за границы и его необходимо вернуть обратно. 
+        // В этом случае transform.position присваивается обновленное значение pos (находящееся в пределах экрана), а isOnScreen устанавливается в true, так как в результате присвоения новой позиции объект вернулся на экран
         if ( keepOnScreen && !isOnScreen ) { 
             transform.position = pos;
             screenLocs = eScreenLocs.onScreen;
@@ -236,15 +234,13 @@ public class BoundsCheck : MonoBehaviour {
         }
     }
 
-    public bool isOnScreen { // e
+    public bool isOnScreen { // Новое свойство isOnScreen обеспечивает обратную совместимость с полем isOnScreen, которое мы удалили
         get { return ( screenLocs == eScreenLocs.onScreen ); }
     }
 
-    public bool LocIs( eScreenLocs checkLoc ) {
-        if ( checkLoc == eScreenLocs.onScreen ) return isOnScreen; // Результатом побитового ИЛИ (|) любого значения с нулем всегда будет ноль (так же, как произведение любого числа на ноль равно нулю). Поскольку значение eScreenLocs.onScreen равно нулю, требуется особый подход для обработки случая, когда checkLoc совпадает с eScreenLocs.onScreen
-        return ( (screenLocs & checkLoc) == checkLoc ); // Если результат побитового И (&) для screenLocs и checkLoc совпадает со значением checkLoc, 
-        // это означает, что checkLoc входит в состав screenLocs, и функция возвращает true. Если checkLoc не содержится в screenLocs, возвращается false. 
-        // Этот механизм работает и для составных значений checkLoc (например, если checkLoc равно 0110 (комбинация offLeft | offUp), то LocIs() вернет true только в том случае, если screenLocs также равно 0110)
+    public bool LocIs(eScreenLocs checkLoc) {
+        if (checkLoc == eScreenLocs.onScreen) return isOnScreen;
+        return((screenLocs & checkLoc)  == checkLoc);
     }
 }
 ```
@@ -267,72 +263,58 @@ Cостояние гонки (race condition) - это ситуация, ког�
 ## Скрипт Enemy.cs
 
 ```c# title="C# Enemy.cs"
-using System.Collections; // Необходимо для некоторых операций с массивами
-using System.Collections.Generic; // Обязательно для списков и словарей
-using UnityEngine; // Требуется для Unity
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
 
-[RequireComponent( typeof(BoundsCheck) )] // Атрибут наследуется так же подклассами Enemy; следовательно, все подклассы Enemy, также будут требовать наличия компонента BoundsCheck
+[RequireComponent( typeof(BoundsCheck) )] // Любой игровой объект (GameObject), к которому прикреплен класс Enemy, должен также иметь компонент BoundsCheck
 public class Enemy : MonoBehaviour {
-
     [Header("Inscribed")]
     public float speed = 10f; // Скорость движения составляет 10 м/с
     public float fireRate = 0.3f; // Секунды/кадр (неиспользованные)
-    public float health = 10; // Для уничтожения этого врага необходимый урон
-    public int score = 100; // Начисление очков за уничтожение
+    public float health = 10;
+    public int score = 100;
 
     private BoundsCheck bndCheck; // Эта закрытая (private) переменная позволяет скрипту Enemy хранить ссылку на компонент BoundsCheck, расположенный на том же игровом объекте
 
-    void Awake() { 
+    void Awake() { // Метод Awake() выполняет поиск компонента скрипта BoundsCheck, прикрепленного к этому же игровому объекту
         bndCheck = GetComponent<BoundsCheck>();
-        // Выполняет поиск компонента скрипта BoundsCheck, прикрепленного к этому же игровому объекту. Если такой компонент отсутствует, 
-        // переменной bndCheck будет присвоено значение null, однако на практике этого никогда не произойдет благодаря атрибуту 
-        // компилятора [RequireComponent]. Я часто размещаю код, выполняющий поиск компонентов и кэширование ссылок, именно в методе Awake(), 
-        // чтобы ссылки были готовы к использованию сразу же после создания экземпляра игрового объекта
     }
 
-    // Это свойство: метод, который действует как поле (переменная)
-    public Vector3 pos { // Cвойство - это функция, маскирующаяся под поле. Это означает, что вы можете получать и устанавливать значение pos так, словно это переменная класса Enemy
-        get {
-            return this.transform.position;
-        }
-        set {
-            this.transform.position = value;
-        }
+    public Vector3 pos {
+        get {return this.transform.position;}
+        set {this.transform.position = value;}
     }
 
     void Update() {
-        Move(); 
-
-        // Проверяем, вышел ли Enemy за пределы нижней границы экрана
-        if ( bndCheck.LocIs( BoundsCheck.eScreenLocs.offDown ) ) { // В этой строке необходимо использовать полное имя offDown (т. е. BoundsCheck.eScreenLocs.offDown), поскольку eScreenLocs определено внутри класса BoundsCheck
+        Move();
+        
+        // Данная проверка обращается к скрипту BoundsCheck в котором кастомный метод LocIs
+        if ( bndCheck.LocIs( BoundsCheck.eScreenLocs.offDown ) ) { // Если объект покидает экран снизу, он удаляется
             Destroy( gameObject );
         }
-
-        // Проверяем, вышел ли Enemy за пределы нижней границы экрана
-        // if ( !bndCheck.isOnScreen ) { // Если переменная isOnScreen имеет значение false, данная конструкция if проверяет, не вышел ли объект за пределы экрана из-за того, что его координата pos.y стала слишком низкой
-        //     if ( pos.y < bndCheck.camHeight - bndCheck.radius ) {
-        //         Destroy( gameObject );
+        // if (!bndCheck.isOnScreen) { // Если переменная isOnScreen имеет значение false, данная конструкция if проверяет, 
+        //     if (pos.y < bndCheck.camHeight - bndCheck.radius) { // не вышел ли объект за пределы экрана из-за того, что его координата pos.y стала слишком низкой
+        //         Destroy(gameObject); // В этом случае игровой объект уничтожается
         //     }
         // }
     }
-
-    public virtual void Move() { // получает текущую позицию данного GameObject, перемещает его вниз по оси Y и присваивает новое значение свойству pos (тем самым устанавливая позицию GameObject)
-        Vector3 tempPos = pos;
-        tempPos.y -= speed * Time.deltaTime;
-        pos = tempPos;
+    public virtual void Move() { 
+        Vector3 tempPos = pos; // Получает текущую позицию данного GameObject
+        tempPos.y -= speed * Time.deltaTime; // Перемещает его вниз по оси Y
+        pos = tempPos; // Присваивает новое значение свойству pos (тем самым устанавливая позицию GameObject)
     }
 
-    void OnCollisionEnter( Collision coll ) {
+    void OnCollisionEnter(Collision coll) {
         GameObject otherGO = coll.gameObject; // Получите GameObject коллайдера, с которым произошло столкновение
-        if ( otherGO.GetComponent<ProjectileHero>() != null ) { // Если к объекту otherGO прикреплен скрипт ProjectileHero, уничтожьте как этот объект, так и текущий GameObject врага (Enemy)
-            Destroy( otherGO ); // Destroy the Projectile
-            Destroy( gameObject ); // Destroy this Enemy GameObject
+        if (otherGO.GetComponent<ProjectileHero>() != null) { // Если к объекту otherGO прикреплен скрипт ProjectileHero, уничтожьте как этот объект, так и текущий GameObject врага (Enemy)
+            Destroy(otherGO); // Уничтожение снаряда
+            Destroy(gameObject); // Уничтожение вражеского игрового объекта
         } else {
-            Debug.Log( "Enemy hit by non-ProjectileHero: " + otherGO.name ); 
+            Debug.Log("Enemy hit by non-ProjectileHero: " + otherGO.name); // Если к объекту otherGO не прикреплен скрипт ProjectileHero, вывести имя объекта, с которым произошло столкновение в консоль для отладки
         }
     }
 }
-
 ```
 
 ## Скрипт ProjectileHero.cs
@@ -342,15 +324,14 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent( typeof(BoundsCheck) )]
-
+[RequireComponent(typeof(BoundsCheck))]
 public class ProjectileHero : MonoBehaviour {
     private BoundsCheck bndCheck;
     void Awake() {
         bndCheck = GetComponent<BoundsCheck>();
     }
     void Update () {
-        if ( bndCheck.LocIs(BoundsCheck.eScreenLocs.offUp) ) { 
+        if ( bndCheck.LocIs(BoundsCheck.eScreenLocs.offUp) ) { // Если ProjectileHero выйдет за пределы верхней границы экрана, уничтожить его
             Destroy( gameObject );
         }
     }
@@ -366,59 +347,51 @@ using UnityEngine;
 using UnityEngine.SceneManagement; // Обеспечивает загрузку и перезагрузку сцен
 
 public class Main : MonoBehaviour {
-    static private Main S; // Частный синглтон для Main
+    static private Main S; // Объявляем частный синглтон для Main
 
     [Header("Inscribed")]
-    public GameObject[] prefabEnemies; // Массив префабов Enemy 
-    public float enemySpawnPerSecond = 0.5f; // Спавн врагов в сек.
-    public float enemyInsetDefault = 1.5f; // Inset from the sides
-    public float gameRestartDelay = 2; 
+    public GameObject[] prefabEnemies; // Объявляем массив с префабами врагов
+    public float enemySpawnPerSecond = 0.5f;
+    public float enemyInsetDefault = 1.5f;
+    public float gameRestartDelay = 2;
 
     private BoundsCheck bndCheck;
 
     void Awake() {
         S = this;
-        bndCheck = GetComponent<BoundsCheck>(); // Установите компонент bndCheck так, чтобы он ссылался на компонент BoundsCheck для этого GameObject
-        Invoke( nameof(SpawnEnemy), 1f/enemySpawnPerSecond ); // Вызывает функцию SpawnEnemy() один раз (через 2 секунды, исходя из значений по умолчанию)
+        bndCheck = GetComponent<BoundsCheck>(); // Инициализируем ссылку на скрипт BoundCheck
+        Invoke(nameof(SpawnEnemy), 1f / enemySpawnPerSecond); // Вызывает метод SpawnEnemy() через 1/0,5 секунды (т.е. 2 секунды) на основе значений по умолчанию
     }
 
     public void SpawnEnemy() {
-        // Выберите случайный префаб врага для создания экземпляра
         int ndx = Random.Range(0, prefabEnemies.Length); // В зависимости от длины массива prefabEnemies, выбирается случайное число, от 0 до единицы меньше, чем prefabEnemies.Length. Таким образом, если массив prefabEnemies содержит четыре врага, вызов Random.Range() вернет 0, 1, 2 или 3
-        GameObject go = Instantiate<GameObject>( prefabEnemies[ ndx ] ); // Сгенерированный случайный ndx используется для выбора префаба GameObject из prefabEnemies
-        // Разместите врага над экраном в произвольном месте по оси X
-        float enemyInset = enemyInsetDefault; // EnemyInset изначально устанавливается равным enemyInsetDefault, заданному в Инспекторе
-        if (go.GetComponent<BoundsCheck>() != null) { 
-            enemyInset = Mathf.Abs( go.GetComponent<BoundsCheck>().radius );
-            // Однако, если выбранный префаб врага имеет компонент BoundsCheck, вы вместо этого считываете радиус из него. 
-            // Берется абсолютное значение радиуса, потому что иногда радиус устанавливается на отрицательное значение, 
-            // так что GameObject должен полностью находиться за пределами экрана, прежде чем он будет считаться находящимся за пределами экрана, как в случае с Enemy_0
+        GameObject go = Instantiate<GameObject>(prefabEnemies[ndx]); // Сгенерированный случайный ndx используется для выбора префаба GameObject из prefabEnemies
+        // Размещение врага над экраном в произвольном месте по оси X
+        float enemyInset = enemyInsetDefault;
+        if (go.GetComponent<BoundsCheck>() != null) { // Если выбранный префаб врага имеет компонент BoundsCheck вы считываете радиус из него
+            enemyInset = Mathf.Abs(go.GetComponent<BoundsCheck>().radius); // Берется абсолютное значение радиуса, потому что иногда радиус устанавливается на отрицательное значение
         }
         // Задайте начальное положение для появившегося врага
-        // Используется BoundsCheck этого GameObject _MainCamera для получения camWidth и camHeight и выбирает позицию X, 
-        // где созданный враг полностью находится на экране горизонтально. EnemyInset используется для того, чтобы убедиться, 
-        // что враг не появляется частично за пределами экрана
-        // Затем выбирается позиция по оси Y, где враг находится чуть выше экрана.
-        Vector3 pos = Vector3.zero;
-        float xMin = -bndCheck.camWidth + enemyInset;
-        float xMax = bndCheck.camWidth - enemyInset;
-        pos.x = Random.Range( xMin, xMax );
-        pos.y = bndCheck.camHeight + enemyInset;
+        Vector3 pos = Vector3.zero; // Этот раздел кода устанавливает начальную позицию для созданного врага
+        float xMin = -bndCheck.camWidth + enemyInset; // Он использует BoundsCheck этого GameObject _MainCamera для получения camWidth и camHeight и выбирает позицию X
+        float xMax = bndCheck.camWidth - enemyInset; // где созданный враг полностью находится на экране горизонтально
+        pos.x = Random.Range(xMin, xMax); // EnemyInset используется для того
+        pos.y = bndCheck.camHeight + enemyInset; // чтобы убедиться, что враг не появляется частично за пределами экрана
         go.transform.position = pos;
+
         // Снова вызвать SpawnEnemy()
-        Invoke( nameof(SpawnEnemy), 1f/enemySpawnPerSecond ); 
+        Invoke(nameof(SpawnEnemy), 1f / enemySpawnPerSecond); 
     }
 
     void DelayedRestart() { // Метод DelayedRestart() вызывает Restart() через две секунды
-        Invoke( nameof(Restart), gameRestartDelay );
+        Invoke(nameof(Restart), gameRestartDelay ); // Вызываем the Restart() через установленное количество секунд в gameRestartDelay 
     }
+
     void Restart() {
-        // Перезагрузите __Scene_0, чтобы перезапустить игру
-        SceneManager.LoadScene( "__Scene_0" ); // d
+        SceneManager.LoadScene( "__Scene_0" ); // Перезагрузка __Scene_0 чтобы перезапустить игру
     }
-    static public void HERO_DIED() {
-        S.DelayedRestart(); // Любой другой класс может вызвать этот статический публичный метод HERO_DIED() 
-        // через Main.HERO_DIED(). В свою очередь, HERO_DIED() вызовет DelayedRestart() у приватного синглтона S класса Main
+    static public void HERO_DIED() { // Любой другой класс может вызвать этот статический публичный метод HERO_DIED() через Main.HERO_DIED()
+        S.DelayedRestart(); // В свою очередь, HERO_DIED() вызовет DelayedRestart() у приватного синглтона S класса Main
     }
 }
 ```
