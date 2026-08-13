@@ -13,7 +13,7 @@ description: Движение Enemy_2 по синусоиде выглядит �
 
 Внесите в скрипт Enemy_2 следующие изменения, чтобы использовать AnimationCurve:  
 
-1. Откройте скрипт Enemy_2 (на языке C#) в Visual Studio и внесите изменения.  
+1. Откройте скрипт Enemy_2 в Visual Studio и внесите изменения.  
     Листинг кода Enemy_2.cs
 
 ```c#
@@ -37,12 +37,12 @@ public class Enemy_2 : Enemy {
         }
 
         // Use the AnimationCurve to set the rotation about Y
-        float shipRot = rotCurve.Evaluate( u ) * 360; // b
-        if ( p0.x > p1.x ) shipRot = -shipRot; // c
-        transform.rotation = Quaternion.Euler(0,shipRot,0);
+        float shipRot = rotCurve.Evaluate(u) * 360; // b
+        if (p0.x > p1.x) shipRot = -shipRot; // c
+        transform.rotation = Quaternion.Euler(0, shipRot, 0);
 
         // Adjust u by adding a U Curve based on a Sine wave
-        u = u + sinEccentricity*(Mathf.Sin(u*Mathf.PI*2));
+        u = u + sinEccentricity * (Mathf.Sin(u * Mathf.PI * 2));
         …
     }
 }
@@ -69,7 +69,7 @@ public class Enemy_2 : Enemy {
 маркеры (ручки) по бокам, позволяющие задать касательную кривой в этой точке;
 располагайте все маркеры на той же высоте (координате Y), что и точка, к которой они
 относятся (то есть делайте все касательные плоскими и горизонтальными). Все эти
-точки показаны на рисунке 32.3c. Вы можете изменить размер окна Curve Editor, если
+точки показаны на рисунке *c*. Вы можете изменить размер окна Curve Editor, если
 изначально оно кажется слишком маленьким.
     - a. Разместите точку в координатах [ 0.1, 0.0 ].
     - b. Поместите точку в координаты [ 0.4, 0.5 ].
@@ -82,7 +82,7 @@ public class Enemy_2 : Enemy {
 
 Всё идет отлично, но мы можем улучшить результат, если развернем корабль Enemy_2 по направлению его движения и заменим вращение вокруг глобальной оси Y на вращение (тангаж) вокруг локальной оси X самого корабля. Для этого потребуется внести небольшие изменения как в код, так и в префаб Enemy_2. Начнем с кода.  
 
-1. Откройте скрипт Enemy_2 (на языке C#) в Visual Studio и внесите изменения в код.  
+1. Откройте скрипт Enemy_2 в Visual Studio и внесите изменения в код.  
     Листинг кода Enemy_2.cs
 
 ```c#
@@ -111,13 +111,13 @@ public class Enemy_2 : Enemy {
     public override void Move() {
         …
         // Use the AnimationCurve to set the rotation about Y
-        float shipRot = rotCurve.Evaluate( u ) * 360;
+        float shipRot = rotCurve.Evaluate(u) * 360;
         // if ( p0.x > p1.x ) shipRot = -shipRot; // c
         // transform.rotation = Quaternion.Euler(0,shipRot,0); // c
         transform.rotation = baseRotation * Quaternion.Euler(-shipRot, 0, 0); // d
 
         // Adjust u by adding a U Curve based on a Sine wave
-        u = u + sinEccentricity*(Mathf.Sin(u*Mathf.PI*2));
+        u = u + sinEccentricity * (Mathf.Sin(u * Mathf.PI * 2));
         …
     }
 }
