@@ -2,6 +2,7 @@
   "pages": [ 
     "understanding-dungeon-data",
     "generating-a-tilemap",
-    "quick-detour"
+    "quick-detour",
+    "adding-the-hero"
   ]
 }

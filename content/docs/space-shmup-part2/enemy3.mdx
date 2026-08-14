@@ -39,15 +39,15 @@ public class Utils : MonoBehaviour { // a
         Vector3[,] vArr = new Vector3[points.Length, points.Length];
         // Fill the last row of vArr with the elements of points
         int r = points.Length - 1;
-        for ( int c = 0; c < points.Length; c++ ) {
+        for (int c = 0; c < points.Length; c++) {
             vArr[r, c] = points[c];
         }
 
         // Iterate over all remaining rows and interpolate points at each one // c
-        for ( r--; r >= 0; r-- ) { // d
-            for ( int c = 0; c <= r; c++ ) {
-                vArr[r,c] = Vector3.LerpUnclamped(vArr[r+1,c],
-                vArr[r+1,c+1], u);
+        for (r--; r >= 0; r--) { // d
+            for (int c = 0; c <= r; c++) {
+                vArr[r, c] = Vector3.LerpUnclamped(vArr[r + 1, c],
+                vArr[r + 1, c + 1], u);
             }
         }
 
@@ -84,7 +84,7 @@ using UnityEngine;
 public class Enemy_3 : Enemy { // Enemy_3 also extends the Enemy class
     [Header( "Enemy_3 Inscribed Fields" )]
     public float lifeTime = 5;
-    public Vector2 midpointYRange = new Vector2( 1.5f, 3 );
+    public Vector2 midpointYRange = new Vector2(1.5f, 3);
     [Tooltip("If true, the Bezier points & path are drawn in the Scene pane.")]
     public bool drawDebugInfo = true;
 
