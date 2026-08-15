@@ -26,7 +26,7 @@ description: Начнем с графического представления
 Чтобы добавить функцию стрельбы в скрипт оружия, выполните следующие действия:  
 
 1. Начните с отключения вызова метода `TempFire()` в классе Hero. Откройте
-скрипт Hero (на языке C#) в Visual Studio и закомментируйте строку.    
+скрипт Hero в Visual Studio и закомментируйте строку.    
   Листинг кода Hero.cs
 
 ```c#
@@ -48,7 +48,7 @@ public class Hero : MonoBehaviour {
 
 Если закомментировать эту строку, fireEvent перестанет вызывать `TempFire()` - и это хорошо, поскольку самой функции `TempFire()` теперь тоже не существует. Если теперь нажать Play и щелкнуть по кнопке стрельбы, корабль героя не будет стрелять.  
 
-2. Откройте скрипт Weapon (на языке C#) в Visual Studio и добавьте код (заменив им текущее пустое определение класса Weapon), чтобы окончательно сформировать этот класс. Листинг содержит довольно много кода, но после его добавления оба типа оружия - «Бластер» (Blaster) и «Дробовик» (Spread) - начнут работать!  
+2. Откройте скрипт Weapon в Visual Studio и добавьте код (заменив им текущее пустое определение класса Weapon), чтобы окончательно сформировать этот класс. Листинг содержит довольно много кода, но после его добавления оба типа оружия - «Бластер» (Blaster) и «Дробовик» (Spread) - начнут работать!  
   Листинг Weapon.cs
 
 ```c#
@@ -117,25 +117,26 @@ public class Weapon : MonoBehaviour {
 
         switch (type) { // k
             case eWeaponType.blaster:
-            p = MakeProjectile();
-            p.vel = vel;
-            break;
+                p = MakeProjectile();
+                p.vel = vel;
+                break;
 
             case eWeaponType.spread: // l
-            p = MakeProjectile();
-            p.vel = vel;
-            p = MakeProjectile();
-            p.transform.rotation = Quaternion.AngleAxis( 10, Vector3.back );
-            p.vel = p.transform.rotation * vel;
-            p = MakeProjectile();
-            p.transform.rotation = Quaternion.AngleAxis(-10, Vector3.back );
-            p.vel = p.transform.rotation * vel;
-            break;
+                p = MakeProjectile();
+                p.vel = vel;
+                p = MakeProjectile();
+                p.transform.rotation = Quaternion.AngleAxis( 10, Vector3.back );
+                p.vel = p.transform.rotation * vel;
+                p = MakeProjectile();
+                p.transform.rotation = Quaternion.AngleAxis(-10, Vector3.back );
+                p.vel = p.transform.rotation * vel;
+                break;
         }
     }
+
     private ProjectileHero MakeProjectile() { // m
         GameObject go;
-        go = Instantiate<GameObject>(def.projectilePrefab,PROJECTILE_ANCHOR); // n
+        go = Instantiate<GameObject>(def.projectilePrefab, PROJECTILE_ANCHOR); // n
         ProjectileHero p = go.GetComponent<ProjectileHero>();
 
         Vector3 pos = shotPointTrans.position;

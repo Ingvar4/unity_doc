@@ -35,7 +35,7 @@ public class Hero : MonoBehaviour {
         …
 
         // Rotate the ship to make it feel more dynamic
-        transform.rotation = Quaternion.Euler(vAxis*pitchMult,hAxis*rollMult,0);
+        transform.rotation = Quaternion.Euler(vAxis * pitchMult,hAxis * rollMult, 0);
 
         // Allow the ship to fire
         // if ( Input.GetKeyDown( KeyCode.Space ) ) { // c
@@ -49,14 +49,14 @@ public class Hero : MonoBehaviour {
     }
 
     void TempFire() { // f
-        GameObject projGO = Instantiate<GameObject>( projectilePrefab );
+        GameObject projGO = Instantiate<GameObject>(projectilePrefab);
         projGO.transform.position = transform.position;
         Rigidbody rigidB = projGO.GetComponent<Rigidbody>();
         // rigidB.velocity = Vector3.up * projectileSpeed; // g
 
         ProjectileHero proj = projGO.GetComponent<ProjectileHero>(); // h
         proj.type = eWeaponType.blaster;
-        float tSpeed = Main.GET_WEAPON_DEFINITION( proj.type ).velocity;
+        float tSpeed = Main.GET_WEAPON_DEFINITION(proj.type).velocity;
         rigidB.velocity = Vector3.up * tSpeed;
     }
 
@@ -65,16 +65,16 @@ public class Hero : MonoBehaviour {
 }
 ```
 
-  - a. Несмотря на то, что и тип делегата `WeaponFireDelegate()`, и поле `fireEvent` являются публичными (`public`), они не отобразятся в инспекторе Unity, так как не подлежат сериализации.
-  - b. Добавление `TempFire` в `fireEvent` приводит к тому, что `TempFire` будет вызываться каждый раз, когда `fireEvent` вызывается как функция (см. пункт // e).
+    - a. Несмотря на то, что и тип делегата `WeaponFireDelegate()`, и поле `fireEvent` являются публичными (`public`), они не отобразятся в инспекторе Unity, так как не подлежат сериализации.
+    - b. Добавление `TempFire` в `fireEvent` приводит к тому, что `TempFire` будет вызываться каждый раз, когда `fireEvent` вызывается как функция (см. пункт // e).
 Обратите внимание: при добавлении `TempFire` в `fireEvent` после имени метода не ставятся скобки. Это связано с тем, что вы добавляете сам метод, а не вызываете его и не передаете возвращаемый им результат (что произошло бы, если бы вы указали скобки после имени метода).
-  - c. Обязательно закомментируйте (или удалите) эти три строки.
-  - d. Значение `Input.GetAxis("Jump")` равно 1, когда нажата клавиша пробела или кнопка прыжка на контроллере.
+    - c. Обязательно закомментируйте (или удалите) эти три строки.
+    - d. Значение `Input.GetAxis("Jump")` равно 1, когда нажата клавиша пробела или кнопка прыжка на контроллере.
 Любой делегат или событие, к которому не привязаны методы, имеет значение `null`. Поэтому, если вызвать `fireEvent` без привязанных методов, возникнет исключение `NullReferenceException`. Чтобы этого избежать, перед вызовом проверяется, не равно ли `fireEvent` значению `null`.
-  - e. Здесь `fireEvent` вызывается так, словно это функция. Это, в свою очередь, приводит к вызову всех функций, добавленных в делегат/событие `fireEvent` (в данном случае это означает вызов `TempFire()`).
-  - f. Теперь `fireEvent` вызывает `TempFire()` для выполнения стандартного выстрела из бластера. Позже, при расширении класса `Weapon`, вы замените `TempFire()` на другой метод.
-  - g. Пожалуйста, закомментируйте или удалите эту строку.
-h. Этот новый фрагмент кода получает информацию из поля `eWeaponType` класса `ProjectileHero` и использует её для задания скорости игрового объекта `projGO`.
+    - e. Здесь `fireEvent` вызывается так, словно это функция. Это, в свою очередь, приводит к вызову всех функций, добавленных в делегат/событие `fireEvent` (в данном случае это означает вызов `TempFire()`).
+    - f. Теперь `fireEvent` вызывает `TempFire()` для выполнения стандартного выстрела из бластера. Позже, при расширении класса `Weapon`, вы замените `TempFire()` на другой метод.
+    - g. Пожалуйста, закомментируйте или удалите эту строку.
+    - h. Этот новый фрагмент кода получает информацию из поля `eWeaponType` класса `ProjectileHero` и использует её для задания скорости игрового объекта `projGO`.
 
 3. Сохраните все изменения в Visual Studio, чтобы убедиться, что все скрипты сохранены, а затем вернитесь в Unity.
 4. Нажмите кнопку Play в Unity и попробуйте выстрелить. Вы должны увидеть серию очень частых выстрелов из бластера. В следующем разделе вы добавите класс Weapon, который позволит лучше управлять стрельбой, и замените функцию `TempFire()` на функцию `Fire()` этого класса.
