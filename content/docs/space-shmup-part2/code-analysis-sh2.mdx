@@ -18,50 +18,46 @@ public class Enemy_0 : Enemy { // Замена MonoBehaviour на Enemy в эт�
 
 ## Скрипт Enemy_1.cs
 
-```c# title="C# Enemy_2.cs"
+```c# title="C# Enemy_1.cs"
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Enemy_1 : Enemy { // Класс Enemy_1, являющийся расширением класса Enemy, наследует открытые (public) поля speed, fireRate, health и score, а также открытое свойство pos и открытый метод Move(). Однако он не наследует закрытое (private) поле bndCheck;
-    [Header("Enemy_1 Inscribed Fields")]
-    [Tooltip("# of seconds for a full sine wave")] // Этот атрибут компилятора [Tooltip()] указывает Unity отображать соответствующую подсказку, когда пользователь наводит курсор мыши на имя поля в окне Inspector
+// Замена MonoBehaviour на Enemy критически важна. Именно это делает Enemy_0 подклассом Enemy
+// Класс Enemy_0 наследует все не являющиеся закрытыми (non-private) методы, поля, свойства и прочие элементы суперкласса
+public class Enemy_1 : Enemy { // Класс Enemy_0 наследует класс Enemy
+    [Header("Enemy_1 Inscribed Fields")] 
+    [Tooltip("# of seconds for a full sine wave")] // Указывает Unity отображать соответствующую подсказку, когда пользователь наводит курсор мыши на имя поля в окне Inspector.
     public float waveFrequency = 2;
     [Tooltip("Sine wave width in meters")]
     public float waveWidth = 4;
     [Tooltip("Amount the ship will roll left and right with the sine wave")]
     public float waveRotY = 45;
 
-    private float x0; // Начальное значение x в pos
+    private float x0; // Начальное значение x в позиции
     private float birthTime;
 
     void Start() {
-        // Установить x0 равным начальной позиции x Enemy_1
-        x0 = pos.x; // c
-
+        x0 = pos.x; // Установите x0 равным начальной позиции x объекта Enemy_1
         birthTime = Time.time;
     }
 
-    // Переопределяем функцию перемещения противника
-    public override void Move() { // Метод является virtual в суперклассе, чтобы переопределить его тут, задаём тип override
+    public override void Move() { // Переопределение функции перемещения противника
         // Поскольку pos является свойством, вы не можете напрямую задать pos.x
-        // так что получите значение pos в виде редактируемого Vector3
+        // так что получите позицию в виде редактируемого вектора Vector3
         Vector3 tempPos = pos;
-        // Тета-ритм изменяется в зависимости от времени
+        // theta корректируется в зависимости от времени
         float age = Time.time - birthTime;
         float theta = Mathf.PI * 2 * age / waveFrequency;
         float sin = Mathf.Sin(theta);
         tempPos.x = x0 + waveWidth * sin;
-        pos = tempPos; // немного повернуть вокруг оси Y
-        Vector3 rot = new Vector3(0, sin *waveRotY, 0);
+        pos = tempPos; // Немного повернуть вокруг оси Y
+        Vector3 rot = new Vector3(0, sin * waveRotY, 0);
         this.transform.rotation = Quaternion.Euler(rot);
-
         // Метод base.Move() по-прежнему обрабатывает перемещение вниз по оси Y
-        base.Move(); // Вызов base.Move() обращается к методу Move() суперкласса Enemy. 
-        // В данном случае метод Move() в подклассе Enemy_1 отвечает за горизонтальное перемещение по синусоиде, 
-        // тогда как метод Move() в суперклассе Enemy перемещает игровой объект (GameObject) Enemy_1 вниз по экрану
-
-        // print( bndCheck.isOnScreen ); // Оставьте эту строку закомментированной
+        base.Move(); // Вызов base.Move() обращается к методу Move() суперкласса Enemy. В данном случае метод Move() в подклассе Enemy_1 отвечает 
+        // за горизонтальное перемещение по синусоиде, тогда как метод Move() в суперклассе Enemy перемещает игровой объект (GameObject) Enemy_1 вниз по экрану
+        // print(bndCheck.isOnScreen);
     }
 }
 ```
@@ -73,78 +69,62 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Enemy_2 : Enemy { // Класс Enemy_2 также наследует класс Enemy
+public class Enemy_2 : Enemy {
     [Header("Enemy_2 Inscribed Fields")]
     public float lifeTime = 10;
-    // Enemy_2 использует синусоидальный сигнал для модификации двухточечной линейной интерполяции
-    [Tooltip("Определяет, насколько синусоида облегчит интерполяцию")]
-    public float sinEccentricity = 0.6f;
+    [Tooltip("Determines how much the Sine wave will ease the interpolation")]
+    public float sinEccentricity = 0.6f; // Изменение этого параметра в инспекторе влияет на скорость движения и более широкую синусойду
     public AnimationCurve rotCurve; // Это добавляет публичное поле типа AnimationCurve, которое можно редактировать в окне Inspector
 
-    [Header("Enemy_2 Private Fields")]
-    [SerializeField] private float birthTime; // Время начала интерполяции // SerializeField заставляет Unity отображать данное поле в окне Inspector (и позволяет редактировать его там же), несмотря на то, что поле является закрытым (private)
-    private Quaternion baseRotation; // Кватернион baseRotation хранит ориентацию объекта Enemy_2, когда он находится в точке p0 и смотрит (то есть направлен) на точку p1
+    [Header("Enemy_2 Private Fields")] // Переменные приватные, однако [SerializeField] позволяет отображать и изменять их в инспекторе, сохраняя при этом защиту от доступа к ним со стороны других классов
+    [SerializeField] private float birthTime; // Время начала интерполяции
+    private Quaternion baseRotation; // Хранит ориентацию объекта Enemy_2, когда он находится в точке p0 и смотрит (то есть направлен) на точку p1
     [SerializeField] private Vector3 p0, p1; // Lerp_points
 
     void Start() {
-        // Выберите любую точку в левой части экрана
-        // В этом фрагменте кода выбирается случайная точка у левого края экрана. Сначала выбирается координата X, 
-        // находящаяся непосредственно за пределами левой границы экрана: значение -bndCheck.camWidth соответствует 
-        // левому краю, а вычитание bndCheck.radius гарантирует, что Enemy_2 будет полностью скрыт за пределами экрана 
-        // (координата X смещается влево на величину, равную радиусу объекта Enemy_2). Затем выбирается случайная 
-        // координата Y в диапазоне между нижней границей экрана (- bndCheck.camHeight) и верхней границей (bndCheck.camHeight)
-        p0 = Vector3.zero;
-        p0.x = -bndCheck.camWidth - bndCheck.radius;
-        p0.y = Random.Range( -bndCheck.camHeight, bndCheck.camHeight );
-
-        // Выберите любую точку в правой части экрана
-        p1 = Vector3.zero; // Аналогичным образом выбирается конечная точка за пределами правой границы экрана.
-        p1.x = bndCheck.camWidth + bndCheck.radius;
-        p1.y = Random.Range( -bndCheck.camHeight, bndCheck.camHeight );
-
+        // Выбор случайной точки у левого края экрана
+        p0 = Vector3.zero; // Задаём нулевую точку координат (0, 0, 0)
+        p0.x = -bndCheck.camWidth - bndCheck.radius; // -30 - 1f  
+        p0.y = Random.Range(-bndCheck.camHeight, bndCheck.camHeight); // -40, 40
+        // Выбор случайной точки у правого края экрана
+        p1 = Vector3.zero; 
+        p1.x = bndCheck.camWidth + bndCheck.radius; // 30 + 1f
+        p1.y = Random.Range( -bndCheck.camHeight, bndCheck.camHeight ); // -40, 40
         // Возможная смена сторон
         if (Random.value > 0.5f) {
-            // Установка отрицательного значения .x для каждой точки переместит её на 
-            // другую сторону экрана
-            p0.x *= -1;
-            p1.x *= -1;
+            p0.x *= -1; // Установка отрицательного значения .x для каждой точки переместит её
+            p1.x *= -1; // на другую сторону экрана
         }
-        // Установите значение поля birthTime равным текущему времени
-        birthTime = Time.time; // Переменная birthTime используется для интерполяции в функции Move().
-        // Настройте начальный поворот корабля
-        transform.position = p0;  // Этот фрагмент кода размещает Enemy_2 в точке p0, разворачивает его в сторону p1, а затем сохраняет полученную ориентацию в baseRotation
-        transform.LookAt(p1, Vector3.back); // Вызов transform.LookAt(p1, Vector3.back) направляет ось transform.forward данного объекта на точку p1. 
-        // Второй параметр, Vector3.back, указывает методу LookAt(), что после поворота на p1 локальная ось Y (ось «вверх») объекта должна быть направлена 
-        // ​​назад вдоль глобальной оси -Z (то есть в сторону главной камеры)
-        baseRotation = transform.rotation;
+        // Привязка появления к текущему времени
+        birthTime = Time.time; // Переменная birthTime используется для интерполяции в функции Move()
+        // Настройка начального поворота корабля
+        transform.position = p0; // Размещает Enemy_2 в точке p0, разворачивает его в сторону p1
+        transform.LookAt(p1, Vector3.back); //Вызов transform.LookAt(p1, Vector3.back) направляет ось transform.forward данного объекта на точку p1. 
+        // Vector3.back, указывает методу LookAt(), что после поворота на p1 локальная ось Y (ось «вверх») объекта должна быть направлена ​​назад вдоль глобальной оси -Z (то есть в сторону главной камеры)
+        baseRotation = transform.rotation; // а затем сохраняет полученную ориентацию в baseRotation
     }
 
     public override void Move() {
-        // Линейная интерполяция работает на основе значения u от 0 до 1
-        float u = (Time.time - birthTime) / lifeTime;
-        // Если u>1, то прошло больше времени, чем lifeTime с момента рождения.
-        if (u > 1) {
-            // Этот Враг_2 завершил свою жизнь
-            Destroy( this.gameObject ); // Если с момента birthTime прошло больше времени, чем задано в lifeTime, то значение u станет больше 1, и объект Enemy_2 будет уничтожен. Уничтожение Enemy_2 происходит по завершении интерполированного движения, а не в момент выхода объекта за пределы экрана
-            return;
+        float u = (Time.time - birthTime) / lifeTime; // Линейная интерполяция работает на основе значения u от 0 до 1
+        if (u > 1) { // Если с момента birthTime прошло больше времени, чем задано в lifeTime
+            Destroy(this.gameObject); // то значение u станет больше 1, и объект Enemy_2 будет уничтожен
+            return; // Уничтожение Enemy_2 происходит по завершении интерполированного движения, а не в момент выхода объекта за пределы экрана
         }
-
         // Используйте AnimationCurve для установки поворота вокруг оси Y
-        float shipRot = rotCurve.Evaluate( u ) * 360; // Чтобы использовать AnimationCurve для преобразования значения, 
-        // мы вызываем метод Evaluate(u) для исходного значения u (то есть значения u до применения кривой плавности типа «синусоида»). 
-        // Полученное значение в диапазоне [0..1] затем умножается на 360, обеспечивая полный поворот на 360°
-        // if ( p0.x > p1.x ) shipRot = -shipRot; // Если Enemy_2 движется справа налево (а не слева направо), измените направление вращения на противоположное, чтобы движение выглядело более естественным
-        // transform.rotation = Quaternion.Euler(0,shipRot,0);
-        transform.rotation = baseRotation * Quaternion.Euler(-shipRot, 0, 0); // Здесь выполняется умножение baseRotation (сохраненного на этапе // b) на новое вращение на угол -shipRot вокруг локальной оси X корабля. Мы обсудим это в ближайшее время
-
-        // Отрегулируйте u, добавив U-образную кривую на основе синусоидальной волны.
+        float shipRot = rotCurve.Evaluate(u) * 360; // Чтобы использовать AnimationCurve для преобразования значения, мы вызываем метод Evaluate(u) для исходного значения u (то есть значения u до применения кривой плавности типа «синусоида»). Полученное значение в диапазоне [0..1] затем умножается на 360, обеспечивая полный поворот на 360°
+        // if (p0.x > p1.x) shipRot = -shipRot; // Если Enemy_2 движется справа налево (а не слева направо), измените направление вращения на противоположное, чтобы движение выглядело более естественным
+        // transform.rotation = Quaternion.Euler(0, shipRot, 0);
+        transform.rotation = baseRotation * Quaternion.Euler(-shipRot, 0, 0); // Здесь выполняется умножение baseRotation на новое вращение на угол -shipRot вокруг локальной оси X корабля
+        // Отрегулируйте U-образную форму, добавив U-образную кривую на основе синусоидальной волны
         u = u + sinEccentricity * (Mathf.Sin(u * Mathf.PI * 2));
-        // Интерполируем две точки линейной интерполяции
-        pos = (1-u)*p0 + u*p1;
-        // Обратите внимание, что Enemy_2 НЕ вызывает метод base.Move()
+        // Интерполируйте две точки линейной интерполяции
+        pos = (1 - u) * p0 + u * p1;
+        
+        // То есть смысл в чём, объект Enemy 2 появляется за границами экрана рандомно, выбирает рандомное движение по синусойде влево-вправо 
+        // и исчезает через 10 сек примерно если его не уничтожает игрок. Плюс ко всему после добавления крена, перемножения кватерионов и изменения вращения корабля вокруг глобальной оси Х (baseRotation)
+        // Enemy2 будет влетать в кадр, выполнять широкую петлю и улетать за пределы экрана
     }
 }
-
 ```
 
 ## Скрипт Utils.cs
@@ -154,37 +134,32 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Utils : MonoBehaviour { // Хотя у текущей версии класса Utils нет причин наследоваться от MonoBehaviour, для последующих дополнений потребуется этот базовый класс
+public class Utils : MonoBehaviour {
 
     //== Bézier Curves============================================================\\
 
     /// <summary>
-    /// Хотя большинство кривых Безье имеют 3 или 4 точки, с помощью этой рекурсивной функции можно получить
-    /// любое количество точек.
+    /// While most Bézier curves are 3 or 4 points, it is possible to have
+    /// any number of points using this recursive function.
     /// </summary>
-    /// <param name="u">Величина интерполяции [0..1]</param>
-    /// <param name="points">Массив векторов Vector3 для интерполяции</param>
-    static public Vector3 Bezier( float u, params Vector3[] points ) {// Ключевое слово params позволяет передавать в метод либо массив, либо последовательность объектов Vector3
+    /// <param name="u">The amount of interpolation [0..1]</param>
+    /// <param name="points">An array of Vector3s to interpolate</param>
+    static public Vector3 Bezier(float u, params Vector3[] points) {// Ключевое слово params позволяет передавать в метод либо массив, либо последовательность объектов Vector3
         // Создайте массив
         Vector3[,] vArr = new Vector3[points.Length, points.Length];
-        // Заполните последнюю строку vArr элементами из points
+        // Заполните последнюю строку vArr элементами, представляющими собой точки
         int r = points.Length - 1;
-        for ( int c = 0; c < points.Length; c++ ) {
+        for (int c = 0; c < points.Length; c++) {
             vArr[r, c] = points[c];
         }
 
-        // Пройдитесь по всем оставшимся строкам и интерполируйте точки в каждой из них // c
-        for ( r--; r >= 0; r-- ) { // Эти вложенные циклы for составляют основу данного быстрого метода построения кривой Безье. 
-        // Циклы проходят по каждой пустой строке и выполняют интерполяцию точек на основе значений из вышележащей строки
-            for ( int c = 0; c <= r; c++ ) {
-                vArr[r,c] = Vector3.LerpUnclamped(vArr[r + 1, c],
-                vArr[r + 1, c + 1], u);
+        // Пройдитесь по всем оставшимся строкам и интерполируйте точки в каждой из них 
+        // Эти вложенные циклы for составляют основу данного быстрого метода построения кривой Безье. Циклы проходят по каждой пустой строке и выполняют интерполяцию точек на основе значений из вышележащей строки
+        for (r--; r >= 0; r--) { // это уменьшает значение r с points.Length-1 до points.Length-2 еще до начала итераций. В случае с кривой Безье по трем точкам такой подход позволяет начать выполнение цикла со строки 1 массива vArr, используя значения из строки 2
+            for (int c = 0; c <= r; c++) {
+                vArr[r, c] = Vector3.LerpUnclamped(vArr[r + 1, c], vArr[r + 1, c + 1], u);
             }
         }
-        // Обратите внимание на использование выражения r-- в блоке инициализации цикла for: это уменьшает 
-        // значение r с points.Length-1 до points.Length-2 еще до начала итераций. В случае с кривой Безье по трем 
-        // точкам такой подход позволяет начать выполнение цикла со строки 1 массива vArr, используя значения из строки 2
-
         // После завершения процесса vArr[0,0] содержит окончательное интерполированное значение
         return vArr[0, 0];
     }
@@ -194,12 +169,14 @@ public class Utils : MonoBehaviour { // Хотя у текущей версии 
     /// Returns a list of all Materials on this GameObject and its children
     /// </summary>
     /// <param name="go">The GameObject on which to search for Renderers</param>
-    static public Material[] GetAllMaterials( GameObject go ) { // Будучи статическим публичным методом, GetAllMaterials() может быть вызван в любой части проекта с помощью конструкции Utils.GetAllMaterials()
-        Renderer[] rends = go.GetComponentsInChildren<Renderer>(); // GetComponentsInChildren<>() - это метод, доступный для всех объектов GameObject; он перебирает сам объект и все его дочерние элементы, возвращая массив компонентов того типа, который был передан в качестве параметра шаблона <> (в данном примере - тип Renderer)
+    static public Material[] GetAllMaterials(GameObject go) { // Будучи статическим публичным методом, GetAllMaterials() может быть вызван в любой части проекта с помощью конструкции Utils.GetAllMaterials()
+        Renderer[] rends = go.GetComponentsInChildren<Renderer>(); // это метод, доступный для всех объектов GameObject; он перебирает сам объект и все его дочерние элементы, 
+        // возвращая массив компонентов того типа, который был передан в качестве параметра шаблона <> (в данном примере - тип Renderer)
         Material[] mats = new Material[rends.Length];
-        for (int i = 0; i < rends.Length; i++) { // Перебирает компоненты Renderer в массиве rends и извлекает поле material из каждого из них. Затем полученный материал добавляется в массив mats
+        for (int i = 0; i < rends.Length; i++) { // Этот цикл for перебирает компоненты Renderer в массиве rends и извлекает поле material из каждого из них. Затем полученный материал добавляется в массив mats
             mats[i] = rends[i].material;
         }
+
         return mats;
     }
 }
@@ -212,93 +189,72 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Enemy_3 : Enemy { // Класс Enemy_3 также является производным от класса Enemy
-    [Header( "Enemy_3 Inscribed Fields" )]
+public class Enemy_3 : Enemy {
+    [Header("Enemy_3 Inscribed Fields")]
     public float lifeTime = 5;
-    public Vector2 midpointYRange = new Vector2( 1.5f, 3 );
+    public Vector2 midpointYRange = new Vector2(1.5f, 3);
     [Tooltip("If true, the Bezier points & path are drawn in the Scene pane.")]
     public bool drawDebugInfo = true;
 
-    [Header( "Enemy_3 Private Fields" )]
+    [Header("Enemy_3 Private Fields")]
     [SerializeField]
     private Vector3[] points; // Три точки для кривой Безье
     [SerializeField]
     private float birthTime;
 
-  // Опять же, метод Start хорошо работает, потому что он не используется в суперклассе Enemy
-
-    void Start() {
+    void Start() { // Start хорошо работает, потому что он не используется в суперклассе Enemy
         points = new Vector3[3]; // Инициализация точек
 
-        // Начальная позиция уже установлена ​​функцией Main.SpawnEnemy() 
         points[0] = pos;
-
-        // Устанавливаем значения xMin и xMax так же, как это делает Main.SpawnEnemy()
+        // Установите значения xMin и xMax так же, как это делает метод Main.SpawnEnemy()
         float xMin = -bndCheck.camWidth + bndCheck.radius;
         float xMax = bndCheck.camWidth - bndCheck.radius;
-
         // Выберите случайную центральную позицию в нижней половине экрана
         points[1] = Vector3.zero;
-        points[1].x = Random.Range( xMin, xMax );
-        float midYMult = Random.Range(midpointYRange[0], midpointYRange[1]); 
-        points[1].y = -bndCheck.camHeight * midYMult; 
-        // Эти строки задают Y-координату первой (т. е. средней) точки кривой Безье в диапазоне от 1,5 до 3 расстояний 
-        // от центра до нижней границы экрана, исходя из значения по умолчанию для Vector2 midpointYRange. Обратите внимание: 
-        // к компонентам .x и .y объекта Vector2 можно обращаться с помощью индексов (как [0] и [1] соответственно)
-
+        points[1].x = Random.Range(xMin, xMax);
+        float midYMult = Random.Range(midpointYRange[0], midpointYRange[1]); // Эти строки задают Y-координату первой (т. е. средней) точки кривой Безье в диапазоне от 1,5 до 3 расстояний от центра до нижней границы экрана, исходя из значения по умолчанию для Vector2 midpointYRange
+        points[1].y = -bndCheck.camHeight * midYMult; // К компонентам .x и .y объекта Vector2 можно обращаться с помощью индексов (как [0] и [1] соответственно)
         // Выберите случайную конечную позицию в верхней части экрана
         points[2] = Vector3.zero;
         points[2].y = pos.y;
-        points[2].x = Random.Range( xMin, xMax );
-
+        points[2].x = Random.Range(xMin, xMax);
         // Установите время появления на текущее время
         birthTime = Time.time;
 
-        if ( drawDebugInfo ) DrawDebug(); // Если переменная drawDebugInfo имеет значение true, здесь вызывается метод DrawDebug()
+        if (drawDebugInfo) DrawDebug(); // Если переменная drawDebugInfo имеет значение true, здесь вызывается метод DrawDebug()
     }
 
     public override void Move() {
         // Кривые Безье работают на основе значения u от 0 до 1
-        float u = ( Time.time - birthTime ) / lifeTime;
-        if ( u > 1 ) {
-            // Enemy_3 завершил свою жизнь
-            Destroy( this.gameObject );
+        float u = (Time.time - birthTime) / lifeTime;
+        if (u > 1) {
+            Destroy(this.gameObject);
             return;
         }
-        transform.rotation = Quaternion.Euler( u * 180, 0, 0 ); // Этот код применяет к кораблю глобальный поворот вокруг оси X, заставляя его перевернуться вблизи второй точки кривой Безье
-        // Интерполируйте три точки кривой Безье
-        u = u - 0.1f * Mathf.Sin( u * Mathf.PI * 2 );
-        pos = Utils.Bezier( u, points ); // В этом вызове используется статический метод Utils.Bezier(), который вы только что написали
-        // Enemy_3 does not call base.Move()
+        transform.rotation = Quaternion.Euler(u * 180, 0, 0); // Этот код применяет к кораблю глобальный поворот вокруг оси X, заставляя его перевернуться вблизи второй точки кривой Безье
+        // Интерполируйте три точки кривой Безье 
+        u = u - 0.1f * Mathf.Sin(u * Mathf.PI * 2); // Эффект плавности, чтобы улучшить движение по кривой Безье и уменьшить замедление в нижней части кривой
+        pos = Utils.Bezier(u, points); // В этом вызове используется статический метод Utils.Bezier() из скрипта Utils
     }
+
     void DrawDebug() { // Этот метод отрисовывает линии, отображающие три вектора Vector3 из массива точек, 
-    // а также саму кривую, по которой будет перемещаться игровой объект Enemy_3. Вам стоит увидеть линии, 
-    // отрисованные этой функцией, еще до чтения пояснений к ней, поэтому я вернусь к пунктам // f и // g через несколько шагов
-        // Нарисуйте три точки
-        Debug.DrawLine( points[0], points[1], Color.cyan, lifeTime ); // Метод Debug.DrawLine() рисует временную линию в окне Scene. 
-        // Первые два параметра задают конечные точки линии, третий - цвет, а последний - время (в секундах), в течение которого линия 
-        // будет отображаться на экране, прежде чем исчезнет. Установив длительность равной lifeTime, мы можем нарисовать линию один раз 
-        // и быть уверенными, что она исчезнет ровно в тот момент, когда Enemy_3 завершит свое движение
-        Debug.DrawLine( points[1], points[2], Color.yellow, lifeTime );
+        // а также саму кривую, по которой будет перемещаться игровой объект Enemy_3
+        Debug.DrawLine(points[0], points[1], Color.cyan, lifeTime); // Рисует временную линию в окне Scene. Первые два параметра задают конечные точки линии, 
+        Debug.DrawLine(points[1], points[2], Color.yellow, lifeTime); // третий - цвет, а последний - время (в секундах), в течение которого линия будет отображаться на экране, прежде чем исчезнет
         // Нарисуйте кривую Безье
         float numSections = 20;
         Vector3 prevPoint = points[0]; // Чтобы нарисовать саму кривую, мы разбиваем ее на 19 отдельных отрезков. Нулевая точка кривой сохраняется в переменной prevPoint
         Color col;
         Vector3 pt;
-        for ( int i = 1; i < numSections; i++ ) { // Цикл for начинается с индекса 1 (точка, соответствующая 1/20-й части или 5% длины кривой). 
-        // В нем вычисляется вектор pt (точка на 5% пути вдоль кривой) с помощью метода Utils.Bezier(), а затем выбирается цвет c, 
-        // соответствующий 5% перехода от голубого (cyan) к желтому (yellow)
-            float u = i / numSections;
-            pt = Utils.Bezier(u, points);
-            col = Color.Lerp( Color.cyan, Color.yellow, u );
-            Debug.DrawLine( prevPoint, pt, col, lifeTime ); // Метод Debug.DrawLine() рисует линию от prevPoint до текущей точки pt, 
-            // которая будет отображаться в течение времени lifeTime. После этого значение pt присваивается переменной prevPoint, 
-            // чтобы на следующей итерации цикла for линия начиналась в правильной точке
-            prevPoint = pt;
+        for (int i = 1; i < numSections; i++) { // Цикл for начинается с индекса 1 (точка, соответствующая 1/20-й части или 5% длины кривой)
+            float u = i / numSections; // В нем вычисляется вектор pt (точка на 5% пути вдоль кривой) 
+            pt = Utils.Bezier(u, points); // с помощью метода Utils.Bezier()
+            col = Color.Lerp(Color.cyan, Color.yellow, u); // а затем выбирается цвет c, соответствующий 5% перехода от голубого (cyan) к желтому (yellow)
+            Debug.DrawLine(prevPoint, pt, col, lifeTime); // рисует линию от prevPoint до текущей точки pt, которая будет отображаться в течение времени lifeTime. 
+            prevPoint = pt; // После этого значение pt присваивается переменной prevPoint, чтобы на следующей итерации цикла for линия начиналась в правильной точке
         }
     }
 }
-
 ```
 
 ## Скрипт Weapon.cs
@@ -309,32 +265,32 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Это перечень различных возможных типов оружия
-/// Он также включает в себя тип «щит», позволяющий активировать усиление щита
-/// Пункты, отмеченные [NI] ниже, не реализованы в этой статье
+/// This is an enum of the various possible weapon types.
+/// It also includes a "shield" type to allow a shield PowerUp.
+/// Items marked [NI] below are Not Implemented in this book.
 /// </summary>
 public enum eWeaponType {
-    none, // По умолчанию / без оружия
-    blaster, // Простой бластер
-    spread, // Шотган
+    none, // The default / no weapon
+    blaster, // A simple blaster
+    spread, // Multiple shots simultaneously
     phaser, // [NI] Shots that move in waves
     missile, // [NI] Homing missiles
     laser, // [NI] Damage over time
     shield // Raise shieldLevel
 }
-// Поскольку eWeaponType является публичным перечислением (enum), объявленным вне класса Weapon, оно доступно для использования любым классом в проекте
 
 /// <summary>
-/// Класс WeaponDefinition позволяет задавать свойства конкретного оружия в Инспекторе. 
-/// Класс Main содержит массив объектов WeaponDefinition, что делает это возможным
+/// The WeaponDefinition class allows you to set the properties
+/// of a specific weapon in the Inspector. The Main class has
+/// an array of WeaponDefinitions that makes this possible.
 /// </summary>
-[System.Serializable] // это специальный атрибут в Unity (и C#), который говорит движку, что ваш собственный класс или структуру можно сохранить, прочитать и отобразить в панели инспектора (Inspector)
+[System.Serializable] // Атрибут [System.Serializable] делает класс, объявленный непосредственно после него, доступным для редактирования в инспекторе Unity
 public class WeaponDefinition { // Вы можете изменять отдельные поля класса WeaponDefinition, чтобы корректировать характеристики пуль, выпускаемых вашим кораблем
     public eWeaponType type = eWeaponType.none;
-    [Tooltip("Letter to show on the PowerUp Cube")] // Tooltip как дополнительные пояснения 
+    [Tooltip("Letter to show on the PowerUp Cube")]
     public string letter;
     [Tooltip("Color of PowerUp Cube")]
-    public Color powerUpColor = Color.white; // d
+    public Color powerUpColor = Color.white; 
     [Tooltip("Prefab of Weapon model that is attached to the Player Ship")]
     public GameObject weaponModelPrefab;
     [Tooltip("Prefab of projectile that is fired")]
@@ -351,128 +307,93 @@ public class WeaponDefinition { // Вы можете изменять отдел
     public float velocity = 50;
 }
 
-// перечисление eWeaponType определяет все возможные типы оружия и усилений, а WeaponDefinition - это класс, 
-// объединяющий eWeaponType с рядом переменных, необходимых для описания каждого вида оружия
-
 public class Weapon : MonoBehaviour {
-    static public Transform PROJECTILE_ANCHOR;
+    static public Transform PROJECTILE_ANCHOR; // PROJECTILE_ANCHOR - это статический компонент Transform, созданный для выполнения роли 
+    // родительского объекта в иерархии для всех игровых объектов ProjectileHero, создаваемых скриптами оружия
 
-    [Header("Dynamic")] // Все три  
-    [SerializeField] // этих атрибута компилятора
-    [Tooltip("Setting this manually while playing does not work properly.")] // применяются к приватному полю eWeaponType _type
+    [Header("Dynamic")] // Все три этих атрибута компилятора
+    [SerializeField] // применяются к приватному полю eWeaponType _type
+    [Tooltip("Setting this manually while playing does not work properly.")]
     private eWeaponType _type = eWeaponType.none;
     public WeaponDefinition def;
-    public float nextShotTime; // Время следующего выстрела из этого оружия
+    public float nextShotTime;
 
     private GameObject weaponModel;
     private Transform shotPointTrans;
 
-  [System.Obsolete]
+  [System.Obsolete] // Реализация метода Fire устарела
   void Start() {
         // Установите параметр PROJECTILE_ANCHOR, если он еще не установлен
-        // PROJECTILE_ANCHOR - это статический компонент Transform, созданный для выполнения роли родительского объекта в иерархии 
-        // для всех игровых объектов ProjectileHero, создаваемых скриптами оружия. Если PROJECTILE_ANCHOR равен null (поскольку он еще не был создан), 
-        // данный скрипт создает новый игровой объект с именем _ProjectileAnchor и присваивает его Transform переменной PROJECTILE_ANCHOR
-        if (PROJECTILE_ANCHOR == null) {
-            GameObject go = new GameObject("_ProjectileAnchor");
+        if (PROJECTILE_ANCHOR == null) { // Если PROJECTILE_ANCHOR равен null (поскольку он еще не был создан), данный скрипт создает новый игровой объект 
+            GameObject go = new GameObject("_PojectileAnchor"); // с именем _ProjectileAnchor и присваивает его Transform переменной PROJECTILE_ANCHOR
             PROJECTILE_ANCHOR = go.transform;
         }
-        // Мы знаем, что на момент вызова метода Start() у игрового объекта оружия есть только один дочерний объект («ShotPoint»), 
-        // поэтому вместо вызова transform.Find("ShotPoint") мы можем просто получить нулевой дочерний объект из Transform игрового объекта оружия. 
-        // (Этот подход меняет проблему возможной опечатки в имени «ShotPoint» (в самом объекте или в коде) на проблему того, что произойдет, если в префаб игрового объекта оружия будет добавлен еще один дочерний объект.)
-        shotPointTrans = transform.GetChild( 0 );
 
-        // Вызовите функцию SetType() для получения значения типа _type по умолчанию, заданного в инспекторе
-        // При запуске класса Weapon вызывается метод SetType() с текущим значением поля eWeaponType _type. Это гарантирует, 
-        // что игровой объект оружия либо исчезнет (если _type равен eWeaponType.none), либо отобразит правильную модель оружия 
-        // (если _type равен eWeaponType.blaster или eWeaponType.spread). Ручное изменение поля _type во время работы игры не дает нужного результата, 
-        // так как при этом пропускается вызов SetType(); однако метод SetType() вызывается через блок set свойства type, поэтому присвоение нового значения eWeaponType свойству type обеспечит назначение правильной модели игровому объекту
-        SetType( _type ); 
+        shotPointTrans = transform.GetChild(0); // На момент вызова метода Start() у игрового объекта Weapon есть только один дочерний объект («ShotPoint»)
+        // поэтому вместо вызова transform.Find("ShotPoint") мы можем просто получить нулевой дочерний объект из Transform игрового объекта Weapon
 
-        // Найдите событие fireEvent компонента Hero в родительской иерархии
-        Hero hero = GetComponentInParent<Hero>(); // В рамках метода Start() эта строка выполняет поиск вверх по иерархии (над данным игровым объектом оружия) 
-        // компонента класса Hero, прикрепленного к одному из родительских игровых объектов в Unity. Этот поиск должен всегда возвращать экземпляр класса Hero, прикрепленный к игровому объекту _Hero на сцене
-        if ( hero != null ) hero.fireEvent += Fire;
-        // Если был найден экземпляр класса Hero, метод Fire() данного объекта Weapon добавляется к событию fireEvent этого экземпляра. 
-        // В дальнейшем событие fireEvent класса Hero сможет вызывать метод Fire() данного объекта Weapon. Вас может удивить, что это возможно, 
-        // ведь метод Fire() является закрытым (private). Однако скрипт Weapon имеет доступ к Fire() и поэтому может добавить этот метод к событию fireEvent
+        SetType(_type); // Вызовите функцию SetType() для получения значения типа _type по умолчанию, заданного в инспекторе
+
+        Hero hero = GetComponentInParent<Hero>(); // Найдите событие fireEvent компонента Hero в родительской иерархии
+        if (hero != null) hero.fireEvent += Fire; // Eсли был найден экземпляр класса Hero, метод Fire() данного объекта Weapon добавляется к событию fireEvent в Hero
     }
 
     public eWeaponType type {
-        get { return( _type ); }
-        set { SetType( value ); }
+        get { return(_type); }
+        set { SetType(value); }
     }
 
-    public void SetType( eWeaponType wt ) {
+    public void SetType(eWeaponType wt) {
         _type = wt;
-        // Если тип равен eWeaponType.none, данный GameObject переводится в неактивное состояние. Когда GameObject неактивен, 
-        // он не получает вызовов методов MonoBehaviour (например, Update(), LateUpdate(), FixedUpdate(), OnCollisionEnter() и т. д.), 
-        // не участвует в физической симуляции и визуально исчезает со сцены. Однако вызов функций и изменение переменных в скриптах, 
-        // прикрепленных к неактивному GameObject, по-прежнему возможны; поэтому, если что-либо вызовет SetType() или установит свойство 
-        // type в значение eWeaponType.blaster или eWeaponType.spread, метод SetType() сработает и повторно активирует GameObject, к которому он привязан
-        if (type == eWeaponType.none) { // f
-            this.gameObject.SetActive(false);
-            return;
-        } else {
-            this.gameObject.SetActive(true);
+        if (type == eWeaponType.none) { // Если тип равен eWeaponType.none, данный GameObject переводится в неактивное состояние
+            this.gameObject.SetActive(false); // Когда GameObject неактивен, он не получает вызовов методов MonoBehaviour (например, Update(), LateUpdate(), 
+            return; // FixedUpdate(), OnCollisionEnter() и т. д.), не участвует в физической симуляции и визуально исчезает со сцены
+        } else { // Однако вызов функций и изменение переменных в скриптах, прикрепленных к неактивному GameObject, по-прежнему возможны; поэтому, если что-либо вызовет SetType()
+            this.gameObject.SetActive(true); // или установит свойство type в значение eWeaponType.blaster или eWeaponType.spread, метод SetType() сработает и повторно активирует GameObject, к которому он привязан
         }
         // Получите WeaponDefinition для этого типа оружия из Main
-        def = Main.GET_WEAPON_DEFINITION(_type);
-        // Уничтожьте любую старую модель, а затем прикрепите модель для этого оружия
-        // Эти строки извлекают соответствующий объект WeaponDefinition из Main и создают экземпляр weaponModel как дочерний 
-        // объект для данного GameObject (оружия). Если weaponModel уже был прикреплен, он предварительно уничтожается. 
-        // Параметры localPosition и localScale настраиваются так, чтобы обеспечить правильное выравнивание модели
-        if ( weaponModel != null ) Destroy( weaponModel );
+        def = Main.GET_WEAPON_DEFINITION(_type); // Эти строки извлекают соответствующий объект WeaponDefinition из Main и создают экземпляр weaponModel как дочерний объект для данного GameObject (оружия). Если weaponModel уже был прикреплен, он предварительно уничтожается
+        
+        if (weaponModel != null) Destroy(weaponModel); // Уничтожьте любую старую модель, а затем прикрепите модель для этого оружия
         weaponModel = Instantiate<GameObject>(def.weaponModelPrefab, transform);
         weaponModel.transform.localPosition = Vector3.zero;
         weaponModel.transform.localScale = Vector3.one;
 
-        nextShotTime = 0; // Вы можете запустить процесс стрельбы сразу после установки параметра _type 
-        // Установка nextShotTime в значение 0 позволяет произвести выстрел из этого оружия немедленно
+        nextShotTime = 0; // Вы можете запустить процесс сразу после установки параметра _type
     }
 
   [System.Obsolete]
   private void Fire() {
-        // Если this.gameObject неактивен, то возврат
-        if ( !gameObject.activeInHierarchy ) return; // Свойство gameObject.activeInHierarchy будет иметь значение false, если сам GameObject оружия неактивен либо если GameObject _Hero (корневой родительский объект для этого оружия) неактивен или уничтожен
-        // Если между выстрелами прошло недостаточно времени, то возврат
-        if ( Time.time < nextShotTime ) return; // Если текущее время меньше nextShotTime, выполнение метода прекращается, и выстрел не производится. Это предотвращает слишком частую стрельбу
+        if (!gameObject.activeInHierarchy) return; // Свойство gameObject.activeInHierarchy будет иметь значение false, если сам GameObject оружия неактивен 
+        // либо если GameObject _Hero (корневой родительский объект для этого оружия) неактивен или уничтожен. В любом случае, когда gameObject.activeInHierarchy равно false, выполнение функции прекращается, и выстрел не производится
+        if (Time.time < nextShotTime) return; // Если текущее время меньше nextShotTime, выполнение метода прекращается, и выстрел не производится. Это предотвращает слишком частую стрельбу
 
         ProjectileHero p;
         Vector3 vel = Vector3.up * def.velocity;
 
-        // Оператор switch содержит варианты для каждого из двух типов оружия (WeaponType). 
-        // Тип eWeaponType.blaster создает один GameObject типа ProjectileHero путем вызова MakeProjectile() (который возвращает ссылку 
-        // на экземпляр класса ProjectileHero, прикрепленный к новому GameObject снаряда), а затем задает скорость (velocity) его компоненту Rigidbody в направлении вектора vel.
-        switch (type) { 
-            case eWeaponType.blaster:
-            p = MakeProjectile();
-            p.vel = vel;
-            break;
+        switch (type) { // Оператор switch содержит варианты для каждого из двух типов оружия (WeaponType), реализованных в этой главе
+            case eWeaponType.blaster: // Тип eWeaponType.blaster создает один GameObject типа ProjectileHero путем вызова MakeProjectile()
+                p = MakeProjectile(); // (который возвращает ссылку на экземпляр класса ProjectileHero, прикрепленный к новому GameObject снаряда)
+                p.vel = vel; // а затем задает скорость (velocity) его компоненту Rigidbody в направлении вектора vel
+                break;
 
-            // Если _type равен eWeaponType.spread, создаются три различных снаряда (Projectile). Направление двух из них поворачивается 
-            // на 10 градусов вокруг оси Vector3.back (то есть оси -Z, направленной от экрана в вашу сторону). Затем свойству 
-            // Rigidbody.velocity присваивается результат умножения этого кватерниона (вращения) на вектор vel. При умножении кватерниона на 
-            // Vector3 происходит поворот этого вектора, в результате чего итоговый вектор скорости оказывается направленным туда, куда ориентирован объект ProjectileHero
-            case eWeaponType.spread: 
-            p = MakeProjectile();
-            p.vel = vel;
-            p = MakeProjectile();
-            p.transform.rotation = Quaternion.AngleAxis( 10, Vector3.back );
-            p.vel = p.transform.rotation * vel;
-            p = MakeProjectile();
-            p.transform.rotation = Quaternion.AngleAxis(-10, Vector3.back );
-            p.vel = p.transform.rotation * vel;
-            break;
+            case eWeaponType.spread: // Если _type равен eWeaponType.spread, создаются три различных снаряда (Projectile)
+                p = MakeProjectile(); // Направление двух из них поворачивается на 10 градусов вокруг оси Vector3.back (то есть оси -Z, направленной от экрана в вашу сторону)
+                p.vel = vel; // Затем свойству Rigidbody.velocity присваивается результат умножения этого кватерниона (вращения) на вектор vel
+                p = MakeProjectile(); // При умножении кватерниона на Vector3 происходит поворот этого вектора, в результате чего
+                p.transform.rotation = Quaternion.AngleAxis(10, Vector3.back); // итоговый вектор скорости оказывается направленным туда, куда ориентирован объект ProjectileHero
+                p.vel = p.transform.rotation * vel;
+                p = MakeProjectile();
+                p.transform.rotation = Quaternion.AngleAxis(-10, Vector3.back);
+                p.vel = p.transform.rotation * vel;
+                break;
         }
     }
-    private ProjectileHero MakeProjectile() { // Метод MakeProjectile() создает экземпляр (клонирует) префаба, хранящегося в WeaponDefinition, и возвращает ссылку на прикрепленный к нему экземпляр класса ProjectileHero
-        GameObject go;
-        // Игровой объект ProjectileHero создается как дочерний объект PROJECTILE_ANCHOR с использованием второго параметра 
-        // метода Instantiate(); это эффективнее, чем назначать родительский объект для transform позднее. Благодаря этому объект 
-        // размещается в иерархии сцены (Hierarchy) внутри _ProjectileAnchor, что позволяет избежать загромождения списка иерархии множеством клонов ProjectileHero
-        go = Instantiate<GameObject>(def.projectilePrefab,PROJECTILE_ANCHOR);
-        ProjectileHero p = go.GetComponent<ProjectileHero>();
+
+    private ProjectileHero MakeProjectile() { // Создает экземпляр (клонирует) префаба, хранящегося в WeaponDefinition, и возвращает ссылку на прикрепленный к нему экземпляр класса ProjectileHero
+        GameObject go; // Игровой объект ProjectileHero создается как дочерний объект PROJECTILE_ANCHOR с использованием второго параметра метода Instantiate()
+        go = Instantiate<GameObject>(def.projectilePrefab, PROJECTILE_ANCHOR); // это эффективнее, чем назначать родительский объект для transform позднее. Благодаря этому 
+        ProjectileHero p = go.GetComponent<ProjectileHero>(); // объект размещается в иерархии сцены (Hierarchy) внутри _ProjectileAnchor, что позволяет избежать загромождения списка иерархии множеством клонов ProjectileHero
 
         Vector3 pos = shotPointTrans.position;
         pos.z = 0; // Координата Z объекта ProjectileHero устанавливается равной 0, чтобы учесть поворот корабля Hero и любые другие факторы, способные сместить объект относительно плоскости Z=0
@@ -480,8 +401,7 @@ public class Weapon : MonoBehaviour {
 
         p.type = type;
         nextShotTime = Time.time + def.delayBetweenShots; // Переменной nextShotTime присваивается значение, равное текущему времени плюс def.delayBetweenShots; 
-        // это предотвращает стрельбу из данного оружия в течение def.delayBetweenShots секунд
-        return( p );
+        return(p); // это предотвращает стрельбу из данного оружия в течение def.delayBetweenShots секунд.
     }
 }
 ```
@@ -495,82 +415,73 @@ using UnityEngine;
 using UnityEngine.SceneManagement; // Обеспечивает загрузку и перезагрузку сцен
 
 public class Main : MonoBehaviour {
-    static private Main S; // Частный синглтон для Main
+    static private Main S; // Объявляем частный синглтон для Main
     static private Dictionary<eWeaponType, WeaponDefinition> WEAP_DICT; // При объявлении и определении словарей указываются типы ключа и значения. 
-    // Объявление WEAP_DICT как static и private означает, что доступ к нему могут получить любой экземпляр класса Main и любой статический метод этого класса, однако для других классов он недоступен.
+    // Объявление WEAP_DICT как static и private означает, что доступ к нему могут получить любой экземпляр класса Main и любой статический метод этого класса, однако для других классов он недоступен
 
     [Header("Inscribed")]
-    public bool spawnEnemies = true; // В верхней части инспектора для основного скрипта (Main (Script)) появится флажок spawnEnemies
-    public GameObject[] prefabEnemies; // Массив префабов Enemy 
-    public float enemySpawnPerSecond = 0.5f; // Спавн врагов в сек.
-    public float enemyInsetDefault = 1.5f; // Inset from the sides
-    public float gameRestartDelay = 2; 
+    public bool spawnEnemies = true; // Переменная чтобы лего включать и выключать спавн врагов через инспектор
+    public GameObject[] prefabEnemies; // Объявляем массив с префабами врагов
+    public float enemySpawnPerSecond = 0.5f;
+    public float enemyInsetDefault = 1.5f;
+    public float gameRestartDelay = 2;
     public GameObject prefabPowerUp; // Здесь будет храниться префаб для всех бонусов (PowerUps)
-    public WeaponDefinition[] weaponDefinitions; // Массив weaponDefinitions
-    public eWeaponType[] powerUpFrequency = new eWeaponType[] { // Определяет частоту появления каждого типа бонуса (PowerUp)
-        eWeaponType.blaster,
-        eWeaponType.blaster,
-        eWeaponType.spread, eWeaponType.shield
+    public WeaponDefinition[] weaponDefinitions;
+    public eWeaponType[] powerUpFrequency = new eWeaponType[] { // Массив powerUpFrequency (типа eWeaponTypes) определяет частоту появления каждого типа бонуса (PowerUp)
+        eWeaponType.blaster, // По умолчанию он содержит два элемента «бластер» (blaster), один «разброс» (spread) и один «щит» (shield)
+        eWeaponType.blaster, // таким образом, бонус «бластер» будет встречаться вдвое чаще остальных во время игры
+        eWeaponType.spread, eWeaponType.shield // В C# допускается запись определения массива в несколько строк, как показано здесь
     };
-
     private BoundsCheck bndCheck;
 
     void Awake() {
         S = this;
-        bndCheck = GetComponent<BoundsCheck>(); // Установите компонент bndCheck так, чтобы он ссылался на компонент BoundsCheck для этого GameObject
-        Invoke( nameof(SpawnEnemy), 1f / enemySpawnPerSecond ); // Вызывает функцию SpawnEnemy() один раз (через 2 секунды, исходя из значений по умолчанию)
+        bndCheck = GetComponent<BoundsCheck>(); // Инициализируем ссылку на скрипт BoundCheck
+        Invoke(nameof(SpawnEnemy), 1f / enemySpawnPerSecond); // Вызывает метод SpawnEnemy() через 1/0,5 секунды (т.е. 2 секунды) на основе значений по умолчанию
 
         // Универсальный словарь, в котором eWeaponType является ключом
-        WEAP_DICT = new Dictionary<eWeaponType, WeaponDefinition>(); // Инициализация словаря
-        foreach ( WeaponDefinition def in weaponDefinitions ) { // Этот цикл перебирает все элементы массива weaponDefinitions и создает соответствующую запись в словаре WEAP_DICT
+        WEAP_DICT = new Dictionary<eWeaponType, WeaponDefinition>(); 
+        foreach (WeaponDefinition def in weaponDefinitions) { // Этот цикл перебирает все элементы массива weaponDefinitions и создает соответствующую запись в словаре WEAP_DICT
             WEAP_DICT[def.type] = def;
         }
     }
 
     public void SpawnEnemy() {
-        // Если значение spawnEnemies равно false, переходим к следующему вызову функции SpawnEnemy()
-        if ( !spawnEnemies ) { // Использование метода Invoke() в данном случае позволяет нам впоследствии возобновить появление врагов, установив для spawnEnemies значение true
-            Invoke( nameof( SpawnEnemy ), 1f / enemySpawnPerSecond );
-            return;
+        if (!spawnEnemies) {// Если значение spawnEnemies равно false, переходим к следующему вызову функции SpawnEnemy()
+            Invoke(nameof(SpawnEnemy), 1f / enemySpawnPerSecond); // Использование метода Invoke() в данном случае позволяет нам впоследствии возобновить появление врагов, установив для spawnEnemies значение true
         }
 
-        // Выберите случайный префаб врага для создания экземпляра
         int ndx = Random.Range(0, prefabEnemies.Length); // В зависимости от длины массива prefabEnemies, выбирается случайное число, от 0 до единицы меньше, чем prefabEnemies.Length. Таким образом, если массив prefabEnemies содержит четыре врага, вызов Random.Range() вернет 0, 1, 2 или 3
-        GameObject go = Instantiate<GameObject>( prefabEnemies[ ndx ] ); // Сгенерированный случайный ndx используется для выбора префаба GameObject из prefabEnemies
-        // Разместите врага над экраном в произвольном месте по оси X
-        float enemyInset = enemyInsetDefault; // EnemyInset изначально устанавливается равным enemyInsetDefault, заданному в Инспекторе
-        if (go.GetComponent<BoundsCheck>() != null) { 
-            enemyInset = Mathf.Abs( go.GetComponent<BoundsCheck>().radius );
-            // Однако, если выбранный префаб врага имеет компонент BoundsCheck, вы вместо этого считываете радиус из него. 
-            // Берется абсолютное значение радиуса, потому что иногда радиус устанавливается на отрицательное значение, 
-            // так что GameObject должен полностью находиться за пределами экрана, прежде чем он будет считаться находящимся за пределами экрана, как в случае с Enemy_0
+        GameObject go = Instantiate<GameObject>(prefabEnemies[ndx]); // Сгенерированный случайный ndx используется для выбора префаба GameObject из prefabEnemies
+        // Размещение врага над экраном в произвольном месте по оси X
+        float enemyInset = enemyInsetDefault;
+        if (go.GetComponent<BoundsCheck>() != null) { // Если выбранный префаб врага имеет компонент BoundsCheck вы считываете радиус из него
+            enemyInset = Mathf.Abs(go.GetComponent<BoundsCheck>().radius); // Берется абсолютное значение радиуса, потому что иногда радиус устанавливается на отрицательное значение
         }
         // Задайте начальное положение для появившегося врага
-        // Используется BoundsCheck этого GameObject _MainCamera для получения camWidth и camHeight и выбирает позицию X, 
-        // где созданный враг полностью находится на экране горизонтально. EnemyInset используется для того, чтобы убедиться, 
-        // что враг не появляется частично за пределами экрана
-        // Затем выбирается позиция по оси Y, где враг находится чуть выше экрана.
-        Vector3 pos = Vector3.zero;
-        float xMin = -bndCheck.camWidth + enemyInset;
-        float xMax = bndCheck.camWidth - enemyInset;
-        pos.x = Random.Range( xMin, xMax );
-        pos.y = bndCheck.camHeight + enemyInset;
+        Vector3 pos = Vector3.zero; // Этот раздел кода устанавливает начальную позицию для созданного врага
+        float xMin = -bndCheck.camWidth + enemyInset; // Он использует BoundsCheck этого GameObject _MainCamera для получения camWidth и camHeight и выбирает позицию X
+        float xMax = bndCheck.camWidth - enemyInset; // где созданный враг полностью находится на экране горизонтально
+        pos.x = Random.Range(xMin, xMax); // EnemyInset используется для того
+        pos.y = bndCheck.camHeight + enemyInset; // чтобы убедиться, что враг не появляется частично за пределами экрана
         go.transform.position = pos;
+
         // Снова вызвать SpawnEnemy()
-        Invoke( nameof(SpawnEnemy), 1f/enemySpawnPerSecond ); 
+        Invoke(nameof(SpawnEnemy), 1f / enemySpawnPerSecond); 
     }
 
     void DelayedRestart() { // Метод DelayedRestart() вызывает Restart() через две секунды
-        Invoke( nameof(Restart), gameRestartDelay );
+        Invoke(nameof(Restart), gameRestartDelay ); // Вызываем the Restart() через установленное количество секунд в gameRestartDelay 
     }
+
     void Restart() {
-        // Перезагрузите __Scene_0, чтобы перезапустить игру
-        SceneManager.LoadScene( "__Scene_0" ); // d
+        SceneManager.LoadScene( "__Scene_0" ); // Перезагрузка __Scene_0 чтобы перезапустить игру
     }
-    static public void HERO_DIED() {
-        S.DelayedRestart(); // Любой другой класс может вызвать этот статический публичный метод HERO_DIED() 
-        // через Main.HERO_DIED(). В свою очередь, HERO_DIED() вызовет DelayedRestart() у приватного синглтона S класса Main
+    static public void HERO_DIED() { // Любой другой класс может вызвать этот статический публичный метод HERO_DIED() через Main.HERO_DIED()
+        S.DelayedRestart(); // В свою очередь, HERO_DIED() вызовет DelayedRestart() у приватного синглтона S класса Main
     }
+
+    // Статическая функция, позволяющая получать данные из WEAP_DICT
 
     /// <summary>
     /// Static function that gets a WeaponDefinition from the WEAP_DICT static
@@ -580,13 +491,13 @@ public class Main : MonoBehaviour {
     /// the eWeaponType passed in, returns a new WeaponDefinition with a
     /// eWeaponType of eWeaponType.none.</returns>
     /// <param name="wt">The eWeaponType of the desired WeaponDefinition</param>
-    static public WeaponDefinition GET_WEAPON_DEFINITION( eWeaponType wt ) { 
+    static public WeaponDefinition GET_WEAPON_DEFINITION(eWeaponType wt) { 
         if (WEAP_DICT.ContainsKey(wt)) { // Это условное выражение проверяет, есть ли у WEAP_DICT запись с ключом, который был передан как wt
-            return( WEAP_DICT[wt]);
+            return(WEAP_DICT[wt]); // Если вы используете доступ через скобки для получения записи, которой не существует, Unity выдаст ошибку. Если имеется элемент с соответствующим eWeaponType, возвращается правильный WeaponDefinition
         }
-        // Если в WEAP_DICT нет записи нужного типа, вернуть
-        // новый объект WeaponDefinition с типом eWeaponType.none (значение по умолчанию)
-        return( new WeaponDefinition() );
+        // Если в WEAP_DICT отсутствует запись нужного типа
+        // вернуть новый объект WeaponDefinition с типом eWeaponType.none (значение по умолчанию)
+        return(new WeaponDefinition()); // Если в WEAP_DICT отсутствует запись с соответствующим ключом eWeaponType, возвращается новый объект WeaponDefinition с типом eWeaponType.none
     }
 
     /// <summary>
@@ -594,23 +505,17 @@ public class Main : MonoBehaviour {
     /// a PowerUp in place of the destroyed ship.
     /// </summary>
     /// <param name="e">The Enemy that was destroyed</param>
-    static public void SHIP_DESTROYED( Enemy e ) {
-        // Potentially generate a PowerUp
-        if (Random.value <= e.powerUpDropChance) {  
-            // Choose a PowerUp from the possibilities in powerUpFrequency
-            int ndx = Random.Range( 0, S.powerUpFrequency.Length ); // Выбор случайного элемента массива
+    static public void SHIP_DESTROYED(Enemy e) { // Потенциально создаёт PowerUp
+        if (Random.value <= e.powerUpDropChance) { // Underlined red for now // c
+            int ndx = Random.Range(0, S.powerUpFrequency.Length); // Выберите PowerUp из возможных вариантов в powerUpFrequency. Метод выбирает число в диапазоне от первого (включительно) до второго (не включая его); например, Random.Range(0, 4) сгенерирует целое число 0, 1, 2 или 3
             eWeaponType pUpType = S.powerUpFrequency[ndx];
-            // Spawn a PowerUp
-            GameObject go = Instantiate<GameObject>( S.prefabPowerUp );
+            GameObject go = Instantiate<GameObject>(S.prefabPowerUp); // Создайте PowerUp
             PowerUp pUp = go.GetComponent<PowerUp>();
-            // Set it to the proper WeaponType
-            pUp.SetType( pUpType ); 
-            // Set it to the position of the destroyed ship
-            pUp.transform.position = e.transform.position;
+            pUp.SetType(pUpType); // После выбора типа бонуса (PowerUp) у созданного экземпляра вызывается метод SetType(); затем бонус самостоятельно выполняет раскраску, устанавливает значение поля _type и отображает соответствующую букву в компоненте TextMesh
+            pUp.transform.position = e.transform.position; // Установите его в положение уничтоженного корабля
         }
     }
 }
-
 ```
 
 ## Скрипт ProjectileHero.cs
@@ -620,31 +525,31 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent( typeof(BoundsCheck) )]
+[RequireComponent(typeof(BoundsCheck))]
 public class ProjectileHero : MonoBehaviour {
     private BoundsCheck bndCheck;
     private Renderer rend;
 
     [Header("Dynamic")]
     public Rigidbody rigid;
-    [SerializeField]
-    private eWeaponType _type; // Закрытое поле _type скрыто за открытым свойством type, через которое к нему и происходит обращение
 
-    // Это общедоступное свойство скрывает закрытое поле _type
+    [SerializeField] // делает поле _type видимым и доступным для редактирования в инспекторе Unity, несмотря на то, что оно является закрытым (private)
+    private eWeaponType _type;
+
+    // Данная переменная маскирует приватную переменную _type
     public eWeaponType type { // блок set вызывает метод SetType(), что позволяет выполнять дополнительные действия помимо простого присваивания значения полю _type
-        get { return( _type ); }
-        set { SetType( value ); }
+        get { return(_type); }
+        set { SetType(value); }
     }
 
-    void Awake () {
+    void Awake() {
         bndCheck = GetComponent<BoundsCheck>();
         rend = GetComponent<Renderer>(); // В методе SetType() требуется использовать компонент Renderer, прикрепленный к данному игровому объекту (GameObject), 
         rigid = GetComponent<Rigidbody>(); // поэтому он кэшируется здесь вместе с компонентом Rigidbody
     }
-
     void Update () {
-        if ( bndCheck.LocIs(BoundsCheck.eScreenLocs.offUp) ) {
-            Destroy( gameObject );
+        if (bndCheck.LocIs(BoundsCheck.eScreenLocs.offUp)) { // Если ProjectileHero выйдет за пределы верхней границы экрана, уничтожить его
+            Destroy(gameObject);
         }
     }
 
@@ -653,10 +558,9 @@ public class ProjectileHero : MonoBehaviour {
     /// WeaponDefinition.
     /// </summary>
     /// <param name="eType">The eWeaponType to use.</param>
-    public void SetType( eWeaponType eType ) { // Метод SetType() не только присваивает значение закрытому полю _type, 
-    // но и окрашивает снаряд в цвет, соответствующий определению оружия (WeaponDefinition) из словаря Main.WEAP_DICT
+    public void SetType(eWeaponType eType) { // Метод SetType() не только присваивает значение закрытому полю _type, но и окрашивает снаряд в цвет, соответствующий определению оружия (WeaponDefinition) из словаря Main.WEAP_DICT
         _type = eType;
-        WeaponDefinition def = Main.GET_WEAPON_DEFINITION( _type );
+        WeaponDefinition def = Main.GET_WEAPON_DEFINITION(_type);
         rend.material.color = def.projectileColor;
     }
 
@@ -668,11 +572,6 @@ public class ProjectileHero : MonoBehaviour {
         get { return rigid.velocity; }
         set { rigid.velocity = value; }
     }
-    // Предупреждение: Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead
-    // public Vector3 vel {
-    //     get { return rigid.velocity; }
-    //     set { rigid.velocity = value; }
-    // }
 }
 ```
 
@@ -681,49 +580,50 @@ public class ProjectileHero : MonoBehaviour {
 ```c# title="C# Hero.cs"
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
+using UnityEngine; // Подключение библиотек
 
 public class Hero : MonoBehaviour {
-    static public Hero S { get; private set; } // Объявляем синглтон где set приватный, что позволяет вносить в него изменения только из кода класса Hero
+    // Hero S - реализация паттерна синглтон. Объект существует в единственном экземпляре. Обращение к нему через Hero.S
+    static public Hero S {get; private set;} //static - поле S принадлежит конкретному классу Hero. public - глобальный доступ к нему. get - свойство можно читать. private set - менять свойства можно только внутри самого класса Hero.
 
-    [Header("Inscribed")]
+    [Header("Inscribed")] // Заголовок для отображения групп переменных в инспекторе
     // Эти поля управляют движением корабля
     public float speed = 30;
     public float rollMult = -45;
     public float pitchMult = 30;
-    public GameObject projectilePrefab;
-    public float projectileSpeed = 40;
-    public Weapon[] weapons; // Массив оружия будет хранить ссылки на каждый из объектов Weapons
+    public GameObject projectilePrefab; // Объявляем переменную для хранения снаряда
+    public float projectileSpeed = 40; // Скорость полёта снаряда
+    public Weapon[] weapons; // Массив оружия хранит ссылки на каждый объект оружия
 
-    [Header("Dynamic")] [Range(0,4)] [SerializeField] // Атрибут [Range(0,4)] здесь добавляет ползунок в Инспектор и не позволяет нам использовать Инспектор для установки shieldLevel в значение меньше 0 или больше 4
+    [Header("Dynamic")] [Range(0, 4)] [SerializeField] // Атрибут [Range(0,4)] добавляет ползунок в инспектор и не позволяет нам использовать инспектор для установки shieldLevel в значение меньше 0 или больше 4
     private float _shieldLevel = 1;
-    [Tooltip( "This field holds a reference to the last triggering GameObject" )]
-    private GameObject lastTriggerGo = null; // В этом закрытом поле lastTriggerGo будет храниться ссылка на последний объект GameObject, который активировал коллайдер _Hero. Изначально оно имеет значение null
-    // Объявление нового типа делегата WeaponFireDelegate
+    // public float shieldLevel = 1;
+    [Tooltip("This field holds a reference to the last triggering GameObject")]
+    private GameObject lastTriggerGo = null; // В этом закрытом поле будет храниться ссылка на последний объект GameObject, который активировал коллайдер _Hero. Изначально оно имеет значение null
+    // Объявить новый тип делегата WeaponFireDelegate
     public delegate void WeaponFireDelegate(); // Несмотря на то, что и тип делегата WeaponFireDelegate(), и поле fireEvent являются публичными (public), они не отобразятся в инспекторе Unity, так как не подлежат сериализации
     // Создайте событие WeaponFireDelegate с именем fireEvent
     public event WeaponFireDelegate fireEvent;
 
-  [System.Obsolete]
-  void Awake() {
-        if (S == null) {
-            S = this; // Выдает ошибку в панели Console, если вы попытаетесь установить Hero.S после того, как он уже был установлен
-        } else {
-            Debug.LogError("Hero.Awake() - Attempted to assign second Hero.S!");
+    void Awake() { // Вызывается самым первым при создании и загрузке объекта в сцену до Start(). Как один из вариантов - для создания синглтона
+        if (S == null) { // Если синглтон Hero S отсутствует
+            S = this; // То назначить текущий Hero синглтоном
+        } else { // В ином случае, если Hero уже существует, либо скрипт Hero прикреплён уже к другому объекту - выдать ошибку
+            Debug.LogError("Hero.Awake() = Attempted to assign second Hero.S!"); // Но при таком условии 2й Hero всё равно будет создан потому что нет Destroy() дубликата
         }
-        // Это еще одна мера защиты от ошибок (например, если в одной сцене было два GameObject, 
-        // к которым были прикреплены скрипты Hero, или два компонента Hero, прикрепленных к одному GameObject)
         // fireEvent += TempFire; // Добавление TempFire в fireEvent приводит к тому, что TempFire будет вызываться каждый раз, когда fireEvent вызывается как функция
-        //  Обратите внимание: при добавлении TempFire в fireEvent после имени метода не ставятся скобки. Это связано с тем, что вы добавляете сам метод, 
-        // а не вызываете его и не передаете возвращаемый им результат (что произошло бы, если бы вы указали скобки после имени метода)
+        //  Обратите внимание: при добавлении TempFire в fireEvent после имени метода не ставятся скобки. Это связано с тем, что вы добавляете сам метод, а не вызываете его и не передаете возвращаемый им результат (что произошло бы, если бы вы указали скобки после имени метода).
+        
+        ClearWeapons(); // Сбросьте оружие, чтобы начать игру за Героя с 1 бластером
+        weapons[0].SetType(eWeaponType.blaster);
     }
 
-  [System.Obsolete]
-  void Update(){
+    [System.Obsolete] // Обозначение для методов в коде, которые устарели и потенциально могут не работать в следующих версиях UNITY
+    // В данном случае устарел метод TempFire()
+    void Update() {
         // Получаем информацию из класса Input
-        // Эти две строки используют класс Input Unity для извлечения информации из Unity Input Manager
-        float hAxis = Input.GetAxis("Horizontal");
-        float vAxis = Input.GetAxis("Vertical");
+        float hAxis = Input.GetAxis("Horizontal"); // Эти две строки используют класс Input Unity для извлечения информации из Unity Input Manager
+        float vAxis = Input.GetAxis("Vertical"); // В переменные записывается информация о 
 
         // Изменяем transform.position в зависимости от осей
         Vector3 pos = transform.position; // Получаем позицию объекта
@@ -734,72 +634,61 @@ public class Hero : MonoBehaviour {
         // Поворот корабля (Rotate), для большей динамики
         transform.rotation = Quaternion.Euler(vAxis * pitchMult, hAxis * rollMult, 0); //pitchMult и rollMult умножаются на vAxis и hAxis (каждый из которых находится в диапазоне от [-1..1]), чтобы наклонять корабль вперед и назад (от –30 до 30 градусов) и кренить его влево и вправо (от 45 до –45 градусов)
 
-        // Allow the ship to fire
-        // if ( Input.GetKeyDown( KeyCode.Space ) ) { // Из-за этого корабль стреляет при каждом нажатии клавиши пробела. Ось «Jump» привязана к пробелу, но если бы мы использовали здесь условие Input.GetAxis("Jump") == 1, выстрел происходил бы в каждом кадре!
+        // // Добавляем возможность кораблю стрелять
+        // if (Input.GetKeyDown(KeyCode.Space)) { // Корабль стреляет при каждом нажатии клавиши пробела
         //     TempFire();
         // }
 
-        // Используйте событие fireEvent для стрельбы из оружия при нажатии клавиши пробела
-        // Значение Input.GetAxis("Jump") равно 1, когда нажата клавиша пробела или кнопка прыжка на контроллере. Любой делегат или событие, 
-        // к которому не привязаны методы, имеет значение null. Поэтому, если вызвать fireEvent без привязанных методов, возникнет исключение 
-        // NullReferenceException. Чтобы этого избежать, перед вызовом проверяется, не равно ли fireEvent значению null
-        if (Input.GetAxis("Jump") == 1 && fireEvent != null) { 
-            fireEvent(); // Здесь fireEvent вызывается так, словно это функция. Это, в свою очередь, приводит к вызову всех функций, 
-            // добавленных в делегат/событие fireEvent (в данном случае это означает вызов TempFire())
+        // Используйте событие fireEvent для стрельбы из оружия при нажатии клавишу пробела
+        if (Input.GetAxis("Jump") == 1 && fireEvent != null) { // Значение Input.GetAxis("Jump") равно 1, когда нажата клавиша пробела или кнопка прыжка на контроллере
+            fireEvent(); // Здесь fireEvent вызывается так, словно это функция. Это, в свою очередь, приводит к вызову всех функций, добавленных в делегат/событие fireEvent (в данном случае это означает вызов TempFire())
         }
     }
 
-//   [System.Obsolete]
-//   void TempFire() { 
-//         GameObject projGO = Instantiate<GameObject>( projectilePrefab );
-//         projGO.transform.position = transform.position;
-//         Rigidbody rigidB = projGO.GetComponent<Rigidbody>();
-//         // rigidB.velocity = Vector3.up * projectileSpeed;
+    // void TempFire() { // "TempFire"- потому что это временный метод, рассматриваемый в 1й части SH. Теперь fireEvent вызывает TempFire() для выполнения стандартного выстрела из бластера
+    //     GameObject projGO = Instantiate<GameObject>(projectilePrefab); // Присваиваем вызов снаряда projGO
+    //     projGO.transform.position = transform.position; // Снаряд берёт данные позиции _Hero. Без этой строки он появится на трансформе своего префаба
+    //     Rigidbody rigidB = projGO.GetComponent<Rigidbody>(); // Получение данных Rigidbody объекта снаряда
+    //     // rigidB.velocity = Vector3.up * projectileSpeed; // Движение снаряда вверх со скоростью, заданной в projectileSpeed
 
-//         // Новый фрагмент кода получает информацию из поля eWeaponType класса ProjectileHero и использует её для задания скорости игрового объекта projGO
-//         ProjectileHero proj = projGO.GetComponent<ProjectileHero>(); 
-//         proj.type = eWeaponType.blaster;
-//         float tSpeed = Main.GET_WEAPON_DEFINITION( proj.type ).velocity;
-//         rigidB.velocity = Vector3.up * tSpeed;
-//     }
+    //     ProjectileHero proj = projGO.GetComponent<ProjectileHero>(); // Этот новый фрагмент кода получает информацию 
+    //     proj.type = eWeaponType.blaster; // из поля eWeaponType класса ProjectileHero
+    //     float tSpeed = Main.GET_WEAPON_DEFINITION(proj.type).velocity; //  и использует её для задания скорости игрового объекта projGO
+    //     rigidB.velocity = Vector3.up * tSpeed;
+    // }
 
     void OnTriggerEnter(Collider other) {
         Transform rootT = other.gameObject.transform.root;
         GameObject go = rootT.gameObject;
-        // Debug.Log("Shield trigger hit by: " +go.gameObject.name); 
+        // Debug.Log("Shield trigger hit by: " +go.gameObject.name);
 
         // Убедитесь, что это не тот же самый триггер, что и в прошлый раз
-        if ( go == lastTriggerGo ) return; // Если lastTriggerGo совпадает с go (текущим объектом GameObject, вызвавшим срабатывание триггера), 
-        // то это событие игнорируется как дубликат, и выполнение функции прекращается (происходит выход из нее). Такая ситуация может возникнуть, 
-        // если два дочерних объекта GameObject одного и того же врага (Enemy) одновременно (то есть в течение одного кадра) активируют коллайдер героя
+        if (go == lastTriggerGo) return; // Если lastTriggerGo совпадает с go (текущим объектом GameObject, вызвавшим срабатывание триггера), то это событие игнорируется как дубликат, и выполнение функции прекращается
+        // Такая ситуация может возникнуть, если два дочерних объекта GameObject одного и того же врага (Enemy) одновременно (то есть в течение одного кадра) активируют коллайдер героя
         lastTriggerGo = go; // Присвойте переменной lastTriggerGo значение go, чтобы подготовить ее к последующим вызовам OnTriggerEnter()
-        Enemy enemy = go.GetComponent<Enemy>(); // проверка наличия определенного скрипта на объекте GameObject - гораздо более надежный способ определить, что это за объект (поскольку это позволяет избежать ошибок, вызванных возможными опечатками в названии тега)
+        Enemy enemy = go.GetComponent<Enemy>(); // Проверка наличия определенного скрипта на объекте
         PowerUp pUp = go.GetComponent<PowerUp>();
-        
-        if (enemy != null) { // Если щит был активирован врагом
-            shieldLevel--; // Уменьшите уровень щита на 1
-            Destroy( go ); // … и уничтожить врага 
+        if (enemy != null) { // Если щит был активирован enemy
+            shieldLevel--; // Уменьшить уровень щита на 1
+            Destroy(go); // … и уничтожить enemy
         } else if (pUp != null) { // Если щит задел усиление
             AbsorbPowerUp(pUp); // … поглотить PowerUp
         } else {
-            Debug.LogWarning("Shield trigger hit by non-Enemy: "+go.name); // Если _Hero столкнется с объектом, не имеющим тега Enemy, в консоль будет выведено сообщение с информацией об этом объекте
+            Debug.LogWarning("Shield trigger hit by non-Enemy: " + go.name); // Если _Hero столкнется с объектом, не имеющим тега Enemy, в консоль будет выведено сообщение с информацией об этом объекте
         }
     }
 
-    public void AbsorbPowerUp( PowerUp pUp ) {
-        Debug.Log( "Absorbed PowerUp: " + pUp.type ); // Одно из удобных свойств перечислений (enum) заключается в том, что их можно выводить 
-        // в консоль в составе сообщения, как показано здесь. В данном случае к сообщению будет добавлено название типа бонуса (например, none, blaster, spread и т. д.)
-        switch (pUp.type) {
-            case eWeaponType.shield: // Если бонус (PowerUp) относится к типу eWeaponType.shield, уровень щита повышается на 1.
+    public void AbsorbPowerUp(PowerUp pUp) {
+        Debug.Log("Absorbed PowerUp: " + pUp.type);
+        switch(pUp.type) {
+            case eWeaponType.shield: // Если бонус (PowerUp) относится к типу eWeaponType.shield, уровень щита повышается на 1
             shieldLevel++;
             break;
             default: // Любой другой тип eWeaponType для бонуса означает оружие; это случай, принимаемый по умолчанию
-            if (pUp.type == weapons[0].type) { // Если тип eWeaponType бонуса совпадает с типом уже имеющегося оружия
-                // выполняется поиск свободного слота для оружия и предпринимается попытка назначить этому слоту данный тип оружия. Если все пять слотов уже заняты, ничего не происходит
+            if (pUp.type == weapons[0].type) { // Если тип eWeaponType бонуса совпадает с типом уже имеющегося оружия, выполняется поиск свободного слота для оружия и предпринимается попытка назначить этому слоту данный тип оружия. Если все пять слотов уже заняты, ничего не происходит
                 Weapon weap = GetEmptyWeaponSlot();
                 if (weap != null) {
-                    // Установите значение pUp.type
-                    weap.SetType(pUp.type);
+                    weap.SetType(pUp.type); // Задать тип pUp
                 }
             } else { // Если тип eWeaponType бонуса отличается, все слоты для оружия очищаются, а в слот weapons[0] устанавливается оружие нового типа, соответствующего подобранному бонусу
                 ClearWeapons();
@@ -807,16 +696,17 @@ public class Hero : MonoBehaviour {
             }
             break;
         }
-        pUp.AbsorbedBy( this.gameObject );
+        pUp.AbsorbedBy(this.gameObject);
     }
 
     public float shieldLevel {
-        get { return ( _shieldLevel ); } // Блок get просто возвращает значение переменной _shieldLevel. Вполне допустимо записывать этот блок в одну строку
+        get { return (_shieldLevel); }
         private set { // Ключевое слово private гарантирует, что, хотя получить значение shieldLevel может любой класс, изменить его способен только класс Hero
-            _shieldLevel = Mathf.Min( value, 4 ); // Метод Mathf.Min() гарантирует, что значение _shieldLevel никогда не превысит 4
-            if (value < 0) { // Если значение, переданное в блок set, меньше 0, объект _Hero уничтожается
-                Destroy(this.gameObject); // Уничтожьте Hero
-                Main.HERO_DIED();
+            _shieldLevel = Mathf.Min(value, 4); // Метод Mathf.Min() гарантирует, что значение _shieldLevel никогда не превысит 4
+            
+            if (value < 0) { // Если значение защиты будет установлено меньше нуля…
+                Destroy(this.gameObject); // Destroy the Hero
+                Main.HERO_DIED(); // И вызов метода HERO_DIED() из Main, который вызывает отложенный рестарт игры
             }
         }
     }
@@ -826,12 +716,12 @@ public class Hero : MonoBehaviour {
     /// </summary>
     /// <returns>The first empty Weapon slot or null if none are empty</returns>
     Weapon GetEmptyWeaponSlot() {
-        for (int i=0; i <weapons.Length; i++) {
-            if ( weapons[i].type == eWeaponType.none ) {
-                return( weapons[i] );
+        for (int i = 0; i < weapons.Length; i++) {
+            if (weapons[i].type == eWeaponType.none) {
+                return(weapons[i]);
             }
         }
-        return( null );
+        return(null);
     }
     /// <summary>
     /// Sets the type of all Weapon slots to none
@@ -842,109 +732,88 @@ public class Hero : MonoBehaviour {
         }
     }
 }
-
-
 ```
 
 ## Скрипт Enemy.cs
 
 ```c# title="C# Enemy.cs"
-using System.Collections; // Необходимо для некоторых операций с массивами
-using System.Collections.Generic; // Обязательно для списков и словарей
-using UnityEngine; // Требуется для Unity
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
 
-[RequireComponent( typeof(BoundsCheck) )] // Атрибут наследуется так же подклассами Enemy; следовательно, все подклассы Enemy, также будут требовать наличия компонента BoundsCheck
+[RequireComponent(typeof(BoundsCheck))] // Любой игровой объект (GameObject), к которому прикреплен класс Enemy, должен также иметь компонент BoundsCheck
 public class Enemy : MonoBehaviour {
-
     [Header("Inscribed")]
     public float speed = 10f; // Скорость движения составляет 10 м/с
     public float fireRate = 0.3f; // Секунды/кадр (неиспользованные)
-    public float health = 10; // Для уничтожения этого врага необходимый урон
-    public int score = 100; // Начисление очков за уничтожение
-    public float powerUpDropChance = 1f; // Определяет вероятность того, что после уничтожения этот враг оставит после себя бонус (PowerUp)
-
-    protected bool calledShipDestroyed = false; // Предотвращает повторный учет врага, если в него попадают две пули в течение одного кадра
+    public float health = 10;
+    public int score = 100;
+    public float powerUpDropChance = 1f; // Шанс получить бонус
+     
+    protected bool calledShipDestroyed = false; // Переменная чтобы Enemy не дропнул несколько бонусов при попадении нескольких снарядов одновременно
+    protected BoundsCheck bndCheck; // protected даёт доступ к переменной всем подклассам Enemy. А private может изменять только сам Enemy
     // private BoundsCheck bndCheck; // Эта закрытая (private) переменная позволяет скрипту Enemy хранить ссылку на компонент BoundsCheck, расположенный на том же игровом объекте
-    protected BoundsCheck bndCheck; // private не видна подклассам (Enemy_1 итд), а protected видна (но не глобально а только подклассам), они могут её считывать.
 
-    void Awake() { 
+    void Awake() { // Метод Awake() выполняет поиск компонента скрипта BoundsCheck, прикрепленного к этому же игровому объекту
         bndCheck = GetComponent<BoundsCheck>();
-        // Выполняет поиск компонента скрипта BoundsCheck, прикрепленного к этому же игровому объекту. Если такой компонент отсутствует, 
-        // переменной bndCheck будет присвоено значение null, однако на практике этого никогда не произойдет благодаря атрибуту 
-        // компилятора [RequireComponent]. Я часто размещаю код, выполняющий поиск компонентов и кэширование ссылок, именно в методе Awake(), 
-        // чтобы ссылки были готовы к использованию сразу же после создания экземпляра игрового объекта
     }
 
-    // Это свойство: метод, который действует как поле (переменная)
-    public Vector3 pos { // Cвойство - это функция, маскирующаяся под поле. Это означает, что вы можете получать и устанавливать значение pos так, словно это переменная класса Enemy
-        get {
-            return this.transform.position;
-        }
-        set {
-            this.transform.position = value;
-        }
+    public Vector3 pos {
+        get {return this.transform.position;}
+        set {this.transform.position = value;}
     }
 
     void Update() {
-        Move(); 
-
-        // Проверяем, вышел ли Enemy за пределы нижней границы экрана
-        if ( bndCheck.LocIs( BoundsCheck.eScreenLocs.offDown ) ) { // В этой строке необходимо использовать полное имя offDown (т. е. BoundsCheck.eScreenLocs.offDown), поскольку eScreenLocs определено внутри класса BoundsCheck
-            Destroy( gameObject );
+        Move();
+        
+        // Данная проверка обращается к скрипту BoundsCheck в котором кастомный метод LocIs
+        if (bndCheck.LocIs( BoundsCheck.eScreenLocs.offDown)) { // Если объект покидает экран снизу, он удаляется
+            Destroy(gameObject);
         }
-
-        // Проверяем, вышел ли Enemy за пределы нижней границы экрана
-        // if ( !bndCheck.isOnScreen ) { // Если переменная isOnScreen имеет значение false, данная конструкция if проверяет, не вышел ли объект за пределы экрана из-за того, что его координата pos.y стала слишком низкой
-        //     if ( pos.y < bndCheck.camHeight - bndCheck.radius ) {
-        //         Destroy( gameObject );
+        // if (!bndCheck.isOnScreen) { // Если переменная isOnScreen имеет значение false, данная конструкция if проверяет, 
+        //     if (pos.y < bndCheck.camHeight - bndCheck.radius) { // не вышел ли объект за пределы экрана из-за того, что его координата pos.y стала слишком низкой
+        //         Destroy(gameObject); // В этом случае игровой объект уничтожается
         //     }
         // }
     }
-
-    public virtual void Move() { // получает текущую позицию данного GameObject, перемещает его вниз по оси Y и присваивает новое значение свойству pos (тем самым устанавливая позицию GameObject)
-        Vector3 tempPos = pos;
-        tempPos.y -= speed * Time.deltaTime;
-        pos = tempPos;
+    public virtual void Move() { // virtual значит что в подклассе Enemy (Enemy_1 к примеру) его можно переопределить
+        Vector3 tempPos = pos; // Получает текущую позицию данного GameObject
+        tempPos.y -= speed * Time.deltaTime; // Перемещает его вниз по оси Y
+        pos = tempPos; // Присваивает новое значение свойству pos (тем самым устанавливая позицию GameObject)
     }
 
-    // void OnCollisionEnter( Collision coll ) {
-    //     GameObject otherGO = coll.gameObject; // Получите GameObject коллайдера, с которым произошло столкновение
-    //     if ( otherGO.GetComponent<ProjectileHero>() != null ) { // Если к объекту otherGO прикреплен скрипт ProjectileHero, уничтожьте как этот объект, так и текущий GameObject врага (Enemy)
-    //         Destroy( otherGO ); // Destroy the Projectile
-    //         Destroy( gameObject ); // Destroy this Enemy GameObject
-    //     } else {
-    //         Debug.Log( "Enemy hit by non-ProjectileHero: " + otherGO.name ); 
-    //     }
-    // }
-
-    void OnCollisionEnter( Collision coll ) {
+    void OnCollisionEnter(Collision coll) { // Новый метод на замену старого
         GameObject otherGO = coll.gameObject;
         // Проверьте наличие столкновений с помощью ProjectileHero
         ProjectileHero p = otherGO.GetComponent<ProjectileHero>();
-        if ( p != null ) { // Если переменная p не равна null, это означает, что у игрового объекта, столкнувшегося с данным врагом, 
-        // есть прикрепленный скрипт ProjectileHero. Это гораздо более надежный способ определить, является ли объект снарядом героя (ProjectileHero), чем проверка по тегу
+        if (p != null) { // Если переменная p не равна null, это означает, что у игрового объекта, столкнувшегося с данным врагом, есть прикрепленный скрипт ProjectileHero
             // Наносите урон этому врагу только в том случае, если он находится на экране
-            if ( bndCheck.isOnScreen ) { // Враг должен получать урон, только если он находится в пределах видимости на экране
-                // Получите сумму урона из основного объекта WEAP_DICT
-                health -= Main.GET_WEAPON_DEFINITION( p.type ).damageOnHit;
-                if ( health <= 0 ) { // Если здоровье врага падает до 0 или ниже, враг уничтожается. При стандартном запасе здоровья врага, равном 10, и уроне бластера (damageOnHit), равном 1, для этого потребуется 10 выстрелов
-                    // Сообщите Main, что этот корабль был уничтожен
-                    if (!calledShipDestroyed){
-                        calledShipDestroyed = true;
-                        Main.SHIP_DESTROYED( this );
+            if (bndCheck.isOnScreen) { // Враг должен получать урон, только если он находится в пределах видимости на экране
+                health -= Main.GET_WEAPON_DEFINITION(p.type).damageOnHit; // Получите сумму урона из основного объекта WEAP_DICT
+                if (health < 0) { // Если здоровье врага падает до 0 или ниже, враг уничтожается
+                    if (!calledShipDestroyed) { // Непосредственно перед уничтожением враг уведомляет об этом скрипт Main, вызывая метод Main.SHIP_DESTROYED(). Это происходит лишь один раз для каждого корабля;
+                        calledShipDestroyed = true; // за соблюдение этого правила отвечает логическая переменная calledShipDestroyed, которая предотвращает повторный учет врага, если в него попадают две пули в течение одного кадра. 
+                        Main.SHIP_DESTROYED(this); // (Каждая пуля по-прежнему будет наносить кораблю положенный урон, но корабль не создаст два бонуса и не будет учтен дважды, если впоследствии вы добавите систему начисления очков.)
                     }
-                    // Уничтожьте этого врага
-                    Destroy( this.gameObject );
+                    Destroy(this.gameObject); // При стандартном запасе здоровья врага, равном 10, и уроне бластера (damageOnHit), равном 1, для этого потребуется 10 выстрелов
                 }
             }
-            // Игровой объект ProjectileHero уничтожается независимо от того, нанес ли он урон врагу.
-            Destroy( otherGO );
+            Destroy(otherGO); // Игровой объект ProjectileHero уничтожается независимо от того, нанес ли он урон врагу
         } else {
-            print( "Enemy hit by non-ProjectileHero: " + otherGO.name ); // Если с врагом столкнется игровой объект, у которого нет скрипта ProjectileHero, в панель Console будет выведено соответствующее сообщение
+            print("Enemy hit by non-ProjectileHero: " + otherGO.name); // Если с врагом столкнется игровой объект, у которого нет скрипта ProjectileHero, в панель Console будет выведено соответствующее сообщение
         }
     }
-}
 
+    // void OnCollisionEnter(Collision coll) {
+    //     GameObject otherGO = coll.gameObject; // Получите GameObject коллайдера, с которым произошло столкновение
+    //     if (otherGO.GetComponent<ProjectileHero>() != null) { // Если к объекту otherGO прикреплен скрипт ProjectileHero, уничтожьте как этот объект, так и текущий GameObject врага (Enemy)
+    //         Destroy(otherGO); // Уничтожение снаряда
+    //         Destroy(gameObject); // Уничтожение вражеского игрового объекта
+    //     } else {
+    //         Debug.Log("Enemy hit by non-ProjectileHero: " + otherGO.name); // Если к объекту otherGO не прикреплен скрипт ProjectileHero, вывести имя объекта, с которым произошло столкновение в консоль для отладки
+    //     }
+    // }
+}
 ```
 
 ## Скрипт BlinkColorOnHit.cs
@@ -956,48 +825,41 @@ using UnityEngine;
 
 [DisallowMultipleComponent] // Атрибут компилятора [DisallowMultipleComponent] сообщает Unity, что каждый GameObject может содержать только один экземпляр этого скрипта
 public class BlinkColorOnHit : MonoBehaviour {
-    private static float blinkDuration = 0.1f; // # seconds to show damage // Поскольку мы хотим, чтобы параметры blinkDuration и blinkColor были одинаковыми 
-    // для всех экземпляров BlinkColorOnHit, логично сделать их закрытыми статическими полями (private static). Это позволяет использовать одни и те же значения 
-    // для всех экземпляров BlinkColorOnHit, благодаря чему все враги будут мигать одинаково
-    private static Color blinkColor = Color.red;
+    private static float blinkDuration = 0.1f; // Поскольку мы хотим, чтобы параметры blinkDuration и blinkColor были одинаковыми для всех экземпляров BlinkColorOnHit, логично сделать их закрытыми статическими полями
+    private static Color blinkColor = Color.red; // Это позволяет использовать одни и те же значения для всех экземпляров BlinkColorOnHit, благодаря чему все враги будут мигать одинаково
 
     [Header("Dynamic")]
     public bool showingColor = false;
-    public float blinkCompleteTime; // Time to stop showing the color
-    public bool ignoreOnCollisionEnter = false; // a
+    public float blinkCompleteTime; // Время для остановки показа цвета
+    public bool ignoreOnCollisionEnter = false; // Установка значения false для ignoreOnCollisionEnter гарантирует, что все компоненты BlinkColorOnHit на существующих игровых объектах (GameObjects) будут работать так же, как и раньше
 
-    private Material[] materials; // All the Materials of this & its children
+    private Material[] materials; 
     private Color[] originalColors;
     private BoundsCheck bndCheck;
 
     void Awake() {
-        bndCheck = GetComponentInParent<BoundsCheck>(); // Мы используем здесь GetComponentInParent<>(), так как впоследствии этот скрипт будет прикреплен 
-        // к отдельным частям игрового объекта Enemy_4, а не просто к его основному объекту. Также допустима ситуация, когда этот метод возвращает null
-        // Get materials and colors for this GameObject and its children
-        materials = Utils.GetAllMaterials( gameObject ); // Массив материалов заполняется с помощью нового метода Utils.GetAllMaterials(). Затем код перебирает все материалы и сохраняет их исходный цвет
-        originalColors = new Color[materials.Length];
-        for (int i=0; i <materials.Length; i++) {
-            originalColors[i] = materials[i].color;
-        }
-        // Важно отметить, что вызов Utils.GetAllMaterials() происходит в методе Awake(), а результат кэшируется в переменной materials. 
-        // Это гарантирует, что операция выполняется лишь однажды для каждого врага. Метод Utils.GetAllMaterials() вызывает GetComponentsInChildren<>() - 
-        // довольно медленную функцию, требующую значительных вычислительных ресурсов и снижающую производительность. Поэтому лучше вызвать её один раз и 
-        // сохранить результат, чем вызывать каждый раз при получении игровым объектом урона
+        bndCheck = GetComponentInParent<BoundsCheck>(); // Мы используем здесь GetComponentInParent<>(), так как впоследствии этот скрипт будет прикреплен к отдельным частям игрового объекта Enemy_4, а не просто к его основному объекту
+        // Подготовка материалов и цвета для этого игрового объекта и его дочерних элементов
+        materials = Utils.GetAllMaterials( gameObject ); // Массив материалов заполняется с помощью нового метода Utils.GetAllMaterials()
+        originalColors = new Color[materials.Length]; // Затем код перебирает все материалы и сохраняет их исходный цвет
+        for (int i=0; i < materials.Length; i++) { // Хотя в данный момент все материалы игрового объекта Enemy имеют белый цвет, сохранение исходных цветов позволяет назначать им любой желаемый цвет
+            originalColors[i] = materials[i].color; // менять его на blinkColor при получении врагом урона, а затем возвращать исходный цвет
+        } // Важно отметить, что вызов Utils.GetAllMaterials() происходит в методе Awake(), а результат кэшируется в переменной materials. Это гарантирует, что операция выполняется лишь однажды для каждого врага
     }
 
     void Update() {
-        if ( showingColor && Time.time > blinkCompleteTime ) RevertColors(); // Если враг в данный момент окрашен (например, в красный цвет) и текущее время превышает blinkCompleteTime, вызывается метод RevertColors()
+        if (showingColor && Time.time > blinkCompleteTime) RevertColors(); // Если враг в данный момент окрашен (например, в красный цвет) и текущее время превышает blinkCompleteTime, вызывается метод RevertColors()
     }
 
-    void OnCollisionEnter( Collision coll ) {
-        if ( ignoreOnCollisionEnter ) return; // b
-        // Check for collisions with ProjectileHero
+    void OnCollisionEnter(Collision coll) {
+        if (ignoreOnCollisionEnter) return; // Если ignoreOnCollisionEnter имеет значение true, выполнение метода прекращается. Игровые объекты с компонентом EnemyShield будут мигать только при прямом вызове метода SetColors()
+        // Проверьте наличие столкновений с ProjectileHero
         ProjectileHero p = coll.gameObject.GetComponent<ProjectileHero>();
-        if ( p != null ) { // Как и в случае с получением урона в скрипте Enemy, если у игрового объекта, нанесшего удар, есть компонент ProjectileHero, мы попытаемся мигнуть красным цветом
-            if ( bndCheck != null && !bndCheck.isOnScreen ) { 
-                return; // Не показывать повреждения, если они находятся за пределами экрана
+        if (p != null) { // Как и в случае с получением урона в скрипте Enemy, если у игрового объекта, нанесшего удар, есть компонент ProjectileHero, мы попытаемся мигнуть красным цветом
+            if (bndCheck != null && !bndCheck.isOnScreen) { // Отличие этой строки от аналогичной в скрипте Enemy заключается в том, что здесь учитывается случай, когда bndCheck равен null. 
+                return; // Если bndCheck не равен null и игровой объект находится за пределами экрана, мы не мигаем красным (и скрипт Enemy не фиксирует получение урона)
             }
-            SetColors();
+            SetColors(); // В противном случае вызывается метод SetColors()
         }
     }
 
@@ -1006,7 +868,7 @@ public class BlinkColorOnHit : MonoBehaviour {
     /// materials array to blinkColor, sets showingColor to true, and sets the
     /// time that the colors should be reverted.
     /// </summary>
-    void SetColors() {
+    public void SetColors() {
         foreach (Material m in materials) {
             m.color = blinkColor;
         }
@@ -1019,7 +881,7 @@ public class BlinkColorOnHit : MonoBehaviour {
     /// and sets showingColor to false.
     /// </summary>
     void RevertColors() {
-        for ( int i=0; i <materials.Length; i++ ) {
+        for (int i = 0; i < materials.Length; i++) {
             materials[i].color = originalColors[i];
         }
         showingColor = false;
@@ -1030,110 +892,98 @@ public class BlinkColorOnHit : MonoBehaviour {
 ## Скрипт PowerUp.cs
 
 ```c# title="C# PowerUp.cs"
-    using System.Collections;
-    using System.Collections.Generic;
-    using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
 
-    [RequireComponent( typeof(BoundsCheck) )] // Для работы этого скрипта необходимо, чтобы на том же объекте GameObject также был закреплен скрипт BoundsCheck
-
-    public class PowerUp : MonoBehaviour {
+[RequireComponent(typeof(BoundsCheck))] // Для работы этого скрипта необходимо, чтобы на том же объекте GameObject также был закреплен скрипт BoundsCheck
+public class PowerUp : MonoBehaviour {
     [Header("Inscribed")]
-    // Это необычное, но удобное применение Vector2. 
-    // Vector2 хранит минимальное и максимальное значения, которые затем используются в вызове Random.Range() (где x - это минимум, а y - максимум)
+    // Это необычное, но удобное применение Vector2s
     [Tooltip("x holds a min value and y a max value for a Random.Range() call.")]
     public Vector2 rotMinMax = new Vector2(15,90);
     [Tooltip("x holds a min value and y a max value for a Random.Range() call.")]
     public Vector2 driftMinMax = new Vector2(.25f,2);
-    public float lifeTime = 10; // PowerUp will exist for # seconds
-    public float fadeTime = 4; // Then it fades over # seconds
+    public float lifeTime = 10; // PowerUp будет существовать в течение # секунд
+    public float fadeTime = 4; // Затем он затухает в течение нескольких секунд
 
     [Header("Dynamic")]
-    public eWeaponType _type; // The type of the PowerUp
-    public GameObject cube; // Reference to the PowerCube child
-    public TextMesh letter; // Reference to the TextMesh
-    public Vector3 rotPerSecond; // Euler rotation speed for PowerCube
-    public float birthTime; // The Time.time this was instantiated
+    public eWeaponType _type; // Тип PowerUp
+    public GameObject cube; // Ссылка на дочерний элемент PowerCube
+    public TextMesh letter; // Ссылка на TextMesh
+    public Vector3 rotPerSecond; // Скорость вращения Эйлера для PowerCube
+    public float birthTime; // Время создания этого экземпляра
 
     private Rigidbody rigid;
     private BoundsCheck bndCheck;
     private Material cubeMat;
 
-  [System.Obsolete]
+  [System.Obsolete] // rigid.velocity устарел
   void Awake() {
-        // Find the Cube reference (there’s only a single child)
-        cube = transform.GetChild(0).gameObject;
-        // Find the TextMesh and other components
+        cube = transform.GetChild(0).gameObject; // Поиск дочернего элемента PowerCube
         letter = GetComponent<TextMesh>();
         rigid = GetComponent<Rigidbody>();
         bndCheck = GetComponent<BoundsCheck>();
         cubeMat = cube.GetComponent<Renderer>().material;
+        // Задайте случайную скорость
+        Vector3 vel = Random.onUnitSphere; // Получить случайную скорость XYZ
+        vel.z = 0; // Выровнять скорость по плоскости XY
+        vel.Normalize(); // При нормализации вектора Vector3 его длина устанавливается равной 1 м
 
-        // Set a random velocity
-        Vector3 vel = Random.onUnitSphere; // Get Random XYZ velocity // c
-        vel.z = 0; // Flatten the vel to the XY plane
-        vel.Normalize(); // Normalizing a Vector3 sets its length to 1m
+        vel *= Random.Range(driftMinMax.x, driftMinMax.y); // vel представляет собой единичный вектор, направленный в случайную сторону в плоскости XY. Переменная driftMinMax используется совместно с Random.Range() для выбора величины, на которую умножается вектор vel
+        rigid.velocity = vel; // При умножении вектора на число с плавающей запятой (скаляр) изменяется длина вектора, но его направление остается прежним (или меняется на противоположное, если скаляр отрицателен)
+        // В результате объект PowerUp получает скорость от 0,25 до 2 единиц в секунду (при использовании значений driftMinMax по умолчанию), направленную в случайную сторону в плоскости XY
 
-        vel *= Random.Range(driftMinMax.x, driftMinMax.y); // d
-        rigid.velocity = vel;
+        transform.rotation = Quaternion.identity; // Установите вращение PowerUp на R:[ 0, 0, 0 ]. Кватернион.тождественный равен отсутствию вращения
 
-        // Set the rotation of this PowerUp GameObject to R:[ 0, 0, 0 ]
-        transform.rotation = Quaternion.identity;
-        // Quaternion.identity is equal to no rotation.
-
-        // Randomize rotPerSecond for PowerCube using rotMinMax x & y // e
-        rotPerSecond = new Vector3( Random.Range( rotMinMax[0], rotMinMax[1] ),
-        Random.Range( rotMinMax[0], rotMinMax[1] ),
-        Random.Range( rotMinMax[0], rotMinMax[1] ) );
+        // Для PowerCube используйте случайные значения rotPerSecond, заданные параметрами rotMinMax x и y
+        rotPerSecond = new Vector3(Random.Range(rotMinMax[0], rotMinMax[1]),
+        Random.Range(rotMinMax[0], rotMinMax[1]),
+        Random.Range(rotMinMax[0], rotMinMax[1]) );
 
         birthTime = Time.time;
     }
 
     void Update() {
-        cube.transform.rotation = Quaternion.Euler( rotPerSecond*Time.time ); // f
-
-        // Fade out the PowerUp over time
-        // Given the default values, a PowerUp will exist for 10 seconds
-        // and then fade out over 4 seconds.
-        float u = (Time.time - (birthTime + lifeTime)) / fadeTime; // g
-        // If u >= 1, destroy this PowerUp
-        if (u >= 1) {
+        cube.transform.rotation = Quaternion.Euler(rotPerSecond * Time.time); // В каждом кадре (Update()) задается вращение дочернего объекта PowerCube. Умножение rotPerSecond на Time.time делает вращение зависимым от времени
+        // Затухание PowerUp со временем 
+        // При значениях по умолчанию эффект PowerUp будет длиться 10 секунд, а затем плавно затихнуть в течение 4 секунд
+        float u = (Time.time - (birthTime + lifeTime)) / fadeTime; 
+        
+        if (u >= 1) { // Если u >= 1, уничтожьте это усиление.
             Destroy( this.gameObject );
             return;
         }
-        // If u>0, decrease the opacity (i.e., alpha) of the PowerCube & Letter
-        if (u > 0) {
+        
+        if (u > 0) { // Если u > 0, уменьшите непрозрачность (т.е. альфа-канал) PowerCube и Letter
             Color c = cubeMat.color;
-            c.a = 1f - u; // Set the alpha of PowerCube to 1-u
+            c.a = 1f - u; // Установите альфа-канал PowerCube на 1
             cubeMat.color = c;
-            // Fade the Letter too, just not as much
-            c = letter.color;
-            c.a = 1f - (u * 0.5f); // Set the alpha of the letter to 1-(u/2)
+            c = letter.color; // Букву тоже можно затушевать, но не так сильно
+            c.a = 1f - (u * 0.5f); // Установите значение альфа-канала буквы равным 1-(u/2)
             letter.color = c;
         }
-
-        if (!bndCheck.isOnScreen) {
-            // If the PowerUp has drifted entirely off screen, destroy it
-            Destroy( gameObject );
+        if (!bndCheck.isOnScreen) { // Если бонус полностью исчез с экрана, уничтожьте его
+            Destroy(gameObject);
         }
     }
 
-    public eWeaponType type { get { return _type; } set { SetType(value); } } // h
+    public eWeaponType type {get{return _type;} set{SetType(value);}} // Это свойство гарантирует, что метод SetType() будет вызван всякий раз, когда переменная type изменяется из класса, отличного от PowerUp
 
-    public void SetType( eWeaponType wt ) {
-        // Grab the WeaponDefinition from Main
-        WeaponDefinition def = Main.GET_WEAPON_DEFINITION( wt );
-        cubeMat.color = def.powerUpColor; // Set the color of PowerCube
-        //letter.color = def.color; // We could colorize the letter too
-        letter.text = def.letter; // Set the letter that is shown
-        _type = wt; // Finally actually set the type
+    public void SetType(eWeaponType wt) {
+        WeaponDefinition def = Main.GET_WEAPON_DEFINITION(wt); // Возьмите WeaponDefinition из основного файла
+        cubeMat.color = def.powerUpColor; // Установите цвет PowerCube
+        //letter.color = def.color; // Можно так же задать цвет и letter
+        letter.text = def.letter; // Задайте отображаемую букву
+        _type = wt; // Задайте тип
     }
 
     /// <summary>
     /// This function is called by the Hero class when a PowerUp is collected.
     /// </summary>
     /// <param name="target">The GameObject absorbing this PowerUp</param>
-    public void AbsorbedBy( GameObject target ) { // i
-        Destroy( this.gameObject );
+    public void AbsorbedBy(GameObject target) { // Метод AbsorbedBy() вызывается персонажем (Hero) при подборе этого объекта PowerUp
+        Destroy(this.gameObject); //  Параметр target (игровой объект) предусмотрен для того, чтобы в дальнейшем можно было добавить анимацию уменьшения и перемещения PowerUp к кораблю персонажа в момент подбора
     }
 }
 ```
@@ -1145,53 +995,58 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent( typeof(EnemyShield) )]
-public class Enemy_4 : Enemy { // Enemy_4 also extends the Enemy class
+[RequireComponent(typeof(EnemyShield))]
+public class Enemy_4 : Enemy {
     [Header("Enemy_4 Inscribed Fields")]
-    public float duration = 4; // Duration of interpolation movement
+    public float duration = 4; // Длительность интерполяционного движения
 
     private EnemyShield[] allShields;
     private EnemyShield thisShield;
-    private Vector3 p0, p1; // The two points to interpolate
-    private float timeStart; // Birth time for this Enemy_4
+    private Vector3 p0, p1; // Две точки для интерполяции
+    private float timeStart; // Время появления Enemy_4
 
     void Start() {
-        allShields = GetComponentsInChildren<EnemyShield>(); // a
+        allShields = GetComponentsInChildren<EnemyShield>(); // получает ссылки на все компоненты EnemyShield, имеющиеся на данном игровом объекте (GameObject) 
+        // и его дочерних объектах (включая «внуков» и т. д.) в иерархии сцены. Эта операция выполняется относительно медленно, поэтому ее следует проводить лишь один раз
         thisShield = GetComponent<EnemyShield>();
 
-        // Initially set p0 & p1 to the current position (from Main.SpawnEnemy())
-        p0 = p1 = pos; // a
+        // Изначальая установка p0 и p1 в текущую позицию (из метода Main.SpawnEnemy())
+        p0 = p1 = pos; // Enemy_4 выполняет интерполяцию своей позиции от p0 до p1. Скрипт Main.SpawnEnemy() задает этому экземпляру начальную позицию 
+        // чуть выше верхней границы экрана; эта позиция присваивается здесь как p0, так и p1. Затем вызывается метод InitMovement()
         InitMovement();
     }
 
-    void InitMovement() { // b
-        p0 = p1; // Set p0 to the old p1
-        // Assign a new on-screen location to p1
+    void InitMovement() { // Метод InitMovement() сначала сохраняет текущую позицию p1 в p0 (поскольку Enemy_4 должен находиться в точке p1 
+    // в момент вызова InitMovement()). Затем выбирается новая позиция p1; при этом используются данные компонента BoundsCheck, чтобы гарантировать, что точка находится в пределах экрана
+        p0 = p1; // Установите p0 равным старому значению p1
+        // Назначьте новое местоположение на экране для p1
         float widMinRad = bndCheck.camWidth - bndCheck.radius;
         float hgtMinRad = bndCheck.camHeight - bndCheck.radius;
-        p1.x = Random.Range( -widMinRad, widMinRad );
-        p1.y = Random.Range( -hgtMinRad, hgtMinRad );
-        // Make sure that it moves to a different quadrant of the screen
-        if ( p0.x * p1.x > 0 && p0.y * p1.y > 0 ) { // c
-            if ( Mathf.Abs( p0.x ) > Mathf.Abs( p0.y ) ) {
-                p1.x *= -1;
-            } else {
+        p1.x = Random.Range(-widMinRad, widMinRad);
+        p1.y = Random.Range(-hgtMinRad, hgtMinRad);
+        // Убедитесь, что оно перемещается в другой квадрант экрана
+        if (p0.x * p1.x > 0 && p0.y * p1.y > 0) { // Поскольку центр экрана соответствует координатам [ 0, 0 ], положительные значения произведений 
+        // p0.xp1.x и p0.yp1.y означают, что случайно выбранная на экране точка находится в том же квадранте, что и текущая позиция
+            if (Mathf.Abs( p0.x) > Mathf.Abs(p0.y)) { // Чтобы перейти в другой квадрант, мы сравниваем удаленность текущей координаты x корабля от нуля с удаленностью координаты y:
+                p1.x *= -1; // если x дальше от нуля, мы умножаем p1.x на -1, перемещая точку на противоположную сторону экрана; если дальше находится p0.y, мы инвертируем p1.y.
+            } else { // Смена квадрантов значительно повышает вероятность того, что Enemy_4 будет совершать динамичные перемещения по экрану, а не ограничиваться незначительными сдвигами
                 p1.y *= -1;
             }
         }
-        // Reset the time
+        // Сброс времени
         timeStart = Time.time;
     }
 
     public override void Move() {
-        // This completely overrides Enemy.Move() with a linear interpolation
+        // Это полностью заменяет метод Enemy.Move() линейной интерполяцией
         float u = (Time.time -timeStart) / duration;
         if (u >= 1) {
             InitMovement();
             u = 0;
         }
-        u = u - 0.15f * Mathf.Sin( u * 2 * Mathf.PI ); // Easing: Sine -0.15 // e
-        pos = (1 - u) * p0 + u * p1; // Simple linear interpolation // f
+        u = u - 0.15f * Mathf.Sin(u * 2 * Mathf.PI); // Эта строка применяет функцию плавности (easing) к значению u, заставляя корабль двигаться нелинейно
+        // При использовании функции «Sine –0.15» корабль начинает движение медленно, ускоряется в середине пути и замедляется при приближении к p1. Благодаря этому создается ощущение массы корабля, а само движение выглядит более естественным.
+        pos = (1 - u) * p0 + u * p1; // Эта строка выполняет простую линейную интерполяцию от p0 до p1
     }
 
     /// <summary>
@@ -1199,50 +1054,44 @@ public class Enemy_4 : Enemy { // Enemy_4 also extends the Enemy class
     /// to enable protection by EnemyShields.
     /// </summary>
     /// <param name="coll"></param>
-    void OnCollisionEnter( Collision coll ) { // b
+    void OnCollisionEnter(Collision coll) { 
         GameObject otherGO = coll.gameObject;
-
-        // Make sure this was hit by a ProjectileHero
-        ProjectileHero p = otherGO.GetComponent<ProjectileHero>();
-        if ( p != null ) {
+        
+        ProjectileHero p = otherGO.GetComponent<ProjectileHero>(); // Проверка, что снаряд ProjectileHero попал
+        if (p != null) {
             // Destroy the ProjectileHero regardless of bndCheck.isOnScreen
-            Destroy( otherGO ); // c
-
-            // Only damage this Enemy if it’s on screen
-            if ( bndCheck.isOnScreen ) {
-                // Find the GameObject of this Enemy_4 that was actually hit
-                GameObject hitGO = coll.contacts[0].thisCollider.gameObject; // d
-                if ( hitGO == otherGO ) { // e
-                    hitGO = coll.contacts[0].otherCollider.gameObject;
+            Destroy(otherGO); 
+            // Получение урона только при нахождении на экране
+            if (bndCheck.isOnScreen) {
+                // Поиск GameObject Enemy_4 по которому был нанесён урон
+                GameObject hitGO = coll.contacts[0].thisCollider.gameObject; // Позволяет получить конкретный коллайдер, по которому было произведено попадание (thisCollider)
+                if (hitGO == otherGO) { // Данная условная конструкция переназначает hitGO на otherCollider.gameObject
+                    hitGO = coll.contacts[0].otherCollider.gameObject; // для того чтобы переменная hitGO ошибочно не указала на игровой объект ProjectileHero из-за ошибки движка (PhysX иногда путал thisCollider и otherCollider)
                 }
-
-                // Get the damage amount from the Main WEAP_DICT.
-                float dmg = Main.GET_WEAPON_DEFINITION( p.type ).damageOnHit;
-
-                // Find the EnemyShield that was hit (if there was one)
+                // Получите сумму урона из основного объекта WEAP_DICT
+                float dmg = Main.GET_WEAPON_DEFINITION(p.type).damageOnHit;
+                // Поиск EnemyShield по которому нанесён урон (если такое произошло)
                 bool shieldFound = false;
-                foreach ( EnemyShield es in allShields ) { // f
-                    if ( es.gameObject == hitGO ) {
-                        es.TakeDamage( dmg );
+                foreach (EnemyShield es in allShields) { // Этот цикл foreach перебирает игровые объекты всех компонентов EnemyShield и проверяет,  
+                    if (es.gameObject == hitGO) { // является ли текущий объект тем самым, по которому был нанесен удар.
+                        es.TakeDamage(dmg); // Если это так, у данного EnemyShield вызывается метод TakeDamage()
                         shieldFound = true;
                     }
                 }
-                if ( !shieldFound ) thisShield.TakeDamage( dmg ); // g
-
-                // If thisShield is still active, then it has not been destroyed
-                if ( thisShield.isActive ) return; // h
-
-                // This ship was destroyed so tell Main about it
-                if ( !calledShipDestroyed ) {
-                    Main.SHIP_DESTROYED( this );
+                if (!shieldFound) thisShield.TakeDamage(dmg); // В том маловероятном случае, если у пораженного игрового объекта отсутствует компонент EnemyShield, вызывается thisShield.TakeDamage(), что приводит к попытке нанести урон компоненту EnemyShield объекта Enemy_4
+                // Если thisShield всё ещё активен, значит, он не был уничтожен
+                if (thisShield.isActive) return; // После вызова TakeDamage() у соответствующего EnemyShield проверяется состояние здоровья всех компонентов EnemyShield: 
+                // если оно исчерпано, переменная thisShield.isActive принимает значение false. Таким образом, если thisShield.isActive по-прежнему равно true, это означает, 
+                // что у одного из компонентов EnemyShield в иерархии Enemy_4 еще осталось здоровье
+                // Этот корабль уничтожен, нужно сделать запись в Main
+                if (!calledShipDestroyed) {
+                    Main.SHIP_DESTROYED(this);
                     calledShipDestroyed = true;
                 }
-
-                // Destroy this Enemy_4
-                Destroy( gameObject );
+                Destroy(gameObject);
             }
         } else {
-            Debug.Log( "Enemy_4 hit by non-ProjectileHero: " + otherGO.name );
+            Debug.Log("Enemy_4 hit by non-ProjectileHero: " + otherGO.name);
         }
     }
 }
@@ -1256,7 +1105,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [DisallowMultipleComponent]
-[RequireComponent( typeof(BlinkColorOnHit) )]
+[RequireComponent(typeof(BlinkColorOnHit))]
 public class EnemyShield : MonoBehaviour {
     [Header("Inscribed")]
     public float health = 10;
@@ -1266,13 +1115,12 @@ public class EnemyShield : MonoBehaviour {
 
     void Start() {
         blinker = GetComponent<BlinkColorOnHit>();
-        blinker.ignoreOnCollisionEnter = true; // This will not yet compile // a
-
+        blinker.ignoreOnCollisionEnter = true; 
         if ( transform.parent == null )
-        return; // b
-        EnemyShield shieldParent = transform.parent.GetComponent<EnemyShield>();
-        if ( shieldParent != null ) {
-            shieldParent.AddProtector( this );
+        return; // Эти строки сначала проверяют, есть ли у данного GameObject родительский объект в иерархии, а затем - есть ли у этого родителя 
+        EnemyShield shieldParent = transform.parent.GetComponent<EnemyShield>(); // компонент EnemyShield. Если оба условия выполняются, то текущий EnemyShield регистрируется как защитник родительского объекта
+        if (shieldParent != null) {
+            shieldParent.AddProtector(this);
         }
     }
 
@@ -1280,47 +1128,39 @@ public class EnemyShield : MonoBehaviour {
     /// Called by another EnemyShield to join the protectors of this EnemyShield
     /// </summary>
     /// <param name="shieldChild">The EnemyShield that will protect this</param>
-    public void AddProtector( EnemyShield shieldChild ) {
-        protectors.Add( shieldChild );
+    public void AddProtector(EnemyShield shieldChild) {
+        protectors.Add(shieldChild);
     }
-
     /// <summary>
     /// Shortcut for gameObject.activeInHierarchy and gameObject.SetActive()
     /// </summary>
     public bool isActive {
-        get { return gameObject.activeInHierarchy; }
-        private set { gameObject.SetActive(value); } // c
+        get {return gameObject.activeInHierarchy;} // Блок get свойства isActive является открытым (public), а блок set - закрытым (private); 
+        private set {gameObject.SetActive(value);} // это означает, что получить значение свойства может любой класс, а изменить его - только класс EnemyShield
     }
-
     /// <summary>
     /// Called by Enemy_4.OnCollisionEnter() & parent’s EnemyShields.TakeDamage()
     /// to distribute damage to EnemyShield protectors.
     /// </summary>
     /// <param name="dmg">The amount of damage to be handled</param>
     /// <returns>Any damage not handled by this shield</returns>
-    public float TakeDamage( float dmg ) { // d
-        // Can we pass damage to a protector EnemyShield?
-        foreach ( EnemyShield es in protectors ) {
-            if ( es.isActive ) {
-                dmg = es.TakeDamage( dmg ); // e
-                // If all damage was handled, return 0 damage
-                if (dmg == 0) return 0;
+    public float TakeDamage(float dmg) { // Если у данного EnemyShield есть защитники, он попытается перенаправить урон им;
+        foreach (EnemyShield es in protectors) { // если же ни один из них не активен (или если необработанный урон возвращается обратно), то значение здоровья будет уменьшено
+            if (es.isActive) {
+                dmg = es.TakeDamage( dmg ); // Если какой-либо защитный компонент EnemyShield возвращает нулевой урон, то вверх по цепочке также 
+                // передается ноль. Это позволяет избежать вызова метода TakeDamage() у других защитных компонентов
+                if (dmg == 0) return 0; // Если весь ущерб был устранен, вернуть 0 единиц ущерба
             }
         }
-
-        // If the code gets here, then this EnemyShield will blink & take damage
-        // Make the blinker blink
-        // blinker.SetColors(); // This will appear underlined in red for now // f
-
+        // Если код дойдёт до этого места, то этот вражеский щит мигнет и получит урон
+        blinker.SetColors(); // Если выполнение кода не завершилось до этой строки, то данный EnemyShield мигнет, а затем получит урон
         health -= dmg;
-        if ( health <= 0 ) { // g
-            // Deactivate this EnemyShield GameObject
-            isActive = false;
-            // Return any damage that was not absorbed by this EnemyShield
-            return -health; // h
+        if (health <= 0) { // Значение dmg вычитается из health, и если результат меньше или равен нулю, данный EnemyShield (а также его GameObject) деактивируется
+            isActive = false; // Деактивация EnemyShield
+            return -health; // Возвращается значение health с обратным знаком, чтобы учесть необработанный урон. Например, если health равно 2, а dmg - 5, 
+            // то операция health -= dmg приведет к тому, что health станет равным -3. Это означает, что 3 единицы урона не были поглощены данным EnemyShield, поэтому возвращается число 3 (то есть -health)
         }
-
-        return 0; // i
+        return 0; // Если выполнение кода доходит до этой строки, значит, весь урон был поглощен за счет health, и мы можем вернуть ноль
     }
 }
 ```

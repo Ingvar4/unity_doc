@@ -16,7 +16,7 @@ description: Далее следует код PowerUp, но сначала ну�
     using System.Collections.Generic;
     using UnityEngine;
 
-    [RequireComponent( typeof(BoundsCheck) )] // a
+    [RequireComponent(typeof(BoundsCheck))] // a
     public class PowerUp : MonoBehaviour {
     [Header("Inscribed")]
     // This is an unusual but handy use of Vector2s. // b
@@ -75,7 +75,7 @@ description: Далее следует код PowerUp, но сначала ну�
         // Fade out the PowerUp over time
         // Given the default values, a PowerUp will exist for 10 seconds
         // and then fade out over 4 seconds.
-        float u = (Time.time - (birthTime+lifeTime)) / fadeTime; // g
+        float u = (Time.time - (birthTime + lifeTime)) / fadeTime; // g
         // If u >= 1, destroy this PowerUp
         if (u >= 1) {
             Destroy( this.gameObject );
@@ -88,7 +88,7 @@ description: Далее следует код PowerUp, но сначала ну�
             cubeMat.color = c;
             // Fade the Letter too, just not as much
             c = letter.color;
-            c.a = 1f - (u*0.5f); // Set the alpha of the letter to 1-(u/2)
+            c.a = 1f - (u * 0.5f); // Set the alpha of the letter to 1-(u/2)
             letter.color = c;
         }
 
