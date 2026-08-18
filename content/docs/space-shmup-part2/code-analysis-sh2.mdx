@@ -3,6 +3,8 @@ title: Разбор всего кода SH 2
 description: построчный разбор
 ---
 
+- Замена `MonoBehaviour` на `Enemy` делает `Enemy_0` подклассом `Enemy`.
+
 ## Скрипт Enemy_0.cs
 
 ```c# title="C# Enemy_0.cs"
@@ -18,14 +20,16 @@ public class Enemy_0 : Enemy { // Замена MonoBehaviour на Enemy в эт�
 
 ## Скрипт Enemy_1.cs
 
+- Пример с горизонтальным перемещением объекта по синусойде из стороны в сторону
+
 ```c# title="C# Enemy_1.cs"
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 // Замена MonoBehaviour на Enemy критически важна. Именно это делает Enemy_0 подклассом Enemy
-// Класс Enemy_0 наследует все не являющиеся закрытыми (non-private) методы, поля, свойства и прочие элементы суперкласса
-public class Enemy_1 : Enemy { // Класс Enemy_0 наследует класс Enemy
+// Класс Enemy_1 наследует все не являющиеся закрытыми (non-private) методы, поля, свойства и прочие элементы суперкласса
+public class Enemy_1 : Enemy { // Класс Enemy_1 наследует класс Enemy
     [Header("Enemy_1 Inscribed Fields")] 
     [Tooltip("# of seconds for a full sine wave")] // Указывает Unity отображать соответствующую подсказку, когда пользователь наводит курсор мыши на имя поля в окне Inspector.
     public float waveFrequency = 2;
@@ -63,6 +67,8 @@ public class Enemy_1 : Enemy { // Класс Enemy_0 наследует клас
 ```
 
 ## Скрипт Enemy_2.cs
+
+- Пример движения объекта посредством линейной интерполяции с синусоидальным сглаживанием.
 
 ```c# title="C# Enemy_2.cs"
 using System.Collections;
