@@ -5,4 +5,51 @@ description: Поскольку вы используете целое знач�
 
 Например, блок switch case, помеченный `//b` в листинге кода, носит весьма повторяющийся характер и использует значение dirHeld
 для выбора одного из четырёх направлений. Посмотрите на листинг, чтобы увидеть, как мы
-можем использовать значение dirHeld от 0 до 3 для обработки скорости менее повторяющимся способом.
+можем использовать значение dirHeld от 0 до 3 для обработки скорости менее повторяющимся способом.  
+
+1. Откройте скрипт Dray в Visual Studio и добавьте код:  
+        Листинг Dray.cs
+
+```c#
+public class Dray : MonoBehaviour {
+    …
+    [Header("Dynamic")]
+    public int dirHeld = -1; // Direction of the held movement key
+
+    private Rigidbody2D rigid;
+
+    private Vector2[] directions = new Vector2[] {
+        Vector2.right, Vector2.up, Vector2.left, Vector2.down }; // a
+
+
+    void Awake () { … }
+
+    void Update () { // Note: This is the entire current Update method
+        dirHeld = -1;
+        if ( Input.GetKey(KeyCode.RightArrow) ) dirHeld = 0;
+        if ( Input.GetKey(KeyCode.UpArrow ) ) dirHeld = 1;
+        if ( Input.GetKey(KeyCode.LeftArrow ) ) dirHeld = 2;
+        if ( Input.GetKey(KeyCode.DownArrow ) ) dirHeld = 3;
+
+        Vector2 vel = Vector2.zero;
+        // Delete the entire switch clause that was here in Code Listing 35.4
+        // switch (dirHeld) { … }
+        if (dirHeld > -1) vel = directions[dirHeld]; // b
+
+        rigid.velocity = vel * speed;
+    }
+}
+```
+
+- a. Этот массив Vector2[] directions позволяет легко обращаться к каждому из четырех
+векторов направления, используя число от 0 до 3 (допустимые значения dirHeld). Также
+обратите внимание, что весь объявление и определение directions представляет собой одно
+выражение, разбитое на две строки (только строка с `// a` заканчивается точкой с запятой,
+завершая выражение).
+- b. Эта одна строка заменила весь 14-строчный блок switch из листинга кода!  
+
+Если вы попробуете снова запустить игру в Unity, то увидите, что вам удалось сохранить ту же
+функциональность, используя гораздо меньше строк кода. Вы будете продолжать использовать
+диапазон [0..3] dirHeld таким образом, чтобы упростить код в этой главе.
+
+### Лучший способ обработки клавиш ввода [!toc]
