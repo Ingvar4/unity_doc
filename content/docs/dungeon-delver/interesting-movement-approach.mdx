@@ -53,3 +53,53 @@ public class Dray : MonoBehaviour {
 диапазон [0..3] dirHeld таким образом, чтобы упростить код в этой главе.
 
 ### Лучший способ обработки клавиш ввода [!toc]
+
+Подобно массиву directions, вы также можете хранить клавиши, которые хотите использовать
+для перемещения, в массиве.  
+
+1. Откройте скрипт Dray в Visual Studio и внесите изменения в код:  
+            Листинг кода Dray.cs
+```c#
+public class Dray : MonoBehaviour {
+    …
+    private Rigidbody2D rigid;
+
+    private Vector2[] directions = new Vector2[] {
+        Vector2.right, Vector2.up, Vector2.left, Vector2.down };
+
+    private KeyCode[] keys = new KeyCode[] {
+        KeyCode.RightArrow, KeyCode.UpArrow, KeyCode.LeftArrow, KeyCode.DownArrow, KeyCode.D, KeyCode.W, KeyCode.A, KeyCode.S }; // a
+
+    void Awake () { … }
+
+    void Update () { // Note: This is the entire current Update method
+        dirHeld = -1;
+        // Delete all four "if ( Input.GetKey..." lines that were here
+        // if ( Input.GetKey(KeyCode.RightArrow) ) dirHeld = 0;
+        // if ( Input.GetKey(KeyCode.UpArrow ) ) dirHeld = 1;
+        // if ( Input.GetKey(KeyCode.LeftArrow ) ) dirHeld = 2;
+        // if ( Input.GetKey(KeyCode.DownArrow ) ) dirHeld = 3;
+        for (int i=0; i <keys.Length; i++) {
+        if ( Input.GetKey(keys[i]) ) dirHeld = i % 4; // b
+        }
+
+        Vector2 vel = Vector2.zero;
+        if (dirHeld > -1) vel = directions[dirHeld];
+
+        rigid.velocity = vel * speed;
+    }
+}
+```
+
+        - a. Этот массив позволяет легко получить доступ к KeyCodes для всех четырех стрелок и WASD.
+        - b. Этот цикл for проходит по всем возможным KeyCodes из массива keys и определяет,
+удерживается ли какая-либо из них. Оператор % 4 в конце приведет к тому, что клавиша W (i
+== 5) установит dirHeld равным 1 (поскольку 5 % 4 равно 1), точно так же, как и стрелка
+вверх.  
+
+С новым массивом `KeyCode[]` keys вы снова воспользовались особенностью dirHeld,
+принимающей значения от 0 до 3, и сохранили возможность использовать клавиши со стрелками
+благодаря более качественному коду. Кроме того, вы также получили управление WASD для тех,
+кто его предпочитает.
+
+### Анимация ходьбы Дрея [!toc]
