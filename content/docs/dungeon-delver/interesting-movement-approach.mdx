@@ -103,3 +103,57 @@ public class Dray : MonoBehaviour {
 кто его предпочитает.
 
 ### Анимация ходьбы Дрея [!toc]
+
+Далее вы свяжете движение Дрея с его анимацией.  
+
+1. Еще раз откройте скрипт Dray в Visual Studio и добавьте код, показанный в листинге.  
+        Листинг кода Dray.cs
+```c#
+public class Dray : MonoBehaviour {
+    …
+
+    private Rigidbody2D rigid;
+    private Animator anim; // a
+
+    private Vector2[] directions = new Vector2[] {
+    Vector2.right, Vector2.up, Vector2.left, Vector2.down };
+    …
+
+    void Awake () {
+        rigid = GetComponent<Rigidbody2D>();
+        anim = GetComponent<Animator>(); // b
+    }
+
+    void Update () {
+        …
+        rigid.velocity = vel * speed;
+
+        // Animation
+        if (dirHeld == -1) { // c
+            anim.speed = 0;
+        } else {
+            anim.Play( "Dray_Walk_"+ dirHeld ); // d
+            anim.speed = 1;
+        }
+    }
+}
+```
+
+        - a. Обязательно добавьте это поле anim.
+        - b. Сохраните ссылку на компонент Animator объекта Dray в частном поле anim.
+        - c. Если ни одна клавиша направления не удерживается (т. е. dir == -1), то скорость аниматора
+anim устанавливается равной 0, что приостанавливает текущую анимацию.
+        - d. Если Dray движется в каком-либо направлении, число dirHeld добавляется в конец строки
+«Dray_Walk_», что дает вам имя одной из анимаций, которые вы добавили к Dray!  
+
+>Если ваши анимации Dray не работают, проверьте еще раз, правильно ли они названы: Dray_Walk_0, Dray_Walk_1,
+Dray_Walk_2 и Dray_Walk_3.  
+
+Функция anim.Play() указывает аниматору anim переключиться на новую анимацию по
+имени. Если anim уже показывает указанную анимацию, это не дает никакого эффекта.  
+
+2. Сохраните скрипт Dray и вернитесь в Unity.  
+
+Теперь вы можете запустить игру и увидеть, что Дрей анимируется при перемещении.
+
+### Добавление анимации атаки для Dray [!toc]
