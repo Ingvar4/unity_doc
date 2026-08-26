@@ -4,4 +4,96 @@ description: Основным оружием Дрея является меч, �
 ---
 
 2D- текстура и спрайты для этого меча были импортированы вместе со стартовым пакетом Unity для этой
-главы.
+главы.  
+
+1. Выберите Dray в иерархии. Щелкните Dray правой кнопкой мыши и выберите Create Empty в
+контекстном меню.
+2. Измените имя пустого GameObject на SwordController.
+3. Раскройте треугольник рядом с Swords Texture 2D в папке Art by Andrew Dennis.  
+4. Перетащите спрайт Swords0 из панели Project в панель Hierarchy и сделайте его дочерним объектом
+SwordController (и внуком Dray).
+    - a. Переименуйте экземпляр Swords0 в иерархии в Sword.
+    - b. Установите для Sword следующие значения Transform: P:[ 0.75, 0, 0 ] R:[ 0, 0, 0 ] S:[ 1, 1, 1 ].
+    - c. В компоненте Sprite Renderer объекта Sword:
+        - Откройте треугольник раскрытия рядом с «Дополнительные настройки».
+        - Установите для параметра «Sorting Layer» значение «Dray».
+        - Установите для параметра «Order In Layer» значение 0. (Это поместит его в слой Dray, и он
+будет отображаться непосредственно под спрайтом Dray.)
+5. Добавить 2D-коллидер «Box» к мечу (Компонент > Физика 2D > Box Collider 2D).
+    - a. Он должен автоматически подогнаться по размеру, но если этого не произошло, установите
+размер Box Collider равным [ 1, 0.4375 ].
+    - b. Установите флажок Is Trigger для Box Collider 2D меча в положение true (установлен).
+    - c. Обратите внимание, что SwordController и Sword не нуждаются в Rigidbody 2D, так как ими
+будет управлять Rigidbody 2D на Dray.
+6. Выберите SwordController в иерархии.
+    - a. В инспекторе SwordController нажмите кнопку Add Component.
+    - b. Выберите New Script в появившемся всплывающем меню.
+    - c. Назовите новый скрипт SwordController.
+    - d. Нажмите кнопку «Создать и добавить», чтобы создать скрипт с именем SwordController и
+прикрепить его к GameObject SwordController.
+    - e. В панели «Project» переместите скрипт SwordController в папку « » в разделе «Scripts» (вы
+найдете ее в самом низу панели «Projects», за папкой «Resources»).
+7. Откройте скрипт SwordController и введите код из листинга.  
+        Листинг кода SwordController.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class SwordController : MonoBehaviour {
+    private GameObject sword;
+    private Dray dray;
+
+    void Start () {
+        // Find the Sword child of SwordController
+        Transform swordT = transform.Find("Sword"); // a
+        if (swordT == null) {
+            Debug.LogError("Could not find Sword child of SwordController.");
+            return;
+        }
+        sword = swordT.gameObject;
+
+        // Find the Dray component on the parent of SwordController
+        dray = GetComponentInParent<Dray>(); // b
+        if (dray == null) {
+            Debug.LogError("Could not find parent component Dray.");
+            return;
+        }
+
+        // Deactivate the sword
+        sword.SetActive(false); // c
+    }
+
+    void Update () {
+        transform.rotation = Quaternion.Euler(0, 0, 90 * dray.facing); // d
+        sword.SetActive(dray.mode == Dray.eMode.attack); // e
+    }
+}
+```
+
+    - a. Эта строка пытается найти дочерний GameObject класса SwordController с именем «Sword».
+Если его не удается найти, генерируется ошибка.
+    - b. Вызывается `GetComponentInParent<Dray>()`, чтобы найти экземпляр класса Dray,
+прикрепленный к GameObject Dray, который является родителем GameObject SwordController.
+    - c. Вызов SetActive(false) на GameObject удаляет этот GameObject из рендеринга,
+коллизий, запуска скриптов и т. д. Когда вы деактивируете Sword, он становится
+невидимым.
+    - d. Эта строка удерживает меч, направленный в ту сторону, куда смотрит Dray. Конечно, рука Dray
+не находится в центре вращения, но положение меча [ 0.75, 0, 0 ], которое вы установили на шаге
+4, правильно расположит Sword над рукой Dray при повороте SwordController, независимо от
+того, в какую сторону смотрит Dray.
+    - e. При каждом обновлении (Update) меч будет активироваться, если Дрей находится в режиме
+Dray.eMode.attack, или деактивироваться, если нет.  
+
+8. Сохраните все скрипты в Visual Studio,14 вернитесь в Unity и нажмите «Play».  
+
+Если вы получаете какую-либо ошибку от скрипта SwordController, вернитесь назад и убедитесь,
+что вы точно выполнили шаги 1–6.  
+
+Теперь вы можете перемещать Дрея по сцене с помощью клавиш со стрелками и атаковать, нажимая Z.
+Меч должен появляться только тогда, когда Дрей атакует, и всегда быть направлен в правильном
+направлении.  
+
+Однако на данный момент Дрей может просто проходить сквозь стены и исчезать в пустоте. Нам
+нужно добавить 2D-коллидеры как к миру, так и к Дрею.
