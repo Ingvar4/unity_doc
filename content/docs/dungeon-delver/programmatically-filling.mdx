@@ -2,3 +2,196 @@
 title: Заполнение Tilemap_Collision программным способом
 description: Теперь вам нужен лишь код для заполнения Tilemap_Collision с помощью CollisionTiles.
 ---
+
+Откройте скрипт MapInfo в Visual Studio и внесите изменения:  
+      Листинг кода MapInfo.cs
+
+```c#
+public class MapInfo : MonoBehaviour {
+    static public int W { get; private set; }
+    static public int H { get; private set; }
+    static public int[,] MAP { get; private set; }
+    static public Vector3 OFFSET = new Vector3( 0.5f, 0.5f, 0 );
+    static public string COLLISIONS { get; private set; } // a
+
+    [Header( "Inscribed" )]
+    public TextAsset delverLevel;
+    public TextAsset delverCollisions;
+
+    void Start() {
+        LoadMap();
+
+        // Loading the COLLISIONS information is simpler than a whole map
+        COLLISIONS = Utils.RemoveLineEndings( delverCollisions.text ); // b
+        Debug.Log( "COLLISIONS contains " + COLLISIONS.Length + " chars" );
+    }
+    …
+
+}
+```
+    - a. Мы снова будем использовать автоматическое статическое свойство для информации о
+COLLISIONS.
+    - b. Файл DelverCollisions будет состоять из 16 отдельных строк, но я написал простой метод
+`RemoveLineEndings()` в скрипте Utils, который вы импортировали, чтобы удалить
+конечные символы строк и любые лишние пробелы (кроме пробелов и табуляций), в результате
+чего получается чистая строка длиной 256 символов.  
+
+Текстовый файл DelverCollisions имеет размер 16x16, поскольку каждый символ в DelverCollisions
+соответствует изображению плитки в файле DelverTiles. Вы можете увидеть DelverCollisions,
+наложенный поверх DelverTiles, на рисунке справа.  
+
+Далее вам нужно предоставить MapInfo ссылку на файл DelverCollisions.  
+
+2. Сохраните MapInfo в Visual Studio и вернитесь в Unity.
+3. Выберите Grid в иерархии и присвойте текстовый файл DelverCollisions из папки Resources
+панели Project полю delverCollisions компонента MapInfo объекта Grid.  
+
+Теперь мы будем использовать эту информацию в TilemapManager для построения Tilemap_Collision.  
+
+4. Откройте скрипт TilemapManager и добавьте код из листинга.  
+        Листинг кода TilemapManager.cs  
+
+```c#
+public class TilemapManager : MonoBehaviour {
+    static public Tile[] DELVER_TILES;
+    static public Dictionary<char, Tile> COLL_TILE_DICT; // a
+
+    [Header( "Inscribed" )]
+    public Tilemap visualMap;
+    public Tilemap collisionMap; // b
+
+    private TileBase[] visualTileBaseArray;
+    private TileBase[] collTileBaseArray; // c
+
+    void Awake() { … }
+
+    void Start() { … }
+
+    /// <summary>
+    /// Load all the Tiles from the Resources/Tiles_Visual folder into an array.
+    /// </summary>
+    void LoadTiles() {
+        int num;
+
+        // Load all of the Sprites from DelverTiles
+        Tile[] tempTiles = Resources.LoadAll<Tile>( "Tiles_Visual" );
+        …
+        Debug.Log("Parsed "+DELVER_TILES.Length+" tiles into TILES_VISUAL.");
+
+        // Load all of the Sprites from CollisionTiles
+        tempTiles = Resources.LoadAll<Tile>( "Tiles_Collision" ); // d
+        // Collision tiles are stored in a Dictionary for easier access
+        COLL_TILE_DICT = new Dictionary<char, Tile>();
+        for (int i = 0; i < tempTiles.Length; i++)
+        {
+            char c = tempTiles[i].name[0]; // e
+            COLL_TILE_DICT.Add( c, tempTiles[i] );
+        }
+        Debug.Log("COLL_TILE_DICT contains " + COLL_TILE_DICT.Count + " tiles.");
+    }
+
+    /// <summary>
+    /// Uses GetMapTiles() to generate an array of TileBases with the right tile
+    /// in each position on the map. Then set them as a block on visualMap.
+    /// </summary>
+    void ShowTiles() {
+        visualTileBaseArray = GetMapTiles();
+        visualMap.SetTilesBlock(MapInfo.GET_MAP_BOUNDS(), visualTileBaseArray);
+
+        collTileBaseArray = GetCollisionTiles(); // f
+        collisionMap.SetTilesBlock(MapInfo.GET_MAP_BOUNDS(), collTileBaseArray);
+    }
+
+    public TileBase[] GetMapTiles() { … }
+
+    /// <summary>
+    /// Use MapInfo.MAP and MapInfo.COLLISIONS to create a TileBase[] array
+    /// holding the tiles to fill the collisionMap Tilemap.
+    /// </summary>
+    /// <returns>The TileBases for collisionMap</returns>
+    public TileBase[] GetCollisionTiles() {
+        Tile tile;
+        int tileNum;
+        char tileChar;
+        TileBase[] mapTiles = new TileBase[MapInfo.W * MapInfo.H];
+        for ( int y = 0; y < MapInfo.H; y++ ) {
+            for ( int x = 0; x < MapInfo.W; x++ ) {
+                tileNum = MapInfo.MAP[ x, y ];
+                tileChar = MapInfo.COLLISIONS[ tileNum ]; // g
+                tile = COLL_TILE_DICT[tileChar];
+                mapTiles[ y * MapInfo.W + x ] = tile;
+            }
+        }
+        return mapTiles;
+    }
+}
+```
+
+    - a. Поскольку все плитки столкновений обозначаются символами, имеет смысл использовать для
+их хранения словарь, а не массив.
+    - b. Это будет ссылка на карту столкновений Tilemap_Collision.
+    - c. Массив TileBase[] collTileBaseArray будет содержать все правильные плитки
+столкновений
+в нужных позициях перед тем, как присвоить их TileMap collisionMap.
+    - d. Мы снова используем `Resources.LoadAll<Tile>()`, но на этот раз читаем из папки
+Tiles_Collisions.
+    - e. tempTiles[i].name будет строкой из одного символа, например «W». Нам нужен0-йсимвол
+этой строки, поэтому мы используем доступ к name через квадратные скобки с параметром 0
+(ноль). В следующей строке плитка по адресу tempTiles[i] добавляется в
+COLL_TILE_DICT с найденным символом в качестве ключа, так что в нашем примере мы
+сможем получить доступ к плитке с именем «W» с помощью COLL_TILE_DICT['W'].
+(Обратите внимание, что «W» - это строка, а 'W' - это символ.)
+    - f. Эти две строки работают почти так же, как и предыдущие две.
+    - g. Этот метод работает точно так же, как GetMapTiles(), за исключением этих строк. Здесь в
+переменной tileNum хранится номер визуальной плитки в данной точке. Затем мы
+обращаемся к соответствующему символу в строке MapInfo.COLLISIONS, что позволяет
+получить значение tileChar, с помощью которого мы извлекаем нужную плитку столкновения
+из COLL_TILE_DICT.  
+
+5. Сохраните все скрипты в Visual Studio и вернитесь в Unity.
+6. Выберите Grid в иерархии сцены Unity.
+    - a. В компоненте TilemapManager в инспекторе щелкните цель справа от collisionMap.
+Откроется окно Select Tilemap.
+    - b. Щелкните вкладку «Сцена» в верхней части окна «Выбрать карту тайлов» (если она еще не
+выбрана).
+    - c. Дважды щелкните Tilemap_Collision в окне Select Tilemap, чтобы выбрать его. Теперь в поле
+collisionMap компонента TilemapManager должно отображаться Tilemap_Collision.  
+
+Нажмите «Play» в Unity, и теперь вы должны увидеть белые линии коллизий, нарисованные поверх
+нескольких плиток на карте, как показано на рисунке  
+
+<img src="/unity_doc/images/ex141.jpeg" alt="1" style={{  height: 'auto' }} />
+Tilemap_Visual с наложенным Tilemap_Collision (Dray и Main Camera не
+показаны)  
+
+7. Отключите отображение белых прямоугольников для Tilemap_Collision, чтобы игра выглядела
+лучше:
+    - a. Выберите Tilemap_Collision (в разделе Grid в иерархии).
+    - b. Снимите флажок в левом верхнем углу компонента Tilemap Renderer. Это заставит Unity
+прекратить рисовать белые прямоугольники, но поскольку он отделен от компонентов Tilemap
+и TilemapCollider2D, оба они будут продолжать работать так же.  
+
+Нажмите «Play» в Unity, и теперь вы не должны больше видеть белые коллизии, нарисованные на
+карте.  
+
+8. Остановите воспроизведение и сохраните сцену!  
+
+### Добавление коллайдера к Dray [!toc]  
+
+Теперь все работает отлично, за исключением того, что вы можете проходить с Dray прямо сквозь
+стены, поскольку у Dray пока нет коллайдера.  
+
+1. Выберите Dray в иерархии.
+2. Добавьте к Dray 2D-коллайдер «Circle» (Component >Physics 2D > Circle Collider 2D).
+    - Установите радиус Circle Collider 2D равным 0,4.
+3. Сохраните сцену и нажмите «Play» в Unity.  
+
+Попробуйте сохранить и воспроизвести сцену. Походите по сцене и посмотрите, что происходит,
+когда вы натыкаетесь на стены. Вы можете пройти в дверной проем. Однако вы можете заметить
+две проблемы:  
+
+    - Довольно сложно идеально совместить себя с дверью.
+    - Вы не можете перейти в другую комнату.  
+
+Для решения обеих этих проблем нам понадобится создать скрипт, который будет отслеживать, где
+находится Дрей в каждой комнате подземелья.
