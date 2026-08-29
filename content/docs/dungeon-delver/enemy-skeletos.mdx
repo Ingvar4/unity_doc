@@ -1,0 +1,158 @@
+---
+title: Враг- Skeletos
+description: Начнем с создания базового врага для Dray - Skeletos. Как и Stalfos в The Legend of Zelda, Skeletos беспорядочно бродят по комнате подземелья, в которой находятся.
+---
+
+Skeletos могут проходить сквозь других Skeletos и в конечном итоге наносят урон Dray при прикосновении.
+
+### Анимация Skeletos [!toc] 
+
+Начните с использования двух спрайтов, которые вы импортировали, чтобы создать анимацию
+Скелетоса:  
+
+1. В панели «Проект» > Art by Andrew Dennis > Skeletos выберите оба спрайта Skeletos0 и
+Skeletos1.
+2. Перетащите эти два спрайта вместе в панель «Иерархия». Это создаст новую анимацию, которую
+следует назвать Skeletos.anim и сохранить в папке _Animations.
+3. Переименуйте GameObject Skeletos0 в иерархии в Skeletos.
+4. В верхней части панели Inspector для GameObject Skeletos установите для параметра Layer значение
+Enemies.
+5. Установите для параметра «Transform Position» объекта Skeletos значение P:[ 19, 7, 0 ]. Теперь вы
+должны увидеть его на экране в панели Game.
+6. В компоненте Sprite Renderer инспектора Skeletos установите для параметра Sorting Layer значение
+Enemies.
+7. Прикрепите компонент Rigidbody 2D к Skeletos (Component > Physics 2D > Rigidbody
+2D).
+a. Установите для параметра «Масштаб гравитации» значение 0 (ноль).
+b. В разделе Constraints установите для параметра Freeze Rotation Z значение true (флажок
+установлен).
+8. Выберите Skeletos в иерархии и перейдите на панель «Анимация» (Window > Анимация > Анимация).
+9. На панели «Анимация» установите для параметра «Количество кадров анимации Skeletos»
+значение 5 и нажмите клавишу Return на клавиатуре (Enter на клавиатурах Windows), чтобы
+зафиксировать это значение.
+10. Сохраните сцену.  
+
+Нажмите «Воспроизвести», и вы должны увидеть, как Skeletos бегает на месте в той же комнате, что и
+Dray.  
+
+### Базовый класс врага [!toc]
+
+Все враги в игре Dungeon Delver будут наследовать свойство от одного базового класса с именем
+Enemy.  
+
+1. Создайте новый скрипт на C# с именем Enemy в папке « Scripts» на панели «Project».
+2. Откройте скрипт Enemy в Visual Studio и введите код.  
+      Листинг кода Enemy.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Enemy : MonoBehaviour {
+    protected static Vector2[] directions = new Vector2[] { // a
+        Vector2.right, Vector2.up, Vector2.left, Vector2.down, Vector2.zero};
+
+    [Header("Inscribed: Enemy")] // b
+    public float maxHealth = 1; // c
+
+    [Header("Dynamic: Enemy")] // b
+    public float health; // c
+
+    protected Animator anim; // c
+    protected Rigidbody2D rigid; // c
+    protected SpriteRenderer sRend; // c
+
+    protected virtual void Awake() { // d
+        health = maxHealth;
+        anim = GetComponent<Animator>();
+        rigid = GetComponent<Rigidbody2D>();
+        sRend = GetComponent<SpriteRenderer>();
+    }
+
+    // void Start() {…} // Please delete the unused Start() and Update() methods
+    // void Update() {…}
+}
+``` 
+
+    - a. Переменная directions используется врагами аналогично тому, как её использует Дрей.
+Поскольку её значение одинаково для всех экземпляров класса Enemy, её можно сделать
+статической. Она объявлена как protected, чтобы к ней могли обращаться как класс
+Enemy, так и любые его подклассы. Четвёртый элемент (Vector2.zero) позволит врагу
+оставаться на месте с ориентацией 4.
+    - b. Я изменил стандартные [Header(…)], которые вы используете для инспектора, чтобы
+показать, какие поля унаследованы от базового класса Enemy, а какие являются частью
+Skeletos и других подклассов Enemy. Вы увидите результат этого после того, как мы
+напишем класс Skeletos.
+    - c. Класс Enemy объявляет несколько полей, которые обычно используются подклассами Enemy
+, включая поля для отслеживания здоровья и часто используемые компоненты.
+    - d. Метод Enemy Awake() устанавливает значения по умолчанию для здоровья, а
+общие ссылки на компоненты - на anim, rigid и sRend. Объявление этого метода
+как protected virtual позволяет переопределять его в подклассах (как вы
+увидите позже).
+
+### Подкласс Skeletos класса Enemy [!toc]
+Выполните следующие шаги, чтобы создать подкласс Skeletos:  
+
+1. Создайте новый скрипт C# с именем Skeletos в папке « Scripts» на панели «Project».
+2. Прикрепите скрипт Skeletos к GameObject Skeletos в иерархии.
+3. Откройте скрипт Skeletos в Visual Studio и введите код.  
+      Листинг кода Skeletos.cs  
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Skeletos : Enemy { // a
+    [Header("Inscribed: Skeletos")] // b
+    public int speed = 2;
+    public float timeThinkMin = 1f;
+    public float timeThinkMax = 4f;
+
+    [Header("Dynamic: Skeletos")] // b
+    [Range(0,4)]
+    public int facing = 0;
+    public float timeNextDecision = 0;
+
+    void Update () {
+        if (Time.time >= timeNextDecision) { // c
+            DecideDirection();
+        }
+        // rigid is inherited from Enemy, which defines it in Enemy.Awake()
+        rigid.velocity = directions[facing] * speed;
+    }
+
+    void DecideDirection() { // d
+        facing = Random.Range(0, 5);
+        timeNextDecision = Time.time + Random.Range(timeThinkMin, timeThinkMax);
+    }
+
+    // void Start() {…} // Please delete the unused Start() method
+}
+```
+
+    - a. Skeletos является подклассом Enemy (а не MonoBehaviour).
+    - b. Я также изменил стандартные [Header(…)] здесь, чтобы показать, какие поля
+унаследованы от Enemy, а какие являются частью Skeletos. Атрибут [Range(0,4)] в
+следующей строке предоставляет ползунок для настройки направления и ограничивает его
+значениями из диапазона [0..4] (включительно).
+    - c. Когда пройдет достаточно времени с момента последнего изменения направления
+Skeletos, он вызовет DecideDirection(), чтобы определить направление
+заново.
+    - d. В DecideDirection() выбирается случайное направление, а также случайное время
+до повторного принятия решения.  
+
+4. Сохраните все скрипты в Visual Studio, переключитесь в Unity и нажмите «Play».  
+
+Вы должны увидеть, как Skeletos беспорядочно бродит по полу и… выходит прямо из комнаты! Нам
+нужно создать скрипт, чтобы удержать Skeletos и других врагов в комнате.  
+
+>Если ваш Skeletos долго танцует на месте, убедитесь, что вы выполнили шаг 2 (прикрепили скрипт). Однако стоять на
+месте - вполне нормальное поведение для Skeletos, так что, возможно, вам просто нужно подождать немного
+дольше.  
+
+Конечно, мы могли бы добавить к Skeletos 2D-коллайдер Circle Collider, и тогда Skeletos оставался
+бы в комнате благодаря созданному вами 2D-коллайдеру Tilemap Collider, но тогда все равно
+оставалась бы вероятность того, что Skeletos выйдет из комнаты через открытую дверь. А пока
+давайте добавим в скрипт InRoom возможность удерживать GameObjects в пределах комнаты, а
+затем в следующей главе добавим Circle Collider 2D к Skeletos.

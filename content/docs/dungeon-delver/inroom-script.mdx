@@ -6,4 +6,91 @@ description: Подземелье разделено на несколько к�
 Класс InRoom предоставит несколько полезных функций. Чтобы узнать, пытается ли Дрей выйти из
 комнаты, вам нужно знать, где он находится в комнате, и, поскольку все комнаты в подземелье
 одинакового размера, это довольно легко сделать. Однако то, что мы делаем в коде, может
-потребовать небольшого объяснения.
+потребовать небольшого объяснения.  
+
+По сути, InRoom обрабатывает два связанных между собой значения:  
+- posInRoom - положение этого GameObject относительно левого нижнего угла текущей
+комнаты. Это очень поможет, когда мы, например, заставим Дрея пройти через дверь в другую
+комнату.
+- roomNum - обозначение текущей комнаты, в которой находится этот GameObject. roomNum
+левой нижней комнаты в подземелье - [0,0] (а комната, в которой Дрей начинает игру, - [1,0]).
+Если вы измените roomNum GameObject, он сохранит то же относительное положение
+posInRoom в новой комнате.  
+
+При привязке к любому GameObject эта базовая версия InRoom позволяет:  
+    - a. Получать или устанавливать местоположение этого GameObject в координатах, относительных к
+комнате
+    - b. Получать или устанавливать комнату, в которой находится GameObject  
+
+Обе эти возможности понадобятся для правильного перемещения Дрея из одной комнаты в другую,
+когда он проходит через дверной проем. Чтобы реализовать класс InRoom:  
+
+1. Создайте новый скрипт на C# с именем InRoom в папке « » панели «Project».
+2. Откройте скрипт InRoom в Visual Studio и введите код. Будьте внимательны при вводе кода этого класса. Именно здесь многие читатели допускают
+ошибки.  
+      Листинг InRoom.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class InRoom : MonoBehaviour {
+    static public float ROOM_W = 16; // a
+    static public float ROOM_H = 11;
+    static public float WALL = 2;
+
+    // Where is this character in local room coordinates?
+    public Vector2 posInRoom { // b
+        get {
+            Vector2 tPos = transform.position;
+            Vector2 posIR = new Vector2();
+            posIR.x = tPos.x % ROOM_W;
+            posIR.y = tPos.y % ROOM_H;
+            return posIR;
+        }
+        set {
+            Vector2 rNum = roomNum;
+            Vector2 tPos = new Vector2();
+            tPos.x = roomNum.x * ROOM_W;
+            tPos.y = roomNum.y * ROOM_H;
+            transform.position = tPos + value;
+        }
+    }
+
+    // Which room is this character in?
+    public Vector2 roomNum { // c
+        get {
+            Vector2 tPos = (Vector2) transform.position;
+            Vector2 rNum = new Vector2();
+            rNum.x = Mathf.Floor( tPos.x / ROOM_W );
+            rNum.y = Mathf.Floor( tPos.y / ROOM_H );
+            return rNum;
+        }
+        set {
+            Vector2 rNum = value;
+            Vector2 tPos = new Vector2();
+            tPos.x = rNum.x * ROOM_W;
+            tPos.y = rNum.y * ROOM_H;
+            transform.position = tPos + posInRoom;
+        }
+    }
+
+    // void Start() {…} // Please delete the unused Start() and Update() methods
+    // void Update() {…}
+}
+```
+
+    - a. Эти статические числа с плавающей запятой задают базовую ширину и высоту комнаты
+(измеряемые в единицах Unity / метрах / плитках, которые все равнозначны), а также
+толщину стен. Значения являются целыми числами, но поля имеют тип float, поскольку они
+используются в уравнениях с другими числами с плавающей запятой по всему коду.
+    - b. Свойство posInRoom позволяет получить или установить положение GameObject
+относительно левого нижнего угла комнаты (у которого posInRoom равен x:0, y:0).
+    - c. Свойство roomNum позволяет получить или установить номер комнаты, в которой
+находится GameObject (при этом левая нижняя комната подземелья имеет roomNum x:0, y:0).  
+
+Одно из преимуществ InRoom заключается в том, что его можно использовать не только в Dray, но
+и в нескольких других классах. Прежде чем продолжить разработку InRoom, давайте сделаем
+небольшой отступление и создадим врага Skeletos, который позволит вам увидеть, как InRoom и
+последующие скрипты работают с различными типами GameObjects.

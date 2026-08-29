@@ -9,6 +9,8 @@
     "dray-sword",
     "programmatic-collision",
     "programmatically-filling",
-    "inroom-script"
+    "inroom-script",
+    "enemy-skeletos",
+    "keeping-gameobjects"
   ]
 }
