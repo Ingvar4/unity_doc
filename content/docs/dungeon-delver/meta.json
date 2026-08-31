@@ -11,6 +11,7 @@
     "programmatically-filling",
     "inroom-script",
     "enemy-skeletos",
-    "keeping-gameobjects"
+    "keeping-gameobjects",
+    "aligning-to-grid"
   ]
 }
