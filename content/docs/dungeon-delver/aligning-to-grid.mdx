@@ -45,7 +45,7 @@ public class InRoom : MonoBehaviour {
 
     - a. GRID_OFFSET используется для установки смещения между центром плитки и
 целочисленной координатами на сетке. По умолчанию координаты на целочисленной сетке
-— например, [10, 12] — будут находиться в левом нижнем углу плитки. Значение
+- например, [10, 12] - будут находиться в левом нижнем углу плитки. Значение
 GRID_OFFSET [0.5, 0.5] используется для смещения сетки в центр каждой плитки.
     - b. GRID_OFFSET используется для сдвига posInRoom объекта GameObject вниз и влево.
     - c. posIR делится на mult. Значение mult по умолчанию, равное 1, ничего не делает, но если
@@ -70,3 +70,221 @@ mult равно 0.5 (значение mult для Dray), то это удвои�
 случаях вам следует подумать об использовании интерфейса C#.  
 
 ### Интерфейс IFacingMover [!toc]
+Вкратце, интерфейс - это гарантия того, что в класс будут включены определённые методы или
+свойства. Любой класс, реализующий данный интерфейс, можно затем упоминать в коде как тип
+интерфейса, а не как тип конкретного класса. Это отличается от наследования по нескольким
+признакам, два наиболее важных из которых:  
+
+- Класс может наследовать только один суперкласс, но может реализовывать несколько разных
+интерфейсов одновременно.
+- Любой класс - независимо от родословной суперкласса - все равно может
+реализовывать любой интерфейс, реализуя обещанные методы и свойства.  
+
+Можно представить себе интерфейс как обещание: любой класс, реализующий интерфейс, обещает
+иметь определенные методы или свойства, которые можно безопасно вызывать. Если вы хотите
+получить более подробное введение в интерфейсы, чем приведенное здесь, прочитайте раздел
+«Интерфейсы» в Приложении B «Полезные концепции».  
+
+Вы использовали встроенный интерфейс Unity ISerializationCallbackReceiver в главе 33,
+«Пасьянс Prospector - Часть 1», но в этой главе вы создадите свой собственный пользовательский
+интерфейс на C#. Интерфейс IFacingMover, который вы здесь реализуете, очень прост, и его
+легко применить к классам Dray и Skeletos.  
+
+1. Создайте новый скрипт C# в папке «Scripts» проекта « » с именем IFacingMover (имена
+интерфейсов часто начинаются с буквы I).
+2. Откройте IFacingMover в Visual Studio и удалите все содержимое скрипта IFacingMover.
+3. Введите код из листинга. Обратите внимание, что IFacingMover не расширяет
+MonoBehaviour и является интерфейсом, а не классом.  
+                Листинг IFacingMover.cs
+```c#
+using UnityEngine;
+
+public interface IFacingMover { // a
+    int GetFacing(); // b
+    float GetSpeed();
+    bool moving { get; } // c
+    float gridMult { get; } // d
+    bool isInRoom { get; }
+    Vector2 roomNum { get; set; }
+    Vector2 posInRoom { get; set; } // e
+    Vector2 GetGridPosInRoom(float mult = -1); // f
+}
+```
+        - a. Это публичное объявление интерфейса IFacingMover. Как упоминалось ранее, обратите
+внимание, что IFacingMover не является классом и не наследуется от MonoBehaviour.
+        - b. Интерфейсы включают методы и свойства, которые должны быть общедоступными в любом
+классе, реализующем данный интерфейс. Эта строка гарантирует, что в каждом классе,
+реализующем IFacingMover, будет метод `public int GetFacing()`.
+        - c. Помимо методов, интерфейсы также могут гарантировать реализацию свойств. Эта строка
+объявляет, что в любом классе, реализующем IFacingMover, будет реализовано свойство
+moving типа bool, доступное только для чтения.
+        - d. Свойство gridMult, доступное только для чтения, позволит объектам IFacingMover
+передавать поле gridMult класса InRoom таким классам, как GridMove, без
+необходимости прямого доступа GridMove к InRoom.
+        - e. Свойства gridMult и posInRoom, а также метод `GetGridPosInRoom()` потребуют от
+вас реализации доступа к InRoom как в Dray, так и в Skeletos. Однако, хотя это требует,
+чтобы Dray и Skeletos имели доступ к InRoom, это позволяет любому объекту,
+обращающемуся с Dray или Skeletos как с IFacingMover, не требовать прямого доступа
+к InRoom.
+        - f. Этот метод интерфейса включает значение по умолчанию для своего параметра mult. Если
+вернуться к `GetGridPosInRoom()` в листинге кода, то если в
+`GetGridPosInRoom()` передано либо никакого значения, либо значение -1, он будет
+использовать свойство InRoom.gridMult. Интересно, что если значение по умолчанию для
+mult здесь не совпадает со значением по умолчанию для mult в любом скрипте,
+реализующем IFacingMover, то значение в определении интерфейса здесь переопределит
+значение по умолчанию в этих реализующих классах.  
+
+Вы заметите, что эти члены интерфейса (т. е. методы и свойства) не имеют ключевого слова
+доступности, такого как public или private. Это связано с тем, что все методы и свойства,
+обещанные интерфейсом, должны быть public. Интерфейс определяет методы и свойства класса,
+доступные для других классов, поэтому они должны появляться как public-члены в любых классах,
+реализующих этот интерфейс.  
+
+### Реализация интерфейса IFacingMover в классах Dray и Skeletos [!toc]  
+
+Выполните следующие шаги, чтобы реализовать интерфейс IFacingMover в классах Dray и
+Skeletos. Это позволит рассматривать экземпляры Dray и Skeletos как экземпляры
+IFacingMover и применять к ним один и тот же код выравнивания по сетке.  
+
+1. Откройте скрипт Dray в Visual Studio и добавьте в него код. Обязательно добавьте «, IFacingMover» в объявление класса в строке `// b`, так
+как именно это указывает, что Dray реализует интерфейс IFacingMover.  
+            Листинг кода Dray.cs
+```c#
+[RequireComponent( typeof(InRoom) )] // a
+public class Dray : MonoBehaviour, IFacingMover { // b
+    …
+    private Rigidbody2D rigid;
+    private Animator anim;
+    private InRoom inRm; // c
+    …
+
+    void Awake () {
+    rigid = GetComponent<Rigidbody2D>();
+    anim = GetComponent<Animator>();
+    inRm = GetComponent<InRoom>(); // d
+    }
+
+    void Update () { … }
+
+    //- Implementation of IFacingMover -
+    public int GetFacing() { return facing; } // e
+
+    public float GetSpeed() { return speed; } // f
+
+    public bool moving { get { return (mode == eMode.move); } } // g
+
+    public float gridMult { get { return inRm.gridMult; } } // h
+
+    public bool isInRoom { get { return inRm.isInRoom; } }
+
+    public Vector2 roomNum {
+        get { return inRm.roomNum; }
+        set { inRm.roomNum = value; }
+    }
+
+    public Vector2 posInRoom {
+        get { return inRm.posInRoom; }
+        set { inRm.posInRoom = value; }
+    }
+
+    public Vector2 GetGridPosInRoom(float mult = -1) { // i
+        return inRm.GetGridPosInRoom(mult);
+    }
+}
+```
+
+- a. Чтобы реализовать IFacingMover, GameObject Dray также должен иметь компонент
+InRoom, поэтому мы требуем его здесь.
+- b. Символ «, IFacingMover» в этой строке объявляет, что данный класс реализует интерфейс
+IFacingMover (первый элемент после двоеточия, MonoBehaviour, является суперклассом
+данного класса, тогда как последующие элементы - это интерфейсы, которые должен
+реализовывать данный класс).
+- c. inRm предоставляет доступ к присоединенному классу InRoom и назначается в Awake().
+- d. Не пропустите эту строку, иначе вы получите NullReferenceException.
+- e. Эта строка реализует метод int GetFacing(), требуемый IFacingMover. Мы должны
+объявить GetFacing() как public, так как это обещано интерфейсом.
+- f. Эта строка реализует float GetSpeed() из IFacingMover.
+- g. Хотя реализация большинства членов интерфейса будет почти одинаковой в Dray и
+Skeletos, реализация свойства только для чтения `bool moving { get; }` будет сильно
+отличаться.
+- h. Реализации остальных членов IFacingMover - это, по сути, пропускающие вызовы
+компонента InRoom на том же GameObject.
+- i. GetGridPosInRoom() - это функция, а не свойство, как другие пропускающие вызовы
+InRoom, потому что нам нужно иметь возможность передавать параметр mult.  
+
+2. Сохраните Dray и вернитесь в Unity, чтобы убедиться, что все компилируется без проблем.  
+
+Сейчас это может показаться лишней работой, но вы поймете, зачем мы это сделали, когда начнем
+писать код перемещения по сетке (после того, как вы реализуете тот же интерфейс для Skeletos).  
+
+3. Откройте скрипт Skeletos и введите код (большую его часть можно скопировать и вставить из кода Dray, который вы только что
+написали).  
+            Листинг Skeletos.cs
+```c#
+[RequireComponent( typeof(InRoom) )] // a
+public class Skeletos : Enemy, IFacingMover { // b
+    …
+    public float timeNextDecision = 0;
+
+    private InRoom inRm; // c
+
+    protected override void Awake () { // d
+        base.Awake();
+        inRm = GetComponent<InRoom>();
+    }
+
+    void Update () { … }
+
+    void DecideDirection() { … }
+
+    //- Implementation of IFacingMover -
+    public int GetFacing() { // This IS different from the Dray version!!! // e
+        return facing % 4;
+    }
+
+    public float GetSpeed() { return speed; }
+
+    public bool moving { // This IS different from the Dray version!!! // f
+        get { return (facing < 4); }
+    }
+
+    public float gridMult { get { return inRm.gridMult; } }
+
+    public bool isInRoom { get { return inRm.isInRoom; } }
+
+    public Vector2 roomNum {
+        get { return inRm.roomNum; }
+        set { inRm.roomNum = value; }
+    }
+
+    public Vector2 posInRoom {
+        get { return inRm.posInRoom; }
+        set { inRm.posInRoom = value; }
+    }
+
+    public Vector2 GetGridPosInRoom( float mult = -1 ) {
+        return inRm.GetGridPosInRoom( mult );
+    }
+}
+```
+
+        - a. Опять же, добавляемый код потребует наличия компонента InRoom на том же
+GameObject, поэтому мы будем использовать атрибут компилятора
+[RequireComponent].
+        - b. Необходимо добавить «, IFacingMover», чтобы Skeletos реализовывал этот интерфейс.
+        - c. Не забудьте эту строку. Для Skeletos также необходимо объявить поле inRm.
+        - d. Метод `Awake()` в Skeletos должен быть объявлен как protected override, чтобы
+работать совместно с методом `protected virtual Awake()` в суперклассе Enemy.
+Первая строка в этом методе `Awake()` вызывает метод `Awake()` в базовом классе
+(`Enemy.Awake()`). Затем `Skeletos.Awake()` приступает к присвоению значения `inRm`.
+        - e. Большая часть реализации IFacingMover в Skeletos такая же, как и в Dray; однако
+`GetFacing()` отличается, поскольку Skeletos может иметь направление 4 (когда он не
+движется). В этом случае будет возвращено 0 (ноль) из-за % 4 здесь.
+        - f. Skeletos всегда движутся, если только их направление не равно 4, поэтому реализация
+`bool moving { get; }` здесь сильно отличается от реализации в классе Dray.  
+
+4. Сохраните все скрипты в Visual Studio и вернитесь в Unity.  
+
+Поскольку теперь и Dray, и Skeletos являются экземплярами IFacingMover, с ними может
+работать любой код, ожидающий IFacingMover, и вам не нужно писать отдельный код для каждого
+класса. Давайте реализуем класс GridMove, чтобы проверить это.

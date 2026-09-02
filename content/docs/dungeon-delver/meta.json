@@ -12,6 +12,8 @@
     "inroom-script",
     "enemy-skeletos",
     "keeping-gameobjects",
-    "aligning-to-grid"
+    "aligning-to-grid",
+    "gridmove-script",
+    "moving-from-room"
   ]
 }
