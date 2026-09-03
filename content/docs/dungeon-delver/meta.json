@@ -14,6 +14,7 @@
     "keeping-gameobjects",
     "aligning-to-grid",
     "gridmove-script",
-    "moving-from-room"
+    "moving-from-room",
+    "camera-follow-dray"
   ]
 }
