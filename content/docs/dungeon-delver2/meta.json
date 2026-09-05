@@ -1,5 +1,6 @@
 {
   "pages": [ 
-    "tileswapmanager-script"
+    "tileswapmanager-script",
+    "swapping-in-lockeddoor"
   ]
 }
