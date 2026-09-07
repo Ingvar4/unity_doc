@@ -1,0 +1,191 @@
+---
+title: Подбирание предметов
+description: Теперь, когда Дрей может убивать врагов, у вас появился источник, где можно добывать как ключи, так и предметы, восстанавливающие здоровье. Начнём с ключа.
+---
+
+1. Перетащите Key из папки Art by Andrew Dennis на панели Project в Hierarchy. Это создаст
+GameObject с именем Key со Sprite Renderer, отображающим спрайт Key.
+2. Выберите «Key» в иерархии и установите следующие настройки в инспекторе «Key»:
+    - a. Layer: Items (вверху, справа от Tag)
+    - b. Transform: P:[ 28, 3, 0 ] (поместив его в ту же комнату, что и Дрей и Скелетос)
+    - c. Sprite Renderer: установите Sorting Layer на Items (в разделе Additional Settings).
+3. Добавьте Box Collider 2D к GameObject Key (Component > Physics 2D > Box
+Collider 2D).
+    - a. Дважды щелкните по Key в иерархии (или нажмите F (для фокусировки) на клавиатуре, когда
+курсор мыши находится над панелью «Сцена»), чтобы отцентрировать панель «Сцена» на Key и
+проверить, верны ли границы Box Collider 2D (вы должны увидеть светло-зеленый
+прямоугольник, плотно окружающий Key).
+    - b. Установите для параметра Is Trigger значение true (флажок установлен) на компоненте Box
+Collider 2D.
+4. Сохраните сцену.
+5. Создайте новый скрипт C# с именем PickUp в папке «Scripts» объекта « ».
+6. Прикрепите скрипт PickUp к GameObject «Key» в иерархии.
+7. Откройте скрипт PickUp в Visual Studio и введите код.  
+          Листинг кода PickUp.cs
+```c#
+using UnityEngine;
+
+public class PickUp : MonoBehaviour {
+    public enum eType {none, key, health, grappler}
+
+    [Header("Inscribed")]
+    public eType itemType;
+
+    // void Start() {…} // Please delete the unused Start() and Update() methods
+    // void Update() {…}
+}
+```
+
+8. Сохраните скрипт PickUp.
+9. Откройте скрипт Dray и добавьте следующий код.  
+        Листинг кода Dray.cs
+```c#
+public class Dray : MonoBehaviour, IFacingMover, IKeyMaster {
+    …
+    [Header("Inscribed")]
+    …
+    public float invincibleDuration = 0.5f;
+    public int healthPickupAmount = 2; // a
+
+    [Header("Dynamic")]
+    …
+
+    void OnCollisionEnter2D( Collision2D coll ) { … }
+
+    void OnTriggerEnter2D( Collider2D colld ) {
+        PickUp pup = colld.GetComponent<PickUp>(); // b
+        if (pup == null) return;
+
+        switch ( pup.itemType ) {
+            case PickUp.eType.health:
+            health = Mathf.Min(health + healthPickupAmount, maxHealth);
+            break;
+
+            case PickUp.eType.key:
+            _numKeys++;
+            break;
+
+            default:
+            Debug.LogError("No case for PickUp type " + pup.itemType); // c
+            break;
+        }
+
+        Destroy(pup.gameObject); // d
+    }
+
+    static public int HEALTH {get{ return S._health;}}
+    static public int NUM_KEYS {get{ return S._numKeys;}}
+    …
+}
+```
+
+    - a. Обязательно добавьте это новое общедоступное поле.
+    - b. Если к GameObject, столкнувшемуся с этим триггером, не прикреплен скрипт PickUp, этот
+метод возвращается, не выполняя никаких действий.
+    - c. Если у нас нет случая для обработки типа PickUp, с которым мы столкнулись, в журнал
+записывается ошибка.
+    - d. Независимо от того, был ли случай обработан, если на триггере, с которым столкнулся Dray,
+был компонент PickUp, удалите GameObject этого PickUp.
+10. Сохраните все скрипты в Visual Studio и вернитесь в Unity.
+11. Выберите Key в иерархии.
+12. В компоненте PickUp (Script) в инспекторе установите для параметра itemType значение Key.
+13. Выберите Dray в иерархии и в компоненте Dray (Script) убедитесь, что numKeys установлен в 0
+(таким образом, Dray должен поднять ключ, чтобы открыть дверь).
+14. Сохраните сцену и нажмите «Play».
+Теперь вы должны иметь возможность поднять ключ, увидеть увеличение количества ключей в
+графическом интерфейсе, а затем использовать ключ для открытия первой двери.
+
+### Враги, оставляющие предметы при гибели [!toc]
+В этой игре, когда Дрей побеждает врага, вы хотите, чтобы тот иногда бросал предмет здоровья.
+Однако есть и такие враги, которые должны всегда бросать ключ. Мы реализуем здесь и то, и
+другое.  
+
+#### Выпадение ключей [!toc]
+Выполните следующие шаги, чтобы враги оставляли ключи:  
+
+1. Откройте скрипт Enemy в Visual Studio и введите дополнения к коду из листинга.  
+        Листинг кода Enemy.cs
+```c#
+public class Enemy : MonoBehaviour {
+    …
+    [Header("Inscribed: Enemy")]
+    …
+    public float invincibleDuration = 0.5f;
+    public GameObject guaranteedDrop = null; // a
+    public List<GameObject> randomItems; // a
+
+    [Header("Dynamic: Enemy")]
+    public float health;
+    …
+
+    void Die() {
+        GameObject go;
+        if ( guaranteedDrop != null ) { // b
+            go = Instantiate<GameObject>( guaranteedDrop );
+            go.transform.position = transform.position;
+        }
+        Destroy(gameObject);
+    }
+}
+```
+
+- a. Пожалуйста, добавьте оба этих поля. randomItems будет использоваться в листинге кода.
+- b. Если guaranteedDrop не равен null, создается экземпляр этого предмета и перемещается
+в положение умирающего врага.
+2. Сохраните скрипт Enemy и вернитесь в Unity.
+3. Сделайте Key префабом, перетащив его из иерархии в папку _Prefabs на панели Project.
+4. Выберите Key, оставшийся в иерархии, и удалите его. Он больше не нужен нам в сцене, так
+как мы сможем получить ключ от Skeletos.
+5. Выберите Skeletos в иерархии и присвойте префаб Key (из папки _Prefabs) полю
+guaranteedDrop в инспекторе Skeletos (Script).
+6. Сохраните сцену и нажмите «Play».  
+
+Если вы убьете Skeletos сейчас, он должен уронить ключ, который вы сможете поднять. Однако при
+текущих настройках Дрей мог бы убить Skeletos и поднять ключ практически в одно мгновение,
+возможно, даже не заметив его. Давайте добавим немного кода в скрипт PickUp, чтобы задержать
+возможность поднять ключ всего на полсекунды.  
+
+7. Откройте скрипт PickUp в Visual Studio и внесите в код изменения.  
+        Листинг кода PickUp.cs
+```c#
+public class PickUp : MonoBehaviour {
+    public enum eType { none, key, health, grappler }
+
+    [Header("Inscribed")]
+    public eType itemType;
+
+    private Collider2D colld;
+    private const float colliderEnableDelay = 0.5f; // a
+
+    void Awake() {
+        colld = GetComponent<Collider2D>(); // b
+        colld.enabled = false;
+        Invoke( nameof(EnableCollider), colliderEnableDelay ); // c
+    }
+
+    void EnableCollider() { // d
+        colld.enabled = true;
+    }
+}
+```
+
+    - a. Константы, такие как const float colliderEnableDelay, преобразуются в свои
+значения во время компиляции, что обеспечивает высокую производительность, при этом
+оставляя нам возможность изменять значение только в одном месте, если это когда-нибудь
+понадобится (точно так же, как LOCKED_R и другие константы tileNum для
+LockedDoor, рассмотренные ранее в этой главе).
+    - b. Получите ссылку на компонент Collider2D и сохраните её в кэше здесь, чтобы нам не
+пришлось снова вызывать `GetComponent<>()` в `EnableCollider()`. Я выбрал здесь
+Collider2D, чтобы он работал как с BoxCollider2D ключа, так и с любой другой формой
+2D-коллидера, которую вы можете выбрать для любого другого PickUp, добавленного позже.
+    - c. Использование nameof(EnableCollider) вместо «EnableCollider» здесь снижает
+вероятность того, что вы неправильно напишете название метода. Я знаю, что это кажется
+маловероятным, но я постоянно сталкиваюсь с этой ошибкой в своих классах.
+    - d. Через полсекунды вызывается `EnableCollider()`.
+8. Сохраните скрипт PickUp и вернитесь в Unity.  
+
+Когда вы запустите игру и убьете Skeletos, ключ нельзя будет поднять в течение половины секунды
+— этого времени достаточно, чтобы игрок успел его увидеть и решить, поднимать ли его, прежде
+чем это произойдет. В подобной игре в стиле Zelda игрок может увидеть PickUp здоровья, когда его
+здоровье уже на полном уровне, и решить оставить его в комнате, чтобы вернуться к нему позже,
+если понадобится.

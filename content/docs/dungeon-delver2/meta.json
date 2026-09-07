@@ -1,6 +1,19 @@
 {
   "pages": [ 
     "tileswapmanager-script",
-    "swapping-in-lockeddoor"
+    "swapping-in-lockeddoor",
+    "implementing-keys",
+    "adding-gui-dd",
+    "enabling-enemies-damage",
+    "making-drays-attack-damage",
+    "picking-up-items",
+    "dropping-randomized-items",
+    "implementing-new-dungeon",
+    "implementing-grappler",
+    "building-grappler",
+    "secondary-grappler-abilities",
+    "adding-tilemap-grappler-collisions",
+    "enabling-grappler-pull",
+    "testing-grappler"
   ]
 }

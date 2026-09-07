@@ -3,4 +3,231 @@ title: Замена на GameObjects LockedDoor
 description: Вторая половина работы, выполняемой TileSwapManager, заключается в размещении в мире новых GameObjects, которые будут действовать как работающие запертые двери (и другие объекты).
 ---
 
-Начнем с создания базового GameObject для запертой двери.
+Начнем с создания базового GameObject для запертой двери.  
+
+1. В панели Project откройте треугольник раскрытия рядом с изображением DelverTiles в
+папке Resources.
+    - a. Перетащите спрайт DelverTiles7 3 из-под изображения DelverTiles в иерархию. Это создаст новый
+GameObject спрайта с именем DelverTiles_73.
+    - b. Переименуйте GameObject DelverTiles7 3 в иерархии в LockedDoor.
+    - c. Установите для LockedDoor следующие значения Transform: P:[ 30.5, 5.5, 0 ] R:[ 0, 0, 0 ] S:[ 1, 1,
+1 ]. Это поместит его в то же место, что и правый проем в той же комнате, где находится Dray.
+    - d. В компоненте Sprite Renderer объекта LockedDoor:
+        - Откройте треугольник раскрытия «Дополнительные настройки».
+        - Установите для слоя сортировки значение «Наземный».
+        - Установите «Order in Layer» (Порядок в слое) на 10.  
+
+Это гарантирует, что GameObject LockedDoor будет отображаться в слое «Ground», но над
+обоими Tilemaps (параметры «Order in Layer» для Tilemaps равны 0 и 1).  
+
+Теперь вы должны увидеть правую запертую дверь в панели Game, и если нажать Play, она останется
+над Tilemaps. Однако вы по-прежнему можете пройти прямо через нее.  
+
+2. Остановив воспроизведение в Unity, выберите LockedDoor в иерархии:
+    - a. Прикрепите Box Collider 2D к LockedDoor: В главном меню Unity выберите
+Component > Physics 2D > Box Collider 2D.
+    - b. Измените (физический) слой LockedDoor на Ground (Примечание: это физический слой в
+верхней части окна Inspector, а не сортировочный слой, который вы уже установили).
+3. Создайте новый скрипт LockedDoor и прикрепите его к GameObject LockedDoor:
+    - a. Создайте новый скрипт с именем LockedDoor в папке « » панели «Project».
+    - b. Прикрепите скрипт LockedDoor к GameObject LockedDoor в иерархии.
+    - c. Откройте скрипт LockedDoor в Visual Studio и введите код из листинга.  
+
+    Листинг кода LockedDoor.cs
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+[DisallowMultipleComponent]
+public class LockedDoor : MonoBehaviour {
+    static private LockedDoor[,] _LOCKED_DOORS; // a
+
+    public Vector2Int mapLoc; // Coords on MapInfo.MAP where this tile is
+
+    void Start() {
+        if (_LOCKED_DOORS == null) { // b
+            BoundsInt mapBounds = MapInfo.GET_MAP_BOUNDS();
+            _LOCKED_DOORS = new LockedDoor[mapBounds.size.x, mapBounds.size.y];
+        }
+        mapLoc = Vector2Int.FloorToInt( transform.position ); // c
+        _LOCKED_DOORS[mapLoc.x, mapLoc.y] = this;
+    }
+
+    void OnCollisionEnter2D( Collision2D coll ) { // d
+        if (coll.gameObject.GetComponent<Dray>() != null) Destroy(gameObject);
+    }
+
+    // void Update() {…} // Please delete the unused Update() method
+}
+```
+
+    - a. _LOCKED_DOORS будет хранить ссылку на каждую LockedDoor в двумерном массиве,
+соответствующем MapInfo.MAP. Может показаться неэффективным хранить столь небольшое
+количество LockedDoors в большом двумерном массиве, но поскольку это массив ссылок на
+место хранения LockedDoor в памяти, весь массив на самом деле довольно мал, и вы скоро
+увидите, насколько он полезен.
+    - b. Когда вызывается Start() для первого объекта LockedDoor, _LOCKED_DOORS будет
+null, поэтому он создается здесь.
+    - c. Координаты нашей текущей тестовой LockedDoor - P:[ 30.5, 5.5, 0 ]. Эта строка неявно
+преобразует Vector3 transform.position в Vector2, а затем вызывает на нем
+Vector2Int.FloorToInt(), что дает Vector2[ 35, 5 ]. Затем это значение
+присваивается mapLoc, который используется в качестве координат для размещения этой
+LockedDoor в массиве _LOCKED_DOORS.
+    - d. OnCollisionEnter2D() будет удалена в более позднем листинге кода, но здесь она
+полезна для проверки того, что все работает.  
+
+4. Сохраните все в Visual Studio, вернитесь в Unity и нажмите «Play».  
+
+Теперь вы должны иметь возможность подвести Dray к LockedDoor, и она исчезнет, как только вы
+коснетесь ее. Далее мы расширим это, чтобы сделать многоразовую LockedDoor, которую можно
+будет подставлять. Для этого нам нужно создать интерфейс ISwappable для всех GameObjects,
+которые можно подставлять с помощью TileSwap.  
+
+### Интерфейс ISwappable [!toc]
+Большинству GameObjects, которые будут заменяться с помощью TileswapManager, потребуется
+получить от менеджера некоторую информацию о том, какую плитку они заменяют. Вместо того, чтобы
+создавать суперкласс для стольких очень разных вещей, в данном случае имеет смысл написать
+интерфейс.  
+
+1. Создайте новый скрипт на C# в папке « » под названием ISwappable (первый символ в
+названии скрипта - это I, обозначающее интерфейс; названия интерфейсов часто начинаются
+с I).
+2. Откройте скрипт ISwappable в Visual Studio и удалите из него все содержимое.
+3. Введите код из листинга. Как и все интерфейсы, ISwappable не расширяет
+MonoBehaviour и не является классом.  
+
+        Листинг ISwappable.cs
+```c#
+using UnityEngine;
+
+public interface ISwappable {
+    GameObject guaranteedDrop { get; set; }
+    int tileNum { get; }
+    void Init(int fromTileNum, int tileX, int tileY);
+}
+```
+
+Вот и все. Теперь вы будете использовать tileNum и Init() для LockedDoors, а
+guaranteedDrop будет важен для врагов позже.
+    - tileNum - номер плитки, которая должна отображаться на этой LockedDoor. Это позволяет
+GameObject LockedDoor выглядеть как любая из шести плиток запертой двери (это те плитки,
+которые вы видите в левой части рисунка).
+    - Init() - этот метод вызывается для любого объекта ISwappable сразу после того,
+как объект GameObject, который вставляется на смену, будет инстанциирован (см. `// b` в
+листинге кода).
+    - guaranteedDrop - нам нужно, чтобы некоторые враги гарантированно оставляли ключ
+после своей гибели. Это свойство обеспечит именно это.
+Теперь реализуем ISwappable в LockedDoor.  
+
+4. Откройте скрипт LockedDoor в Visual Studio и добавьте код.  
+        Листинг LockedDoor.cs
+```c#
+public class LockedDoor : MonoBehaviour, ISwappable { // a
+    …
+
+    void OnCollisionEnter2D( Collision2D coll ) { … }
+
+    //- Implementation of ISwappable -
+    public GameObject guaranteedDrop { get; set; } // b
+
+    public int tileNum { get; private set; } // c
+
+    public void Init( int fromTileNum, int tileX, int tileY ) {
+        tileNum = fromTileNum;
+
+        // Get the Sprite for this SpriteRenderer
+        SpriteRenderer sRend = GetComponent<SpriteRenderer>();
+        sRend.sprite = TilemapManager.DELVER_TILES[fromTileNum].sprite; // d
+
+        // Position this GameObject correctly
+        transform.position = new Vector3( tileX, tileY, 0 ) + MapInfo.OFFSET; // e
+    }
+}
+```
+
+    - a. Обязательно добавьте «, ISwappable» в объявление класса LockedDoor. Слово
+ISwappable будет подчеркнуто красным в Visual Studio до тех пор, пока вы не реализуете
+все требования интерфейса.
+    - b. Это автоматическое свойство guaranteedDrop выполняет требование интерфейса
+ISwappable, согласно которому LockedDoor должен включать свойство
+guaranteedDrop, даже если мы не собираемся использовать его для LockedDoors.
+    - c. ISwappable также требует наличия публичного метода get для tileNum, но не
+ограничивает нас в использовании частного (или публичного) метода set. Автоматическое
+свойство с частным методом set отлично подходит для данной ситуации.
+    - d. Именно из-за этой строки TilemapManager должен вызывать LoadTiles() в рамках
+Awake(). Если бы он этого не делал, то при вызове MapInfo.Start() и перестановке
+всех тайлов DELVER_TILES по-прежнему был бы равен null.
+    - e. Как упоминалось в предыдущей главе (в листинге кода 35.1 // c), MapInfo.OFFSET
+выровняет этот GameObject по сетке Tilemap. Добавление +0.5 в направлениях X и Y от OFFSET
+помещает центр GameObject LockedDoor в центр ячейки сетки в Tilemap (выравнивая его с
+плиткой на карте). Затем в LockedDoor.Start() это местоположение округляется в
+меньшую сторону, чтобы вернуться к целочисленному местоположению плитки в массиве
+_LOCKED_DOORS (см. листинг кода `// c`).
+
+### Создание префабов Skeletos и LockedDoor [!toc]
+Пришло время преобразовать Skeletos и LockedDoor из GameObjects в иерархии в префабы.  
+
+1. Перетащите Skeletos из иерархии в папку Prefabs на панели Project.
+2. Перетащите LockedDoor из иерархии в папку _Prefabs.
+3. Удалите оставшийся экземпляр LockedDoor из иерархии (но оставьте Skeletos в иерархии).
+4. Сохраните сцену.
+5. Выберите Grid в иерархии.
+6. В компоненте TileSwapManager (Script) установите для всех шести TileSwap-элементов
+LockedDoor значение SwapPrefab, соответствующее префабу LockedDoor в папке _Prefabs (как
+показано на рисунке).
+7. Сохраните сцену.
+Теперь вы готовы добавить дополнительные элементы в код TileSwap.
+
+### Использование ISwappable.Init() [!toc]
+Здесь вы введете код в середину функции TileSwapManager.SWAP_TILES().
+
+1. Откройте файл TileSwapManager в Visual Studio и внесите изменения.  
+        Листинг кода TileSwapManager.cs
+```c#
+public class TileSwapManager : MonoBehaviour {
+    …
+
+    public static void SWAP_TILES(int[,] map) {
+        if (TILE_SWAP_DICT == null) S.BuildTileSwapDict();
+
+        int fromTileNum;
+        TileSwap tSwap;
+        // Iterate through each tileNum in the map
+        for (int i = 0; i < map.GetLength(0); i++) {
+            for (int j = 0; j < map.GetLength(1); j++) {
+                fromTileNum = map[i, j];
+
+                if (TILE_SWAP_DICT.ContainsKey(fromTileNum)) {
+                    tSwap = TILE_SWAP_DICT[fromTileNum];
+                    map[i, j] = tSwap.toTileNum;
+
+                    // Instantiate and Init the swapPrefab ISwappable // a
+                    GameObject go = Instantiate<GameObject>(tSwap.swapPrefab);
+                    ISwappable iSwap = go.GetComponent<ISwappable>();
+                    if (iSwap != null) { // b
+                        iSwap.Init(fromTileNum, i, j);
+                        iSwap.guaranteedDrop = tSwap.guaranteedDrop;
+                    } else {
+                        go.transform.position = new Vector3(i, j, 0) + MapInfo.OFFSET; // c
+                    }
+                }
+            }
+        }
+    }
+}
+```
+    - a. Создается экземпляр swapPrefab из TileSwap для данного fromTileNum.
+    - b. Если к нему прикреплен компонент, реализующий ISwappable, то для этого компонента
+вызывается Init().
+    - c. Если компонент ISwappable не найден, то GameObject go перемещается в позицию i, j
+(и в каждом направлении добавляется MapInfo.OFFSET равный +0.5 для выравнивания по
+сетке). Это заменяет настройку позиции, которая происходит в реализациях
+ISwappable.Init().
+2. Сохраните все скрипты в Visual Studio, вернитесь в Unity и нажмите «Play».  
+
+Теперь Дрей может бродить по подземелью и сталкиваться с LockedDoors, которые исчезают при
+прикосновении. Первую LockedDoor вы встретите в северном проходе комнаты справа от стартовой
+комнаты. Это отлично подходит для тестирования, но в этом прототипе мы хотим, чтобы Дрей
+тратил ключ для открытия запертой двери, поэтому нам нужно будет добавить некоторый код в
+классы Dray и LockedDoor.

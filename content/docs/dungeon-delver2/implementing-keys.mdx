@@ -1,0 +1,385 @@
+---
+title: Реализация ключей и открытие дверей
+description: Дрей должен будет носить с собой ключи, а Запертые двери должны иметь возможность видеть эту информацию.
+---
+
+Но им не нужно знать ничего о классе Дрей, кроме количества ключей, которые у него
+есть, и направления, в котором он смотрит. Если Dray одновременно касается и обращен к
+LockedDoor, и у него есть хотя бы один ключ, то LockedDoor уменьшит количество ключей у Dray и
+уничтожит себя. Это немного усложняется из-за дверей, открывающихся вверх и вниз (направления
+1 и 3), поскольку каждая из них представляет собой пару плиток, но мы справимся и с этим.
+
+### IKeyMaster [!toc]
+
+В предыдущих главах вы видели, как интерфейсы C# используются для обработки нескольких
+разных классов, как если бы они были одного типа. Здесь мы будем использовать IKeyMaster
+немного по-другому. Как упоминалось ранее, единственное, что LockedDoor нужно знать о Dray,
+- это его сторона (facing) и количество ключей (keyCount). Поэтому в данном случае мы будем
+использовать интерфейс IKeyMaster для инкапсуляции - это идея изоляции классов друг от
+друга, чтобы они могли видеть или изменять только ту информацию, к которой им действительно
+нужен доступ.  
+
+У Dray есть много общедоступных полей и методов, но если LockedDoor считает, что имеет
+дело с экземпляром IKeyMaster (а не с экземпляром Dray), он может получить доступ только к
+общедоступным методам и свойствам интерфейса IKeyMaster. Это защищает все остальные
+общедоступные поля и методы Dray от доступа со стороны LockedDoor.  
+
+Другая причина, по которой я решил реализовать интерфейс IKeyMaster, - это показать вам пример
+реализации нескольких интерфейсов в одном классе.
+
+1. Создайте новый скрипт C# с именем IKeyMaster в папке в папке *__Scripts*.
+2. Откройте файл Keymaster в Visual Studio и удалите весь скрипт.
+3. Введите код из листинга.  
+        Листинг IKeyMaster.cs
+```c#
+using UnityEngine;
+
+public interface IKeyMaster {
+    int keyCount { get; set; } // a
+    Vector2 pos { get; } // b
+    int GetFacing(); // c
+}
+```
+
+    - a. keyCount позволит вам получать и устанавливать количество ключей.
+    - b. pos возвращает нам положение IKeyMaster в мировой системе координат, которое будет
+использоваться для определения направления, необходимого для открытия LockedDoor.
+    - c. GetFacing() уже реализована в классе Dray (благодаря IFacingMover).
+4. Сохраните IKeyMaster и откройте скрипт Dray. Введите код.  
+        Листинг Dray.cs
+```c#
+public class Dray : MonoBehaviour, IFacingMover, IKeyMaster { // a
+    …
+
+    [Header("Dynamic")]
+    public int dirHeld = -1; // Direction of the held movement key
+    public int facing = 1; // Direction Dray is facing
+    public eMode mode = eMode.idle;
+    [SerializeField] [Range(0,20)]
+    private int _numKeys = 0; // b
+
+    private float timeAtkDone = 0;
+    …
+
+
+    //- Implementation of IFacingMover -
+    public int GetFacing() {return facing;} // c
+    …
+
+    public Vector2 GetGridPosInRoom(float mult = -1) {
+        return inRm.GetGridPosInRoom( mult );
+    }
+
+    //- Implementation of IKeyMaster -
+    public int keyCount { // d
+        get {return _numKeys;}
+        set {_numKeys = value;}
+    }
+
+    public Vector2 pos { // e
+        get {return (Vector2) transform.position;}
+    }
+}
+```
+
+    - a. Добавьте IKeyMaster в список интерфейсов, реализуемых классом Dray.
+    - b. Частная переменная int _numKeys хранит количество ключей, находящихся в
+распоряжении Dray. Атрибут [SerializeField] над ней позволяет просматривать и
+изменять _numKeys в инспекторе Unity, как если бы она была публичной (это какая-то
+сумасшедшая магия Unity, но она работает!). Атрибут [Range(0,20)] заставляет Inspector
+отображать ползунок, который позволяет вам установить для _numKeys значение от 0 до 20
+(включительно).
+    - c. GetFacing() уже реализовано в классе Dray (благодаря IFacingMover),
+поэтому вам не нужно ничего дополнительного, чтобы реализовать его для
+IKeyMaster.
+    - d. keyCount реализован как простое публичное свойство.
+    - e. pos просто преобразует transform.position в Vector2 и возвращает его.
+5. Сохраните скрипт Dray.  
+
+Теперь вы готовы изменить LockedDoor, чтобы использовать и IKeyMaster.
+
+### Запертые двери, требующие ключей [!toc]
+Пришло время запрашивать ключи у Dray. Прежде чем мы сможем сделать что-то большее, нам
+нужно предоставить LockedDoors больше информации о том, как они работают. Чтобы хранить эту
+информацию, мы создадим общедоступный вложенный класс с именем DoorInfo, который
+будет хранить всю информацию, необходимую для правильного открытия двери (примечание: пока
+не вводите этот код; на данный момент это всего лишь пример):
+
+```c#
+public class LockedDoor {
+    public class DoorInfo {
+        public int tileNum; // TileNum of the Sprite for this door type
+        public Vector2Int otherHalf; // Relative loc in _LOCKED DOORS of otherHalf
+    }
+}
+```
+
+Чтобы заблокированная дверь разблокировалась, у Дрея должен быть ключ, и он должен быть обращен
+лицом к двери (мы будем проверять это направление с помощью нового метода
+GetRequiredFacingToOpenDoor()). Затем будет проверен
+будет проверен _DOOR_INFO_DICT, чтобы определить, есть ли у этой двери otherHalf. Верхняя
+и нижняя половины двери занимают по две плитки, поэтому каждая из этих плиток является
+otherHalf для другой. Информация о otherHalf в DoorInfo содержит положение otherHalf
+относительно каждой плитки, так что разблокировка одной половины двери может разблокировать
+и другую половину без использования другого ключа. Для левой и правой дверей otherHalf
+равно Vector2Int.zero, что указывает на то, что эта дверь состоит только из одной плитки.
+DoorInfo будет вложенным классом, то есть классом, определённым внутри другого класса.
+Класс DoorInfo вложен в LockedDoor (в точке // c в листинге кода 36.10), поскольку мы
+не предполагаем использовать его за пределами скрипта LockedDoor. Поскольку это публичный
+класс, классы вне LockedDoor могут видеть DoorInfo, но для обращения к классу извне
+LockedDoor необходимо квалифицировать имя, добавив в начало LockedDoor (например,
+LockedDoor.DoorInfo).  
+
+1. Откройте скрипт LockedDoor в Visual Studio и добавьте код.  
+    Листинг кода LockedDoor.cs
+
+```c#
+public class LockedDoor : MonoBehaviour, ISwappable {
+    static private LockedDoor[,] _LOCKED_DOORS;
+    static private Dictionary<int, DoorInfo> _DOOR_INFO_DICT; // a
+
+    // These consts are based on the default DelverTiles image.
+    // If you rearrange DelverTiles you may need to change it!
+    //- LockedDoor tileNums - // b
+    const int LOCKED_R = 73;
+    const int LOCKED_UR = 57;
+    const int LOCKED_UL = 56;
+    const int LOCKED_L = 72;
+    const int LOCKED_DL = 88;
+    const int LOCKED_DR = 89;
+
+    public Vector2Int mapLoc; // Coords on MapInfo.MAP where this tile is
+
+    /// <summary>
+    /// This public DoorInfo class is defined *inside* of the LockedDoor class.
+    /// </summary>
+    public class DoorInfo { // c
+        public int tileNum;
+        public Vector2Int otherHalf;
+
+        /// <summary>
+        /// This constructor for the DoorInfo class constructs a new DoorInfo
+        /// AND adds it to LockedDoor._DOOR_INFO_DICT
+        /// </summary>
+        /// <param name="tN">tileNum of the door Sprite</param>
+        /// <param name="oH">relative location of the otherHalf door</param>
+        public DoorInfo( int tN, Vector2Int oH ) { // d
+            tileNum = tN;
+            otherHalf = oH;
+            if ( _DOOR_INFO_DICT != null ) {
+                _DOOR_INFO_DICT.Add( tileNum, this ); // e
+            }
+        }
+    }
+
+    void Start() {
+        if ( _LOCKED_DOORS == null ) {
+            BoundsInt mapBounds = MapInfo.GET_MAP_BOUNDS();
+            _LOCKED_DOORS = new LockedDoor[mapBounds.size.x, mapBounds.size.y];
+            InitDoorInfoDict(); // f
+        }
+            mapLoc = Vector2Int.FloorToInt(transform.position);
+            _LOCKED_DOORS[mapLoc.x, mapLoc.y] = this;
+    }
+
+    /// <summary>
+    /// Initialize the _DOOR_INFO_DICT Dictionary that holds information about
+    /// the facing required to open each door and the relative location of the
+    /// otherHalf door, if any (e.g., lockedUL and lockedUR are otherHalves)
+    /// </summary>
+    void InitDoorInfoDict() {
+        _DOOR_INFO_DICT = new Dictionary<int, DoorInfo>(); // g
+
+        new DoorInfo(LOCKED_R, Vector2Int.zero); // h
+        new DoorInfo(LOCKED_UR, Vector2Int.left);
+        new DoorInfo(LOCKED_UL, Vector2Int.right);
+        new DoorInfo(LOCKED_L, Vector2Int.zero);
+        new DoorInfo(LOCKED_DL, Vector2Int.right);
+        new DoorInfo(LOCKED_DR, Vector2Int.left);
+    }
+
+    void OnCollisionEnter2D( Collision2D coll ) { … }
+    …
+}
+```
+
+- a. Частный статический словарь _DOOR_INFO_DICT будет содержать значения DoorInfo
+, на которые можно ссылаться с помощью ключа tileNum.
+- b. Эти константы хранят номера шести плиток с запертыми дверями. Создание таких констант
+позволяет нам использовать их повсеместно в классе ` LockedDoor`, благодаря чему нам
+не нужно запоминать, какой номер соответствует какой плитке с запертой дверью.  
+
+>Если после завершения этой главы вы переместите плитки на изображении DelverTiles, вам нужно будет изменить эти константы, но замечательно то, что это единственное место, где вам нужно их изменить, чтобы остальная часть скрипта LockedDoor работала так же с другими номерами плиток.  
+
+
+- c. Вот вложенный класс DoorInfo. Внутри LockedDoor на него можно ссылаться просто как
+на «DoorInfo», но за пределами класса LockedDoor () вам нужно будет использовать
+«LockedDoor.DoorInfo».  
+
+>Здесь стоит отметить, что вместо _DOOR_INFO_DICT я мог бы создать `Dictionary<int, Vector2Int> _OTHER_HALF_LOCS` для хранения значений Vector2Int otherHalf в словаре с ключами по tileNum, но я действительно хотел показать вам вложенные классы в этой главе.  
+
+- d. Это метод-конструктор для DoorInfo. Вы раньше не видели конструкторов, потому что они не
+допускаются в подклассах MonoBehaviour, но они очень распространены в C# (когда C#
+используется вне Unity). Конструктор - это метод, вызываемый для создания экземпляра
+любого класса; он имеет то же имя, что и класс, и не имеет типа возвращаемого значения
+(даже не void - для конструкторов тип возвращаемого значения вообще не указывается).
+Этот конструктор класса DoorInfo требует в качестве параметров int и Vector2Int,
+которые затем присваиваются полям DoorInfo. Поскольку добавление себя в
+_DOOR_INFO_DICT является необычным действием, оно особо отмечено в документации
+`<summary>`.
+- e. Одна из интересных возможностей вложенных классов заключается в том, что они могут
+обращаться к частным полям охватывающего класса. Эти строки конструктора DoorInfo
+ссылаются на статическое частное поле _DOOR_INFO_DICT охватывающего класса
+LockedDoor. Каждый раз, когда создается новый экземпляр DoorInfo, он добавляет себя в
+словарь _DOOR_INFO_DICT.
+- f. Не забудьте добавить здесь вызов InitDoorInfoDict(). Необходимо заполнить
+_DOOR_INFO_DICT одновременно с созданием _LOCKED_DOORS.
+Если вы хотите еще раз проверить, что _DOOR_INFO_DICT был настроен правильно, вы
+можете поставить точку останова на этой строке, подключить отладчик к Unity, а затем нажать
+«Play». Когда отладчик остановится на этой строке, вы можете нажать кнопку «Step Over» в
+отладчике, и тогда вы увидите все шесть экземпляров DoorInfo в _DOOR_INFO_DICT.
+- g. Здесь инициализируется словарь _DOOR_INFO_DICT.
+- h. Здесь мы могли бы воспользоваться тем же приёмом, что и в случае с TileSwaps: определить
+DoorInfos как список в инспекторе Unity, а затем построить на его основе словарь. Однако
+благодаря тому, что конструктор DoorInfo автоматически добавляет новый объект
+DoorInfo в словарь _DOOR_INFO_DICT, эти шесть строк представляют собой очень
+компактный способ заполнения данных.  
+
+Теперь, когда вы заполнили _DOOR_INFO_DICT информацией, пришло время заменить метод
+OnCollisionEnter2D(), который мы использовали для тестирования, на метод
+OnCollisionStay2D(), который будет работать с интерфейсом IKeyMaster, реализованным
+Dray.  
+
+2. Откройте скрипт LockedDoor в Visual Studio и внесите изменения в код, выделенные жирным
+шрифтом, как показано в листинге кода.  
+        Листинг кода LockedDoor.cs
+```c#
+public class LockedDoor : MonoBehaviour, ISwappable {
+    …
+
+    void InitDoorInfoDict() { … }
+
+    // void OnCollisionEnter2D( Collision2D coll ) { // a
+    // if (coll.gameObject.GetComponent<Dray>() != null) Destroy(gameObject);
+    // }
+
+    /// <summary>
+    /// Every Physics update that this GameObject is in contact with Dray, check
+    /// to see if Dray has a key and is facing the right direction. If so, this
+    /// LockedDoor and its otherHalf door are destroyed.
+    /// </summary>
+    /// <param name="coll">Collision2D information</param>
+    void OnCollisionStay2D( Collision2D coll ) {
+        // Return if this LockedDoor’s location in _LOCKED_DOORS is already null
+        if ( GET_LOCKED_DOOR( mapLoc ) == null ) return; // b
+
+        IKeyMaster iKeyM = coll.gameObject.GetComponent<IKeyMaster>();
+        if ( iKeyM == null ) return;
+
+        if ( !_DOOR_INFO_DICT.ContainsKey( tileNum ) ) {
+            Debug.LogError( "_DOOR_INFO_DICT has no key " + tileNum );
+            return;
+        }
+        DoorInfo myDoor = _DOOR_INFO_DICT[tileNum];
+        int reqFacing = GetRequiredFacingToOpenDoor( iKeyM ); // c
+        if ( iKeyM.keyCount > 0 && iKeyM.GetFacing() == reqFacing ) {
+            // Decrement the number of keys held by this IKeyMaster
+            iKeyM.keyCount--;
+            // Destroy this Door
+            Destroy(gameObject);
+            // Clear this mapLoc in _LOCKED_DOORS
+            _LOCKED_DOORS[mapLoc.x, mapLoc.y] = null;
+
+            // Destroy otherHalf
+            if ( myDoor.otherHalf == Vector2Int.zero ) return; // d
+            Vector2Int otherHalfLoc = mapLoc + myDoor.otherHalf;
+            LockedDoor otherLD = GET_LOCKED_DOOR( otherHalfLoc );
+            if ( otherLD != null ) {
+                Destroy( otherLD.gameObject );
+                _LOCKED_DOORS[otherHalfLoc.x, otherHalfLoc.y] = null; // e
+            }
+        }
+    }
+
+    /// <summary>
+    /// Uses relative positions of iKeyM and this LockedDoor to determine which
+    /// direction iKeyM must face to be looking at the door. A LockedDoor will
+    /// not open unless the iKeyM is facing it.
+    /// </summary>
+    /// <param name="iKeyM">The iKeyM that has collided with this door</param>
+    /// <returns>An int [0..3] representing the facing required</returns>
+    int GetRequiredFacingToOpenDoor( IKeyMaster iKeyM ) {
+        // Because A - B looks at A, relPos is the direction iKeyM needs to face
+        Vector2 relPos = (Vector2) transform.position - iKeyM.pos;
+        // It is impossible for relPos.magnitude to be much less than 1
+        if ( Mathf.Abs( relPos.x ) > Mathf.Abs( relPos.y ) ) { // f
+            return ( relPos.x > 0 ) ? 0 : 2; // 0 = right, 2 = left
+        } else {
+            return ( relPos.y > 0 ) ? 1 : 3; // 1 = up, 3 = down
+        }
+    }
+
+    /// <summary>
+    /// Gets the LockedDoor at a specific location in the _LOCKED_DOORS 2D array
+    /// or null if there is nothing in the array at that location.
+    /// </summary>
+    /// <param name="mLoc">The 2D location to look for the LockedDoor</param>
+    /// <returns>The LockedDoor at that location or null</returns>
+    static LockedDoor GET_LOCKED_DOOR( Vector2Int mLoc ) {
+        if ( _LOCKED_DOORS == null ) return null; // g
+        if ( mLoc.x < 0 || mLoc.x >= _LOCKED_DOORS.GetLength( 0 ) ) return null;
+        if ( mLoc.y < 0 || mLoc.y >= _LOCKED_DOORS.GetLength( 1 ) ) return null;
+        // This is a valid location
+        return _LOCKED_DOORS[mLoc.x, mLoc.y];
+    }
+
+    //- Implementation of ISwappable -
+    public GameObject guaranteedDrop { get; set; }
+    …
+}
+```
+
+- a. Пожалуйста, удалите весь метод OnCollisionEnter2D().
+- b. Мы заменили OnCollisionEnter2D() на OnCollisionStay2D(), чтобы учесть
+ситуацию, когда у Дрея есть ключ, но он стоит лицом не в ту сторону. Если Дрей затем
+повернется в нужном направлении, чтобы открыть дверь, но при этом будет по-прежнему
+соприкасаться с дверью, то OnCollisionEnter2D() больше не вызовутся, а вот
+OnCollisionStay2D() - вызовутся.
+Первые несколько строк этого метода представляют собой проверки, необходимые для
+определения того, следует ли выполнять остальную часть метода.
+- c. Здесь вызывается метод с подходящим названием GetRequiredFacingToOpenDoor(),
+чтобы определить, в какую сторону Дрей должен повернуться, чтобы открыть эту дверь.
+Следующая строка проверяет, есть ли у Дрея ключ и правильно ли он стоит.
+- d. Если значение otherHalf myDoor равно [ 0, 0 ], то эта строка завершает работу. В противном
+случае
+myDoor.otherHalf добавляется в mapLoc текущей плитки, и
+проверяется _LOCKED_DOORS, чтобы увидеть, есть ли другой экземпляр LockedDoor в
+этом месте.
+- e. Другой GameObject LockedDoor уничтожается, а местоположение otherHalfLoc
+в _LOCKED_DOORS устанавливается в null. Установка обоих значений в
+_LOCKED_DOORS на null предотвращает ситуацию, при которой Дрей мог бы
+столкнуться с обеими половинами двери одновременно, и обе половины могли бы взять
+ключ.
+- f. relPos хранит относительное положение двери по отношению к IKeyMaster, Dray.
+Другими словами, это короткий вектор, указывающий от Dray к этой LockedDoor. Если
+абсолютное значение relPos.x больше абсолютного значения relPos.y, то вектор
+указывает больше по горизонтали, чем по вертикали. Тогда, если relPos указывает вправо (т.
+е. relPos.x > 0), Дрей должен быть повернут в направлении 0 (вправо), чтобы открыть
+дверь.
+- g. Поскольку метод GET_LOCKED_DOOR() может быть вызван в любой момент, выполняются
+три проверки: сначала проверяется, не равно ли _LOCKED_DOORS нулю, а затем - является
+ли переданный параметр mLoc действительным местоположением в двумерном массиве
+_LOCKED_DOORS. Если все эти проверки пройдены, возвращается LockedDoor по адресу
+mLoc (что возвращает null для любых пустых ячеек в массиве).  
+
+3. Сохраните все скрипты в Visual Studio, вернитесь в Unity и нажмите «Play».  
+
+Дрей может ходить из комнаты в комнату и сталкиваться с LockedDoors. Сначала Дрей не сможет
+открыть двери, так как в начале игры у него нет ключей.
+4. Выберите Dray в иерархии и в компоненте Dray (Script) инспектора установите numKeys
+равным 6. (Поскольку вы внесли это изменение во время воспроизведения игры, значение
+numKeys у Dray вернется к 0, когда вы остановите воспроизведение.)  
+
+Если теперь вы столкнетесь с LockedDoor, дверь откроется, и один из ключей Дрея будет извлечен. С
+шестью ключами, которые вы ему дали, Дрей может открыть все запертые двери в подземелье Орла.
+5. Остановите воспроизведение и сохраните сцену.

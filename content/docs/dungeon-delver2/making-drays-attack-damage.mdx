@@ -1,0 +1,208 @@
+---
+title: Нанесение урона врагам атаками Дрея
+description: Дрей уже некоторое время умеет махать мечом; теперь пришло время придать этому мечу силу.
+---
+
+1. Выберите Дрея в иерархии:
+    - a. В верхней части инспектора Dray установите Layer в Dray. Это задает физический слой Dray.
+(Сделайте это, даже если Layer уже установлен в Dray, чтобы убедиться, что все дочерние
+объекты также находятся в слое Dray.)
+    - b. Когда появится запрос, выберите «Да, изменить дочерние объекты». Это приведет
+к тому, что все дочерние GameObjects Дрея также переместятся в физический слой
+Дрея.
+2. Выберите Sword в иерархии. Это внук Dray, поэтому вы можете найти его, раскрыв треугольники
+раскрытия Dray. (Вы также можете найти его, введя «Sword» в поле поиска в верхней части
+иерархии, хотя я настоятельно рекомендую использовать треугольники раскрытия, потому что
+позже вам придется очистить поиск — нажав на x в поле поиска — если вы хотите иметь
+возможность выбрать что-либо еще в иерархии).
+3. Прикрепите скрипт DamageEffect к Sword.
+    - a. Установите урон DamageEffect (Script) равным 2. Меч должен быть достаточно мощным.
+    - b. Параметр knockback должен оставаться true (отмеченным). Мы определенно хотим,
+чтобы меч Дрея отбрасывал врагов.
+4. Еще раз проверьте, что у Box Collider 2D на мече Дрея установлен флажок Is Trigger (true).
+5. Сохраните сцену.
+
+### Изменение врага для получения урона [!toc]
+Учитывая широкое использование интерфейсов C# в этой главе, вы, возможно, подумываете о
+создании интерфейса IDamageable, который мог бы работать как для Дрея, так и для врагов, а также
+скрипта Damage, который можно было бы прикрепить к обоим (как вы делали со скриптом
+GridMove). Конечно, вы могли бы это сделать, но я решил не делать этого по двум основным
+причинам:  
+    - Дрей сталкивается с врагами при OnCollisionEnter2D(), тогда как враги сталкиваются с
+мечом Дрея при OnTriggerEnter2D() (поскольку коллайдер меча является триггером).
+    - Все враги уже являются подклассами Enemy, поэтому добавление кода в Enemy позволит
+обработать всех из них.
+
+1. Откройте скрипт Enemy в Visual Studio и добавьте код из листинга.  
+      Листинг кода Enemy.cs
+```c#
+public class Enemy : MonoBehaviour {
+    …
+    [Header("Inscribed: Enemy")]
+    public float maxHealth = 1;
+    public float knockbackSpeed = 10; // a
+    public float knockbackDuration = 0.25f;
+    public float invincibleDuration = 0.5f;
+
+    [Header("Dynamic: Enemy")]
+    public float health;
+    public bool invincible = false; // a
+    public bool knockback = false;
+
+    private float invincibleDone = 0; // a
+    private float knockbackDone = 0;
+    private Vector2 knockbackVel;
+
+    protected Animator anim;
+    protected Rigidbody2D rigid;
+    protected SpriteRenderer sRend;
+
+    protected virtual void Awake() { … }
+
+    protected virtual void Update() { // b
+        // Check knockback and invincibility
+        if (invincible && Time.time > invincibleDone) invincible = false;
+            sRend.color = invincible ? Color.red : Color.white;
+        if ( knockback ) {
+            rigid.velocity = knockbackVel;
+            if (Time.time < knockbackDone) return;
+        }
+
+        anim.speed = 1; // c
+        knockback = false;
+    }
+
+    void OnTriggerEnter2D( Collider2D colld ) { // d
+        if (invincible) return; // Return if this can’t be damaged
+        DamageEffect dEf = colld.gameObject.GetComponent<DamageEffect>();
+        if (dEf == null) return; // If no DamageEffect, exit this method
+
+        health -= dEf.damage; // Subtract the damage amount from health
+        if (health <= 0) Die(); // e
+
+        invincible = true; // Make this invincible
+        invincibleDone = Time.time + invincibleDuration;
+
+        if (dEf.knockback) { // Knockback this Enemy
+            Vector2 delta;
+            // Is an IFacingMover attached to the Collider that triggered this?
+            IFacingMover iFM = colld.GetComponentInParent<IFacingMover>(); // f
+            if ( iFM != null ) {
+                // Determine the direction of knockback from the iFM’s facing delta = directions[ iFM.GetFacing() ];
+            } else {
+                // Determine the direction of knockback from relative position
+                delta = transform.position - colld.transform.position;
+                if (Mathf.Abs(delta.x) >= Mathf.Abs(delta.y)) {
+                    // Knockback should be horizontal
+                    delta.x = (delta.x > 0) ? 1 : -1;
+                    delta.y = 0;
+                } else {
+                    // Knockback should be vertical
+                    delta.x = 0;
+                    delta.y = (delta.y > 0) ? 1 : -1;
+                }
+            }
+
+            // Apply knockback speed to the Rigidbody
+            knockbackVel = delta * knockbackSpeed;
+            rigid.velocity = knockbackVel;
+
+            // Set mode to knockback and set time to stop knockback
+            knockback = true;
+            knockbackDone = Time.time + knockbackDuration;
+            anim.speed = 0;
+        }
+    }
+
+    void Die() { // g
+        Destroy(gameObject);
+    }
+}
+```
+
+- a. Большинство добавленных полей совпадают между классом Enemy и изменениями, которые
+вы недавно внесли в Dray. Единственное существенное отличие заключается в том, что здесь
+параметр knockback имеет тип bool, тогда как в скрипте Dray он был представлен в виде
+Dray.eMode.
+- b. Этот метод Update() объявлен как protected virtual, чтобы его можно было
+переопределить в подклассах, таких как Skeletos. При работе с сообщениями Unity
+MonoBehaviour, если вы не используете protected virtual в суперклассе и
+protected override в подклассе, то вы не сможете вызвать base.Update() в
+подклассе. В этом случае вы будете вызывать base.Update() в листинге кода. 
+
+>Сообщения Unity MonoBehaviour включают Update(), Start(), Awake(), FixedUpdate(), LateUpdate(), OnCollisionEnter() и т. д. Подробнее см. в документации в разделе «Сообщения» по адресу https://docs.unity3d.com/2020.3/Documentation/ScriptReference/MonoBehaviour.html  
+
+- c. Эти две строки выполняются только в том случае, если отталкивание закончилось.
+- d. Этот метод OnTriggerEnter() используется, потому что у меча Дрея есть коллайдер-
+триггер. Обратите внимание, что в OnTriggerEnter() передается Collider, а не
+Collision. В остальном большая часть скрипта очень похожа на то, что вы написали в классе
+Dray.
+- e. Если здоровье этого врага упадет до 0 или ниже, будет вызван новый метод Die().
+- f. Здесь мы ищем IFacingMover на GameObject коллайдера colld или на любом из его
+родителей. В большинстве случаев триггерным коллайдером, поражающим врага, будет меч
+Дрея, поэтому Дрей будет возвращен в качестве IFacingMover, и если iFM не равен null,
+мы можем отбросить врага в направлении, в котором смотрит IFacingMover, что выглядит
+лучше для игроков в крайних случаях, когда Дрей не находится в очевидном кардинальном
+направлении относительно этого врага. Если IFacingMover не найден, код переключается на
+код относительного положения, который класс Dray использует для своего отталкивания.
+- g. Die() пока не представляет собой ничего особенного, но последующие модификации
+позволят врагам сбрасывать предметы, когда их убивают.
+
+2. Сохраните скрипт Enemy.
+3. Откройте скрипт Skeletos в Visual Studio и внесите несколько изменений.  
+        Листинг кода Skeletos.cs
+```c#
+public class Skeletos : Enemy, IFacingMover {
+    …
+    protected override void Awake() { … }
+
+    protected override void Update() { // a 
+        base.Update(); //b 
+        if (knockback) return; // c
+
+        if (Time.time >= timeNextDecision) {
+        DecideDirection();
+        }
+        // rigid is inherited from Enemy, which defines it in Enemy.Awake()
+        rigid.velocity = directions[facing] * speed;
+    }
+    …
+}
+```
+
+    - a. Вы должны добавить protected override в начало объявления метода Update(),
+чтобы он переопределил базовый метод Update() в классе Enemy.
+    - b. Первая строка этого метода Update() вызывает метод базового класса
+Enemy.Update().
+    - c. Если этот Skeletos отбрасывается назад, то код возвращается после вызова метода
+base.Update(), не позволяя Skeletos изменить направление или скорректировать
+скорость до тех пор, пока отбрасывание не закончится.
+4. Сохраните все скрипты в Visual Studio и вернитесь в Unity.
+5. Выберите Skeletos в иерархии:
+    - a. В верхней части инспектора Skeletos убедитесь, что для параметра Layer установлено значение
+Enemies.
+    - b. Установите значение maxHealth в инспекторе Skeletos (Script) равным 4. Это позволит
+Skeletos выдержать 2 удара меча Dray (наносящего 2 ед. урона за удар), прежде чем он будет
+уничтожен.  
+
+Этот экземпляр префаба Skeletos теперь настроен именно так, как мы хотим, чтобы были все
+Skeletos, но все, что мы сделали недавно, было применено только к этому экземпляру в качестве
+переопределений. Теперь нам нужно применить эти переопределения обратно к префабу.  
+
+6. В верхней части инспектора Skeletos находится всплывающая кнопка с надписью Overrides.
+    - a. Нажмите эту кнопку «Overrides» (обведена красным на рисунке *a*).
+    - b. Выберите «Apply All» в нижней части всплывающего окна.
+
+<img src="/unity_doc/images/ex145.jpeg" alt="1" style={{  height: 'auto' }} />
+Кнопка «Overrides» в инспекторе экземпляра Skeletos; на изображении b показаны
+окончательные настройки для Skeletos (Script) в префабе Skeletos (включая randomItems) после
+следующих нескольких страниц  
+
+Это применит все замечательные изменения, которые мы внесли в этот один экземпляр Skeletos,
+обратно к префабу Skeletos в папке _Prefabs панели Project. Если вы снова нажмете кнопку Overrides,
+вы увидите надпись «No Overrides», а при выборе префаба Skeletos на панели Project станет видно,
+что теперь он имеет те же компоненты и настройки, что и экземпляр Skeletos в сцене.  
+
+7. Сохраните сцену и нажмите «Play» в Unity.  
+
+Теперь Дрей может атаковать Скелетоса (нажмите клавишу Z), наносить ему урон и отбрасывать назад.

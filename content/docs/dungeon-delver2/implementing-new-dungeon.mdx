@@ -1,0 +1,143 @@
+---
+title: Реализация нового подземелья — Шляпа
+description: Теперь вы реализуете подземелье, которое было примером прототипа в главе 9 «Бумажное прототипирование».
+---
+
+В рамках этого вы также добавите больше TileSwaps, чтобы внести врагов и
+предметы в уровень.  
+
+### Подготовка сцены [!toc]
+Выполните следующие шаги, чтобы подготовить сцену:  
+
+1. Убедитесь, что сцена Scene_ Dungeon открыта в панели «Сцена».
+2. Еще раз проверьте, создали ли вы префабы Skeletos, Key PickUp и Health PickUp. Вы должны
+увидеть их все в папке _Prefabs на панели Project. Если каких-то из них там нет, перетащите их
+из иерархии в папку _Prefabs.
+3. Если они там есть, удалите экземпляры Key, Health и Skeletos из иерархии. Теперь на верхнем
+уровне иерархии должно быть только шесть GameObjects: Main Camera, GUI Camera, Grid, Dray,
+Canvas и Event System (конечно, у Grid, Dray и Canvas также есть свои дочерние объекты).
+4. Выберите Dray в иерархии и установите для параметра «Transform Position» значение P:[ 56, 1.5, 0 ].
+5. Выберите Main Camera в иерархии и установите для параметра Transform Position значение P:[ 56,
+5.5, -10 ].
+6. Выберите Grid в иерархии и в компоненте MapInfo (Script) присвойте текстовый файл
+DelverLevel_Hat из папки Resources панели Project полю delverLevel.
+7. Сохраните сцену и нажмите «Play» в Unity.  
+
+Вы увидите, что игра загрузила совершенно новое подземелье, которое вам предстоит исследовать. В
+первой комнате вы увидите изображение недоступного ключа. Если вы перейдете на одну комнату
+влево, то увидите два изображения врагов Skeletos, но они не двигаются. На данный момент все это
+— просто специальные плитки пола, которые выглядят как враги и предметы. Вам нужно
+настроить TileSwaps для каждого из этих типов плиток и написать код для реализации интерфейса
+ISwappable на классах Enemies и Items.  
+
+>Если вы переместите Дрея вкратчайшем пути влево, в самую дальнюю комнату, то увидите, что одна из плиток врага- Скелетоса также содержит значок ключа. В конечном итоге это станет Скелетосом с ключом в качестве guaranteedDrop  
+
+#### Настройка TileSwaps для врагов и предметов [!toc]
+Теперь вы добавите TileSwaps для врагов и предметов, показанных на рисунке.  
+
+1. Выберите «Grid» в иерархии сцены « » сцены «Scene_Dungeon».
+2. Добавьте дополнительные TileSwaps для тайлов «Key» (192), «Skeletos» (224) и «Skeletos+ Key» (232),
+показанных на рисунке 36.5. Убедитесь, что для всех этих TileSwaps заданы параметры «From #», «To #», «SwapPrefab» и «GuaranteedDrop». Пока не настраивайте GrapplerPickUp (193).  
+
+<img src="/unity_doc/images/ex146.jpeg" alt="1" style={{  height: 'auto' }} />
+Окончательные настройки для всех TileSwaps в этой главе (вы добавите последний
+TileSwap для Grappler PickUp позже в этой главе)  
+
+Если вы нажмете «Play now», то увидите, что статические изображения Skeletos действительно
+заменяются движущимися экземплярами GameObject Skeletos, но мы еще не закончили. Класс
+Skeletos пока не реализует ISwappable, поэтому Init() не вызывается на Skeletos, и Skeletos,
+который должен иметь Key в качестве guaranteedDrop, его не имеет.  
+
+#### Реализация интерфейса ISwappable в Skeletos [!toc]
+Давайте исправим это, реализовав интерфейс ISwappable в классе Enemy. Как подкласс Enemy,
+Skeletos унаследует реализацию ISwappable.  
+
+1. Откройте скрипт Enemy в Visual Studio и внесите изменения.  
+        Листинг кода Enemy.cs
+```c#
+public class Enemy : MonoBehaviour, ISwappable { // a
+    …
+    public float invincibleDuration = 0.5f;
+    // public GameObject guaranteedDrop = null; // b
+    [SerializeField] // b
+    private GameObject _guaranteedDrop = null; // b
+    public List<GameObject> randomItems;
+    …
+
+    void Die() { … }
+
+
+    //———————————————————— Implementation of ISwappable ————————————————————
+    public GameObject guaranteedDrop { // c
+        get {return _guaranteedDrop;}
+        set {_guaranteedDrop = value;}
+    }
+
+    public int tileNum {get; private set;} // d
+
+    public virtual void Init(int fromTileNum, int tileX, int tileY) { // e
+        tileNum = fromTileNum;
+
+        // Position this GameObject correctly
+        transform.position = new Vector3(tileX, tileY, 0) + MapInfo.OFFSET;
+    }
+}
+```
+
+    - a. Вы должны добавить ISwappable в объявление Enemy в качестве интерфейса, который он
+будет реализовывать.
+    - b. Здесь мы преобразуем общедоступное поле guaranteedDrop в общедоступное
+свойство, требуемое интерфейсом ISwappable (свойство находится ниже в `// c`). Мы могли
+бы сделать guaranteedDrop автоматическим свойством, но тогда мы не смогли бы увидеть
+его в инспекторе; вместо этого мы создали частное поле _guaranteedDrop с атрибутом
+[SerializeField] в качестве поля-подложки для нового свойства.
+    - c. Это и есть публичное свойство guaranteedDrop, упомянутое в `// b`.
+    - d. tileNum не выполняет никаких значимых действий в классе Enemy, но мы все равно
+должны реализовать автоматическое свойство, чтобы выполнить требования интерфейса
+ISwappable.
+    - e. Метод Enemy.Init() несколько отличается от метода LockedDoor.Init(), который вы
+написали в листинге кода 36.6, и делает не больше, чем задает местоположение объекта Enemy.
+Метод сделан виртуальным, чтобы его могли переопределять подклассы Enemy.  
+
+2. Сохраните скрипт Enemy, вернитесь в Unity и нажмите «Play».  
+
+Теперь, когда вы реализовали интерфейс ISwappable в Enemy (и в Skeletos посредством
+наследования), Skeletos в крайней левой комнате подземелья Hat должны выпадать ключ, когда вы их
+побеждаете (поскольку Skeletos выглядят одинаково с ключом и без него, вам, возможно, придется
+победить всех в этой комнате, чтобы найти ключ).  
+
+#### Реализация интерфейса ISwappable в PickUp [!toc]
+Мы пока не реализовали интерфейс ISwappable в PickUps, и в этом нет особой необходимости,
+поскольку резервный код в TileSwapManager установит положение любого GameObject, у которого нет компонента ISwappable. Однако в будущем мы, возможно, захотим
+создать PickUp, который будет использовать больше возможностей ISwappable, поэтому
+давайте внесем небольшое изменение в PickUp, чтобы подготовиться к этой возможности и
+обеспечить большую согласованность с другими TileSwaps.  
+
+1. Откройте скрипт PickUp в Visual Studio и внесите изменения.  
+        Листинг кода PickUp.cs
+```c#
+public class PickUp : MonoBehaviour, ISwappable { // a
+    …
+
+    void EnableCollider() { … }
+
+    //———————————————————— Implementation of ISwappable ————————————————————
+    public GameObject guaranteedDrop {get; set;}
+
+    public int tileNum {get; private set;}
+
+    public virtual void Init( int fromTileNum, int tileX, int tileY ) { // b
+        tileNum = fromTileNum;
+
+        // Position this GameObject correctly
+        transform.position = new Vector3( tileX, tileY, 0 ) + MapInfo.OFFSET;
+    }
+}
+```
+
+    - a. Не забудьте добавить ISwappable к объявлению PickUp.
+    - b. Метод PickUp.Init() идентичен методу Enemy.Init() из листинга кода.  
+
+Когда вы нажмете «Play» для тестирования, вы не увидите никаких изменений в Key PickUps на
+карте, но это дополнение позволит в будущем добавить больше PickUps с расширенными
+возможностями TileSwap. Далее мы реализуем одну из моих любимых вещей в любой игре Zelda.

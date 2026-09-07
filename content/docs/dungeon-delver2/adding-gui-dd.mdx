@@ -1,0 +1,242 @@
+---
+title: Добавление графического интерфейса для отслеживания количества ключей и здоровья
+description: Прежде чем двигаться дальше, давайте реализуем графический интерфейс пользователя (GUI) для Dungeon Delver.
+---
+
+Конечно, ваши игроки не смогут отслеживать количество ключей, просматривая
+инспектор Unity, но вам также гораздо проще видеть здоровье Дрея и количество ключей в GUI, чем
+смотреть в инспектор. На рисунке показаны как GUI DelverPanel в разделе GUI Camera панели
+Game, так и настройки Canvas для этого проекта.
+Давайте запустим этот интерфейс.
+
+<img src="/unity_doc/images/ex144.jpeg" alt="1" style={{  height: 'auto' }} />
+Панель DelverPanel11в графическом интерфейсе пользователя (GUI) в настройках камеры
+и холста для данного проекта  
+
+1. Создайте новый Canvas, выбрав GameObject > UI > Canvas в меню Unity. Это создаст как Canvas, так
+и Event System на корневом уровне иерархии.
+2. Выберите Canvas в иерархии.
+3. В инспекторе для GameObject Canvas настройте параметры в соответствии с выделенными
+настройками в разделе Canvas на рисунке:
+    - a. Установите для параметра Render Mode значение Screen Space Camera.
+    - b. Щелкните круглую иконку мишени справа от Render Camera и выберите GUI Camera на
+вкладке Scene в появившемся окне.  
+
+Когда вы импортировали стартовый unitypackage для этой главы, панель пользовательского
+интерфейса с именем DelverPanel была включена в папку _Prefabs панели Project.  
+
+4. Перетащите DelverPanel из папки _Prefabs на Canvas в иерархии, сделав DelverPanel
+дочерним объектом Canvas.  
+
+Теперь вы должны увидеть панель, появившуюся в правой части экрана в поле обзора GUI Camera.
+По умолчанию в интерфейсе отображается 0 ключей и половина здоровья (как показано на рисунке).  
+
+Чтобы DelverPanel отображался правильно при сборке для WebGL или чего-либо еще, что не
+соответствует точно разрешению Full HD (1920 x 1080), вам нужно настроить компонент Canvas Scaler в
+соответствии с параметрами, показанными на рисунке, но сначала я хочу, чтобы вы поняли,
+зачем нам нужен Canvas Scaler.  
+
+5. Посмотрите, как это может стать проблемой, изменив разрешение панели Game на значение,
+отличное от Full HD (1920 x 1080). Например, если выбрать соотношение сторон 16:9 из выпадающего
+меню Game resolution, обведенного красным прямоугольником на рисунке, DelverPanel будет
+выглядеть ужасно. Пока что оставьте разрешение на настройке, при которой панель выглядит
+плохо.
+6. Выберите Canvas в иерархии и в инспекторе Canvas Scaler:
+    - a. Установите для параметра «Режим масштабирования интерфейса» значение «Масштабировать
+по размеру экрана».
+    - b. Установите «Reference Resolution» на X: 384 и Y: 1080 (значение X равно 384, поскольку камера
+GUI занимает 20 процентов от общей ширины экрана, а 20 процентов от 1920 равно 384).  
+
+Вы увидите, что DelverPanel теперь выглядит хорошо даже при разрешении с соотношением сторон
+16:9. Вы также можете попробовать изменить разрешение панели Game на другие значения.
+7. Обязательно верните разрешение панели «Игра» на Full HD (1920 x 1080), прежде чем продолжить.
+
+### Добавление здоровья к Dray [!toc]
+На данный момент класс Dray отслеживает количество ключей, но пока не имеет механизма
+отслеживания здоровья и не получает урона. Давайте исправим первую часть, и заодно добавим
+частный синглтон Dray, а также статические публичные поля HEALTH и NUM_KEYS,
+которые сможет считывать класс GuiPanel.  
+
+1. Откройте скрипт Dray в Visual Studio и введите код.  
+        Листинг кода Dray.cs
+```c#
+public class Dray : MonoBehaviour, IFacingMover, IKeyMaster {
+    static private Dray S; // a
+    static public IFacingMover IFM;
+    public enum eMode { idle, move, attack, roomTrans }
+
+    [Header("Inscribed")]
+    public float speed = 5;
+    public float attackDuration = 0.25f;// Number of seconds to attack
+    public float attackDelay = 0.5f; // Delay between attacks
+    public float roomTransDelay = 0.5f; // Room transition delay
+    public int maxHealth = 10; // b
+
+    [Header("Dynamic")]
+    public int dirHeld = -1; // Direction of the held movement key
+    public int facing = 1; // Direction Dray is facing
+    public eMode mode = eMode.idle;
+    [SerializeField] [Range(0,20)]
+    private int _numKeys = 0;
+
+    [SerializeField] [Range(0,10)]
+    private int _health;
+    public int health { // c
+        get { return _health; }
+        set { _health = value; }
+    }
+
+    private float timeAtkDone = 0;
+    …
+
+    void Awake() {
+    S = this; // d
+    IFM = this;
+    rigid = GetComponent<Rigidbody2D>();
+    anim = GetComponent<Animator>();
+    inRm = GetComponent<InRoom>();
+    health = maxHealth; // e
+    }
+
+    void Update() { … }
+
+    void LateUpdate() { … }
+
+    static public int HEALTH { get { return S._health; } } // f
+    static public int NUM_KEYS { get { return S._numKeys; } }
+
+    //———————————————————— Implementation of IFacingMover ————————————————————
+    …
+}
+```
+
+    - a. Мы предоставим классу Dray частный синглтон S, чтобы другие классы могли получить
+статический доступ к _health через статическое публичное свойство HEALTH в
+строке // f.
+    - b. В графическом интерфейсе пользователя отображается пять кружков, и каждый кружок
+представляет 2 очка здоровья, поэтому он может отображать в общей сложности 10 очков
+здоровья. В связи с этим мы установим значение maxHealth равным 10.
+    - c. Это свойство health позволяет читать и записывать значение частного int _health
+из любого места. Это помогает при отладке, так как вы можете поставить точку останова на
+операторе set, если значение _health изменяется, но вы не уверены, почему.
+    - d. Эта строка присваивает единственный экземпляр Dray синголету S.
+    - e. При инициализации Dray значение health устанавливается на максимальное значение.
+    - f. Статические публичные свойства HEALTH и NUM_KEYS используют частный Singleton S
+для доступа к полям Dray. Являясь частью класса Dray, оба этих свойства могут обращаться к
+частным полям _health и _numKeys (и даже изменять их значения!).
+2. Сохраните все скрипты в Visual Studio и вернитесь в Unity.
+
+### Подключение GUI к Dray [!toc]
+Теперь вам нужно написать скрипт для пользовательского интерфейса, чтобы отобразить значения
+HEALTH и NUM_KEYS объекта Dray.  
+
+1. Создайте новый скрипт с именем GuiPanel в папке « » панели «Project».  
+
+Если на данном этапе вам покажется, что в папке « Scripts» начинает скапливаться слишком много
+скриптов, вы вполне можете добавить под ней дополнительные папки. Например, _Interfaces,
+_Characters и т. д. Если вы добавите папки, то в macOS благодаря подчеркиванию в начале имени папка
+будет сортироваться выше всех скриптов в папке « Scripts».  
+
+2. Прикрепите скрипт GuiPanel к GameObject DelverPanel (в разделе Canvas в иерархии).
+3. Откройте GuiPanel в Visual Studio и введите код.  
+    Листинг кода GuiPanel.cs
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI; // a
+
+public class GuiPanel : MonoBehaviour {
+    [Header("Inscribed")]
+    public Sprite healthEmpty;
+    public Sprite healthHalf;
+    public Sprite healthFull;
+
+    Text keyCountText;
+    List<Image> healthImages;
+
+    void Start() {
+        // Key Count
+        Transform trans = transform.Find("Key Count"); // b
+        keyCountText = trans.GetComponent<Text>();
+
+        // Health Icons
+        Transform healthPanel = transform.Find("Health Panel");
+        healthImages = new List<Image>();
+        if (healthPanel != null) { // c
+            for (int i = 0; i < 20; i++) {
+                trans = healthPanel.Find("H_" + i);
+            if (trans == null) break;
+                healthImages.Add(trans.GetComponent<Image>());
+            }
+        }
+    }
+
+    void Update() {
+        // Show keys
+        keyCountText.text = Dray.NUM_KEYS.ToString(); // d
+
+        // Show health
+        int healthDisp = Dray.HEALTH;
+        for (int i = 0; i < healthImages.Count; i++) { // e
+            if (healthDisp > 1) {
+                healthImages[i].sprite = healthFull;
+            } else if (healthDisp == 1) {
+                healthImages[i].sprite = healthHalf;
+            } else {
+                healthImages[i].sprite = healthEmpty;
+            }
+            healthDisp -= 2;
+        }
+    }
+}
+```
+
+- a. Не пропустите эту строку. Без нее ваш класс GuiPanel не сможет использовать классы
+Text или Image, которые оба определены в UnityEngine.UI.
+- b. Этот код полностью зависит от того, что дочерние элементы трансформации DelverPanel имеют
+правильные имена. Здесь вы ищете дочерний элемент DelverPanel с именем Key Count. Затем
+компонент Text этого дочернего элемента присваивается переменной keyCountText. Здесь
+нет повторной проверки, поэтому, если имя Key Count изменится, эта строка
+`GetComponent<>()` вызовет исключение null reference.
+- c. Сначала ищется дочерний элемент DelverPanel с именем Health Panel. Если он найден,
+последовательно выполняется поиск дочерних элементов Health Panel с именами от H_0 до H19.
+Пока они находятся, компонент Image каждого из них добавляется в список healthImages. Если
+дочерний трансформ не найден (например, при поиске несуществующего H_5 в текущей панели),
+цикл for завершается.
+
+>Код ищет 20 изображений здоровья, чтобы в будущем вы могли увеличить здоровье Дрея в четыре раза, если захотите.
+
+- d. Значению текста keyCountText присваивается Dray.NUM_KEYS.
+- e. Индикатор здоровья немного сложнее. Текущее значение Dray.HEALTH сохраняется в
+локальной переменной int healthDisp. Вы проходите цикл for один раз для каждого
+healthImage, начиная с самого низа (H_0). Если healthDisp больше 1, то отображается
+спрайт healthFull. Если healthDisp равен 1, отображается healthHalf, а если
+healthDisp меньше 1, отображается healthEmpty. После каждого цикла локальная
+переменная int healthDisp уменьшается на 2, и выполняется следующий цикл. Таким
+образом, каждый healthImage отображает до 2 единиц здоровья.  
+
+Поскольку этот проект является прототипом, вполне допустимо использовать стиль проверки при
+каждом обновлении, показанный в методе Update() в листинге кода, но если бы я
+рефакторировал этот код во время разработки игры, я бы, вероятно, использовал паттерн Observer,
+чтобы GuiPanel регистрировался с помощью делегатов событий на Dray, так чтобы он мог
+получать уведомления каждый раз, когда изменяется значение Dray.NUM_KEYS или
+Dray.HEALTH, что гораздо эффективнее, чем проверка в каждом кадре (но требует большего
+объема кода для реализации). Подробнее о шаблоне Observer можно узнать в Приложении B
+«Полезные концепции».
+
+4. Сохраните скрипт GuiPanel и вернитесь в Unity.
+5. Выберите DelverPanel в иерархии и установите следующие настройки в инспекторе GuiPanel:
+    - a. Присвойте спрайт Health0 из изображения Health в папке Art by Andrew Dennis на панели Project
+переменной healthEmpty. (Вам нужно будет раскрыть треугольник рядом с ассетом Health,
+чтобы увидеть содержащиеся в нем спрайты.)
+    - b. Присвойте Health_1 из изображения Health в панели Project переменной healthHalf.
+    - c. Присвойте Health_2 из изображения Health в панели Project параметру healthFull.
+6. Нажмите «Play», и вы увидите, как индикатор здоровья в графическом интерфейсе заполняется до
+максимума.
+7. Выберите Dray в иерархии во время воспроизведения в Unity и настройте их ползунки _numKeys
+и
+_health в инспекторе Dray (Script). Вы должны увидеть, как эти изменения отображаются на
+панели GUI.
+8. Остановите воспроизведение и сохраните сцену.

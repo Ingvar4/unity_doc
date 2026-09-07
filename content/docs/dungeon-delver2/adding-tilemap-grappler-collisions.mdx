@@ -1,0 +1,184 @@
+---
+title: Добавление Tilemap_GrapTiles для столкновений Grappler
+description: Основное назначение Grappler - дать Dray возможность пересекать красные (лавовые) плитки на карте.
+---
+
+На этих плитках в Tilemap_Collision Tilemap установлено столкновение W (т. е. верхняя
+половина), но Grappler должен в конечном итоге как проходить прямо через них, так и иметь возможность
+перетаскивать Dray через них.  
+
+В этом проекте мы реализовали стандартную систему столкновений, создав тайл-карту
+Tilemap_Collision, состоящую из тайлов из изображения CollisionTiles (используя текстовый файл
+DelverCollisions для сопоставления нужных тайлов CollisionTile с каждым визуальным спрайтом в
+Tilemap_Visual). Теперь мы будем использовать те же плитки из CollisionTiles и другой текстовый
+файл DelverGrapTiles, чтобы создать отдельную карту Tilemap_GrapTiles с коллайдерами, в которые
+может врезаться Grappler. Основное отличие между GrapTiles и Collision Tilemaps заключается в
+том, что Grappler может проходить над красными лавовыми пространствами (поэтому у них нет
+коллизии в GrapTiles), но не может проходить через двери (поэтому у них будет коллизия в
+GrapTiles).  
+
+1. Выберите Tilemap_Collision в разделе Grid в иерархии.
+    - a. Скопируйте Tilemap Collision, выбрав Edit > Duplicate в главном меню Unity.
+    - b. Имя: переименуйте дубликат с Tilemap_ Collision (1) в Tilemap_ GrapTiles.
+    - c. Физический слой: в верхней части инспектора Tilemap_GrapTiles измените слой с Ground на
+GrapTiles.
+    - d. Tilemap: в разделе «Tilemap» инспектора Tilemap_GrapTiles установите цвет на
+полупрозрачный пурпурный (RGBA: [255, 0, 255, 100]).
+    - e. Рендерер Tilemap: в разделе «Дополнительные настройки» установите «Порядок в слое» на 2
+(что поместит его выше обоих других Tilemap; «Слой сортировки» должен оставаться
+«Ground»).  
+
+Теперь GameObject Tilemap_GrapTiles готов к заполнению.  
+
+2. Откройте скрипт MapInfo в Visual Studio и добавьте код из
+листинга для чтения и разбора TextAsset DelverGrapTiles.  
+        Листинг кода MapInfo.cs
+```c#
+public class MapInfo : MonoBehaviour {
+    …
+    static public string COLLISIONS {get; private set;}
+    static public string GRAP_TILES {get; private set;} // a
+
+    [Header( "Inscribed" )]
+    public TextAsset delverLevel;
+    public TextAsset delverCollisions;
+    public TextAsset delverGrapTiles;
+
+    void Start() {
+        LoadMap();
+
+        // Loading the COLLISIONS information is simpler than a whole map
+        COLLISIONS = Utils.RemoveLineEndings(delverCollisions.text);
+        Debug.Log("COLLISIONS contains " + COLLISIONS.Length + " chars");
+        GRAP_TILES = Utils.RemoveLineEndings(delverGrapTiles.text); // b
+        Debug.Log("GRAP_TILES contains " + GRAP_TILES.Length + " chars");
+    }
+    …
+
+    public static BoundsInt GET_MAP_BOUNDS() { … }
+
+    /// <summary>
+    /// Returns the tileNum at specific coordinates.
+    /// </summary>
+    /// <param name="pos">The position to check as a Vector2</param>
+    /// <returns>The tileNum at that location of the MAP</returns>
+    public static int GET_MAP_AT_VECTOR2( Vector2 pos ) { // c
+        Vector2Int posInt = Vector2Int.FloorToInt( pos );
+        return MAP[posInt.x, posInt.y];
+    }
+
+    /// <summary>
+    /// Checks whether the tile at pos is unsafe (e.g., lava tiles)
+    /// </summary>
+    /// <param name="pos">The position to check as a Vector2</param>
+    /// <returns>True if the tile at that location is unsafe</returns>
+    public static bool UNSAFE_TILE_AT_VECTOR2( Vector2 pos ) { // d
+        int tileNum = GET_MAP_AT_VECTOR2( pos );
+        return ( GRAP_TILES[tileNum] == 'U' );
+    }
+}
+```
+
+    - a. GRAP_TILES работает почти точно так же, как и COLLISIONS.
+    - b. TextAsset delverGrapTiles также считывается так же, как
+delverCollisions.
+    - c. Любое положение Vector2 сопоставляется с MAP, и возвращается tileNum в этой
+позиции.
+    - d. Положение Vector2 преобразуется в tileNum, а затем это tileNum сравнивается с
+GRAP_TILES, чтобы проверить, является ли символ в месте с tileNum в GRAP_TILES «U».
+Если да, то плитка является Unsafe (например, плитки с лавой), и возвращается true. В
+подавляющем большинстве случаев возвращается false.
+3. Откройте скрипт TilemapManager в Visual Studio и добавьте код, чтобы заполнить Tilemap_GrapTiles Tilemap.  
+        Листинг кода TilemapManager.cs
+```c#
+public class TilemapManager : MonoBehaviour {
+    …
+    [Header( "Inscribed" )]
+    public Tilemap visualMap;
+    public Tilemap collisionMap;
+    public Tilemap grapTilesMap; // a
+
+    private TileBase[] visualTileBaseArray;
+    private TileBase[] collTileBaseArray;
+    private TileBase[] grapTileBaseArray; // b
+    …
+
+    void ShowTiles() {
+        visualTileBaseArray = GetMapTiles();
+        visualMap.SetTilesBlock(MapInfo.GET_MAP_BOUNDS(), visualTileBaseArray);
+
+        collTileBaseArray = GetCollisionTiles();
+        collisionMap.SetTilesBlock(MapInfo.GET_MAP_BOUNDS(), collTileBaseArray);
+
+        grapTileBaseArray = GetGrapTiles(); // c
+        grapTilesMap.SetTilesBlock(MapInfo.GET_MAP_BOUNDS(), grapTileBaseArray);
+    }
+    …
+
+
+    public TileBase[] GetCollisionTiles() { … }
+
+    /// <summary>
+    /// Use MapInfo.MAP and MapInfo.GRAP_TILES to create a TileBase[] array
+    /// holding the tiles to fill the grapTilesMap Tilemap.
+    /// </summary>
+    /// <returns>The TileBases for grapTilesMap</returns>
+    public TileBase[] GetGrapTiles() {
+        Tile tile;
+        int tileNum;
+        char tileChar;
+        TileBase[] mapTiles = new TileBase[MapInfo.W * MapInfo.H];
+        for ( int y = 0; y < MapInfo.H; y++ ) {
+            for ( int x = 0; x < MapInfo.W; x++ ) {
+                tileNum = MapInfo.MAP[ x, y ];
+                tileChar = MapInfo.GRAP_TILES[ tileNum ]; // d
+                if ( tileChar == 'U' ) tileChar = '_'; // e
+                tile = COLL_TILE_DICT[tileChar];
+                mapTiles[ y * MapInfo.W + x ] = tile;
+            }
+        }
+        return mapTiles;
+    }
+}
+```
+
+    - a. grapTilesMap содержит ссылку на компонент Tilemap объекта
+Tilemap_GrapTiles.
+    - b. Он называется grapTileBaseArray (а не grapTilesBaseArray), поскольку представляет
+собой массив TileBases.
+    - c. Это работает почти так же, как и заполнение двух других Tilemap.
+    - d. Это извлекает символ для нужной плитки COLL_TILE_DICT из
+MapInfo.GRAP_TILES.
+    - e. Однако в MapInfo.GRAP_TILES есть символ, которого нет в COLL_TILE_DICT. Символ
+«U» (для красных плиток лавы) означает «Unsafe» (небезопасно) и обозначает плитки, которые
+нанесут урон Дрею, если он упадет на них при перетягивании крюком (подробнее об этом
+позже). Эта строка заменяет любой прочитанный символ «U» на «_», чтобы в этот момент в
+TileMap_GrapTiles не добавлялось столкновение, что позволяет Grappler проходить над плитками
+«U» без столкновений (хотя «U» в MapInfo.GRAP_TILES остается и используется функцией
+MapInfo.UNSAFE_TILE_AT_VECTOR2() в строке `// d` в листинге кода).  
+
+4. Сохраните все скрипты в Visual Studio (чтобы сохранить как MapInfo, так и TilemapManager) и
+вернитесь в Unity.  
+
+Теперь осталось только присвоить ссылки на общедоступные поля объекта Grid.
+
+5. Выберите GameObject Grid в иерархии.
+    - a. MapInfo (скрипт): присвойте текстовый файл DelverGrapTiles из папки Resources на панели
+Project переменной delverGrapTiles.
+    - b. TilemapManager (скрипт): присвойте Tilemap_GrapTiles (в разделе Grid в иерархии) переменной
+grapTilesMap.
+6. Сохраните сцену и нажмите «Play» в Unity.  
+
+Если вы выберете Tilemap_GrapTiles в иерархии и установите флажок в инспекторе в левом верхнем
+углу компонента TilemapRenderer, чтобы включить его, вы сможете увидеть пурпурную
+Tilemap_GrapTiles, наложенную поверх Tilemap_Visual. Вы также можете включить TilemapRenderer
+на Tilemap_Collision, чтобы сравнить коллайдеры каждого из них. Обратите внимание как на красные
+плитки лавы, так и на дверные проемы, чтобы увидеть места, где Tilemap_GrapTiles и
+Tilemap_Collision различаются. Везде, где есть красная плитка с лавой, присутствует белая
+Tilemap_Collision, но нет пурпурной Tilemap_GrapTiles. Это показывает, что Grappler сможет
+проходить через эти красные плитки с лавой. (Если вы включили компоненты TilemapRenderer после
+нажатия Play, то при остановке воспроизведения они должны вернуться в отключенное состояние.)  
+
+В режиме воспроизведения попробуйте запустить Grappler в стену. Он должен столкнуться со стеной
+и втянуться (eMode.gRetract). Далее нам нужно внести некоторые изменения в скрипты Dray и
+Grappler, чтобы реализовать режим eMode.gPull, в котором Grappler притягивает Dray к стене.

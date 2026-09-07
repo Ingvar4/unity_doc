@@ -1,0 +1,420 @@
+---
+title: Начнем со вторичных способностей Grappler
+description: Самая сложная задача при программировании Grappler - это его основная способность
+---
+
+Перетаскивать Dray через плитки, которые обычно блокировали бы его, но две вторичные
+способности реализовать значительно проще, поэтому начнем с них. Эти способности:  
+- Grappler может ударять по предметам и тянуть их обратно к Дрею.
+- Grappler может наносить 1 ед. урона врагам, хотя это не вызывает отталкивания.  
+
+Обе эти способности мы должны быть в состоянии реализовать в виде IGadget с помощью
+модификаций, которые мы уже внесли в Дрея.  
+
+Прежде чем приступить к программированию Grappler, я хочу немного рассказать о четырех режимах,
+которые он может иметь:  
+- gIdle: Грапплер ничего не делает и готов к стрельбе. При выстреле он переключается в режим
+gOut.
+- gOut: Grappler выстреливает и может проходить над плитками с лавой, не сталкиваясь с
+ними. Если он попадает в GrapTile (т. е. стену, к которой он может притянуть Dray), он
+переключается в режим gPull. Если он попадает во что-либо, кроме GrapTile, или достигает
+своей полной длины, не задев ничего, он переключается в режим gRetract.
+- gRetract: Grappler возвращается к Dray со скоростью, в два раза превышающей скорость
+gOut. Это также позволяет притягивать предметы обратно к Dray.
+- gPull: Грапплер прилипает к GrapTile и притягивает Дрея к себе. Во время притягивания
+Дрей игнорирует столкновения со всем в мире (включая врагов).  
+
+Теперь давайте реализуем Grappler. Здесь много кода, но я разбил его на куски разумного размера.  
+
+1. Создайте новый скрипт C# с именем Grappler в папке « » в разделе «Scripts».
+2. Прикрепите скрипт Grappler к объекту Grappler в папке _Prefabs (не к тому, что
+находится в иерархии).
+3. Откройте скрипт Grappler в Visual Studio и введите код, выделенный жирным шрифтом в
+листинге кода.  
+        Листинг Grappler.cs
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+[RequireComponent( typeof(LineRenderer) )]
+public class Grappler : MonoBehaviour {
+    public enum eMode { gIdle, gOut, gRetract, gPull }
+    [Header("Inscribed")]
+    [Tooltip("Speed at which Grappler extends (doubled in gRetract mode)")]
+    public float grappleSpd = 10;
+    [Tooltip("Maximum length that Grappler will reach")]
+    public float maxLength = 7.25f;
+    [Tooltip("Minimum distance of Grappler from Dray")]
+    public float minLength = 0.375f;
+
+    [Header("Dynamic")] [SerializeField]
+    private eMode _mode = eMode.gIdle;
+    public eMode mode {
+        get {return _mode;}
+        private set {_mode = value;}
+    }
+
+    private LineRenderer line;
+    private Rigidbody2D rigid;
+    private Collider2D colld;
+
+    private Vector3 p0, p1;
+    private int facing;
+    private Dray dray;
+    private System.Func<IGadget,bool> gadgetDoneCallback; // a
+
+    private Vector2[] directions = new Vector2[] { // b
+    Vector2.right, Vector2.up, Vector2.left, Vector2.down };
+    private Vector3[] dirV3s = new Vector3[] {
+        Vector3.right, Vector3.up, Vector3.left, Vector3.down };
+
+        void Awake() { // Get component references to use throughout the script
+        line = GetComponent<LineRenderer>();
+        rigid = GetComponent<Rigidbody2D>();
+        colld = GetComponent<Collider2D>();
+    }
+
+    void Start() {
+        gameObject.SetActive(false); // Initially disable this GameObject // c
+    }
+
+    void SetGrappleMode( eMode newMode ) { // d
+        switch ( newMode ) {
+            case eMode.gIdle: // e
+            transform.DetachChildren(); // Release any child Transforms
+            gameObject.SetActive(false);
+            break;
+
+            case eMode.gOut: // f
+            gameObject.SetActive(true);
+            rigid.velocity = directions[facing] * grappleSpd;
+            break;
+
+            case eMode.gRetract: // g
+            rigid.velocity = -directions[facing] * (grappleSpd * 2);
+            break;
+
+            case eMode.gPull:
+            // Blank for now
+            break;
+        }
+
+        mode = newMode; // h
+    }
+
+    // void Update() {…} // Please delete the unused Update() method
+}
+```
+
+- a. `System.Func<IGadget,bool> gadgetDoneCallback` - это делегат Func,
+который будет использоваться для хранения функции, переданной в качестве второго
+параметра в GadgetUse() в строке // e листинга кода 36.26. Он будет вызван, когда
+Grappler захочет, чтобы Dray вышел из режима eMode.gadget.
+- b. directions - это то, что вы уже видели в нескольких других скриптах. Массив dirV3s в
+следующей строке - это то же самое, но созданное из Vector3 вместо Vector2. Некоторые
+вычисления положения, которые мы будем выполнять в скрипте Grappler, требуют Vector3,
+поэтому нам понадобятся оба.
+- c. GameObject Grappler изначально сделан неактивным, чтобы метод FixedUpdate()
+(который мы скоро напишем) не вызывался при каждом обновлении физики. GameObject
+Grappler будет активен только тогда, когда Grappler используется (т. е. не находится в режиме
+eMode.gIdle), поэтому мы можем написать код в FixedUpdate(), который мы хотим
+вызывать только тогда, когда Grappler используется.
+- d. SetGrappleMode( eMode newMode ) будет вызываться всякий раз, когда Grappler
+должен сменить режим. Это позволяет нам убедиться, что все необходимые настройки для
+нового режима обрабатываются в одном месте, а не разбросаны по всему скрипту. Это не
+строго обеспечивается кодом (т. е. как свойство режима eMode, так и его поддерживающее private _mode могут быть установлены напрямую другими методами в этом классе, но, по
+крайней мере, существует защита от установки режима другими классами (при этом по-
+прежнему позволяя устанавливать и просматривать его в инспекторе Unity).
+- e. В режиме eMode.gIdle Grappler отключается (путем перевода GameObject в неактивное
+состояние). Это предотвращает вызов любых методов обновления Unity (например, Update()
+и FixedUpdate()), исключает Grappler из системы Physics2D и отключает рендеринг. В это же
+время мы также вызываем transform.DetachChildren(). В режиме eMode.gRetract
+Grappler может возвращать PickUp к Dray в качестве дочернего GameObject.
+DetachChildren() устанавливает transform.parent любого дочернего GameObject в
+null, чтобы они не исчезали, когда GameObject Grappler становится неактивным.
+- f. В режиме eMode.gOut Grappler выстреливает из руки Dray. Сначала GameObject Grappler
+становится активным, а затем rigid.velocity устанавливается на grappleSpd для
+движения в направлении, в котором смотрит Dray.
+- g. Захват переходит в режим `eMode.gRetract` в том случае, если при выстреле он не попадает в блок `GrapTile`. Это происходит, когда: а) захват попадает в предмет (PickUp) или врага б) захват достигает максимальной длины (`maxLength`), ни во что не попав. В режиме `eMode.gRetract` захват возвращается к Дрею со скоростью, вдвое превышающей скорость выстрела.
+- h. В конце метода SetGrappleMode( eMode newMode ) фактически устанавливается свойство
+mode фактически устанавливается.  
+
+Нам предстоит написать еще немного кода, прежде чем Grappler начнет работать, но я хотел бы сделать
+здесь небольшую паузу. Сейчас подходящий момент, чтобы сохранить скрипт Grappler.  
+
+4. Откройте скрипт Grappler в Visual Studio и введите код.  
+        Листинг Grappler.cs
+```c#
+public class Grappler : MonoBehaviour {
+    …
+
+    void SetGrappleMode( eMode newMode ) { … }
+
+    void FixedUpdate() {
+        p1 = transform.position; // a
+        line.SetPosition(1,p1);
+
+        switch (mode) {
+            case eMode.gOut: // Grappler shooting out
+                // See if the Grappler reached its limit without hitting anything
+                if ( (p1 - p0).magnitude >= maxLength ) { // b
+                    SetGrappleMode( eMode.gRetract );
+                }
+                break;
+
+            case eMode.gRetract: // Grappler missed; return at double speed
+                // Check to see if the Grappler is no longer in front of Dray
+                if ( Vector3.Dot( (p1-p0), dirV3s[facing] ) < 0 ) GrappleDone(); // c
+                break;
+
+            case eMode.gPull:
+                // You’ll fill this in soon
+                break;
+        }
+    }
+
+    // Ensures that p1 is aligned with the Grappler head
+    void LateUpdate() { // d
+        p1 = transform.position;
+        line.SetPosition( 1, p1 );
+    }
+
+    /// <summary>
+    /// Called when the Grappler hits a Trigger or Collider in the GrapTiles,
+    /// Items, or Enemies Physics Layers (Grappler’s Collider is a Trigger).
+    /// </summary>
+    /// <param name="coll"></param>
+    void OnTriggerEnter2D( Collider2D colld ) {
+        // The Grappler has collided with something, but what?
+        string otherLayer = LayerMask.LayerToName(colld.gameObject.layer); // e
+
+        switch ( otherLayer ) { // Please DOUBLE-CHECK layer name spelling!
+            case "Items": // We’ve possibly hit a PickUp // f
+                PickUp pup = colld.GetComponent<PickUp>();
+                if ( pup == null ) return;
+                // If this IS a PickUp, make it a child of this Transform so it moves
+                // with the Grappler head.
+                pup.transform.SetParent(transform);
+                pup.transform.localPosition = Vector3.zero;
+                SetGrappleMode( eMode.gRetract );
+                break;
+
+            case "Enemies": // We’ve hit an Enemy // g
+                // The Grappler should return when it hits an Enemy
+                Enemy e = colld.GetComponent<Enemy>();
+                if ( e != null ) SetGrappleMode( eMode.gRetract );
+                // Damaging the Enemy is handled by the DamageEffect & Enemy scripts
+                break;
+
+            case "GrapTiles": // We’ve hit a GrapTile
+                SetGrappleMode( eMode.gRetract ); // You’ll replace this in CL 36.34
+                break;
+
+            default: // h
+                SetGrappleMode( eMode.gRetract );
+                break;
+        }
+    }
+
+    void GrappleDone() { // i
+        SetGrappleMode( eMode.gIdle );
+
+        // Callback to Dray so they return to normal controls
+        gadgetDoneCallback( this ); // j
+    }
+}
+```
+
+- a. FixedUpdate() вызывается только в том случае, если GameObject активен, поэтому это
+происходит только в режимах, отличных от eMode.gIdle. Сначала p1 обновляется до
+текущего положения GameObject Grappler, а затем обновляется и первая точка на LineRenderer,
+чтобы соответствовать ему (хотя это работает не идеально; см. // d).
+- b. В режиме eMode.gOut, если расстояние Grappler от Dray достигает maxLength, режим
+переключается на eMode.gRetract.
+- c. В режиме eMode.gRetract Grappler возвращается к Dray. Эта проверка скалярного
+произведения определяет, находится ли p1 по-прежнему перед p0 относительно направления
+Dray. Если скалярное произведение вектора направления Dray и вектора p1-p0 отрицательно,
+то головка Grappler оттянулась настолько, что теперь находится позади Dray, и поэтому
+вызывается GrapplerDone().  
+
+>Для получения дополнительной информации о скалярных произведениях и различных способах их использования
+в разработке игр см. Приложение B, «Полезные концепции».  
+
+- d. Хотя я ожидал, что две линии в начале метода FixedUpdate() (в месте с комментарием //
+a) идеально совместят первую точку LineRenderer с GameObject Grappler, при пошаговом
+прохождении игры в режиме Play LineRenderer всегда выглядел так, будто отставал на один кадр.
+Добавление этого метода в LateUpdate() решило эту проблему.
+- e. Когда PolygonCollider2D на Grappler сталкивается с другим GameObject, первое, что мы делаем,
+- это получаем имя физического слоя другого GameObject. Оно будет сравниваться в
+следующем операторе switch, поэтому будьте очень внимательны: имена физических слоев в
+настройках проекта (как показано на рисунке 35.11 предыдущей главы) должны быть написаны
+точно так же, как строки в этом методе. Помните, что для C# a и A - это разные буквы;
+регистр имеет значение!
+- f. Если триггер Grappler соприкасается с чем-либо в слое «Items», и этот объект является
+PickUp, он будет присоединен к GameObject Grappler в качестве дочернего объекта, а
+режим переключится в eMode.gRetract.
+- g. Аналогично, если триггер Grappler соприкасается с Enemy в слое «Enemies», режим также
+устанавливается в eMode.gRetract. Нам не нужно ничего добавлять здесь, чтобы Grappler
+наносил урон Enemy. В качестве примера компонентно-ориентированного проектирования
+компонент DamageEffect, который вы ранее добавили к Grappler, будет обнаружен методом
+Enemy.OnTriggerEnter2D(), и Enemy получит урон.
+- h. В неожиданном случае, если триггер Grappler соприкасается с любым другим слоем, выдается
+предупреждение, и режим также устанавливается в eMode.gRetract.  
+
+>Изначально у меня здесь был Debug.LogWarning(), который выводил сообщение о том, какой неожиданный слой
+был задет, но единственное сообщение, которое я получил, было о столкновении со слоем Dray. Слой Grappler не
+сталкивается со слоем Dray, поэтому я был немного сбит с толку, пока не понял, что когда Key был дочерним
+элементом Grappler и его тянули назад, Key ударялся о Dray (слои PickUp и Dray действительно сталкиваются), и он
+передавал сообщение вверх к Grappler, как будто Grappler получил вызов OnTriggerEnter2D(), хотя на самом деле
+это был Key. Я подумал, что это может сбить с толку читателей, поэтому удалил предупреждающее сообщение.  
+
+- i. Разница между вызовом GrapplerDone() и SetGrappleMode( eMode.gIdle )
+заключается в том, что GrapplerDone() также вызывает делегат gadgetDoneCallback(
+this ), который вызывает GadgetIsDone() на Dray и возвращает Dray в режим
+Dray.eMode.idle.
+- j. В данный момент это будет подчеркнуто красным, и скрипт Grappler не скомпилируется,
+поскольку gadgetDoneCallback() ожидает, что ему будет передан объект IGadget.
+Grappler пока не реализует IGadget, но сделает это после следующего листинга кода.  
+
+Далее мы добавим реализацию интерфейса IGadget в Grappler. Не забудьте добавить
+IGadget в строку объявления класса (`// a` в листинге кода).  
+
+5. Откройте скрипт Grappler в Visual Studio и введите код.  
+        Листинг Grappler.cs
+```c#
+public class Grappler : MonoBehaviour, IGadget { // a
+    …
+
+    void GrappleDone() { … }
+
+    #region IGadget_Implementation
+    //- Implementation of IGadget - // b
+
+    // Called by Dray to use this IGadget
+    public bool GadgetUse(Dray tDray, System.Func<IGadget,bool> tCallback) { // c
+        if ( mode != eMode.gIdle ) return false; // d
+
+        dray = tDray;
+        gadgetDoneCallback = tCallback; // e
+        transform.localPosition = Vector3.zero;
+
+        facing = dray.GetFacing(); // f
+        p0 = dray.transform.position;
+        p1 = p0 + ( dirV3s[facing] * minLength );
+        gameObject.transform.position = p1;
+        gameObject.transform.rotation = Quaternion.Euler(0,0,90 * facing);
+
+        line.positionCount = 2; // g
+        line.SetPosition(0,p0);
+        line.SetPosition(1,p1);
+
+        SetGrappleMode( eMode.gOut );
+
+        return true;
+    }
+
+    // Called by Dray if they are hit while grappling and mode != eMode.inHit
+    public bool GadgetCancel() { // h
+        // If pulling Dray to a wall, ignore GadgetCancel
+        if ( mode == eMode.gPull ) return false;
+        SetGrappleMode(eMode.gIdle);
+        gameObject.SetActive(false);
+        return true;
+    }
+
+    // string name is already part of Grappler (inherited from Object) // i
+    #endregion
+}
+```
+
+- a. Здесь необходимо добавить «, IGadget», чтобы Unity знало, что Grappler реализует
+интерфейс IGadget.
+- b. Этот #region IGadget_Implementation содержит весь код, необходимый для
+реализации интерфейса IGadget.
+- c. Этот метод GadgetUse() вызывается Dray для начала использования Grappler. Если
+Grappler затем успешно переходит в режим eMode.gOut, этот метод возвращает true. Если
+что-либо мешает переходу в режим eMode.gOut, этот метод возвращает false.
+- d. Если Grappler не находится в режиме eMode.idle, значит он уже используется, поэтому
+возвращается значение false.
+- e. Здесь переданный метод обратного вызова (как tCallback) регистрируется с помощью
+delegate gadgetDoneCallback, чтобы его можно было вызвать, когда работа гаджета будет
+завершена.
+- f. Ориентация Dray извлекается, а затем используется для позиционирования и поворота
+GameObject Grappler и LineRenderer. p0 располагается точно там, где находится Dray, а p1
+- чуть впереди Dray.
+- g. Здесь мы сообщаем LineRenderer, что у него должно быть две точки, и задаем их как p0 и p1.
+- h. Dray вызывает функцию `GadgetCancel()`, чтобы отменить действие Grappler в
+середине любого его действия; однако, если Grappler находится в режиме
+`eMode.gPull` ( ), он вернет `false`, предотвращая отмену.  
+
+>Такой случай не должен произойти, поскольку GadgetCancel() вызывается, когда Dray попадает под удар врага,
+но когда Grappler находится в режиме eMode.gPull, Collider2D Dray будет отключен - так что он не может
+быть поражен врагом - но этот код здесь на всякий случай.  
+
+- i. Интерфейс IGadget также требует свойства-геттера для строкового имени, но оно уже
+существует в Object и наследуется Grappler как под-под-под-подклассом Object.  
+
+6. Сохраните скрипт Grappler в Visual Studio.  
+
+Вы почти готовы к использованию Grappler. Теперь нам просто нужно разрешить Dray запускать его.  
+
+7. Откройте скрипт Dray в Visual Studio и внесите изменения в код.  
+        Листинг кода Dray.cs
+```c#
+public class Dray : MonoBehaviour, IFacingMover, IKeyMaster {
+    …
+    private float invincibleDone = 0;
+    private Vector2 knockbackVel;
+
+    private Grappler grappler; // a
+    private SpriteRenderer sRend;
+    private Rigidbody2D rigid;
+    …
+
+    void Awake() {
+        …
+        inRm = GetComponent<InRoom>();
+        health = maxHealth;
+        grappler = GetComponentInChildren<Grappler>(); // b
+        if ( startWithGrappler ) currentGadget = grappler; // c
+    }
+    …
+
+}
+```
+
+    - a. Поле grappler содержит ссылку на скрипт Grappler, который задается в строке // b.
+    - b. Сначала мы ищем среди дочерних объектов Dray компонент Grappler и присваиваем его
+grappler. Это необходимо сделать в Awake(), поскольку метод Grappler.Start()
+переводит GameObject Grappler в неактивное состояние, а компоненты на неактивных
+GameObjects не обнаруживаются при вызове GetComponent…().
+    - c. Далее, если startWithGrappler равно true, то grappler присваивается
+currentGadget. Ближе к концу главы мы установим startWithGrappler в false и
+потребуем, чтобы Dray нашел Grappler PickUp в подземелье.
+8. Сохраните все скрипты (включая Dray) в Visual Studio и вернитесь в Unity.
+9. Выберите Dray в иерархии и в компоненте Dray (Script) убедитесь, что флажок
+startWithGrappler внизу раздела Inscribed установлен (т. е. имеет значение true).
+10. Сохраните сцену и нажмите Play.  
+
+Теперь вы можете ходить по локации и использовать Grappler с помощью клавиши X. Вам следует
+проверить две вещи:
+    - a. Использование Grappler для поднятия ключа в первой комнате
+    - b. Использование Grappler для нанесения урона Skeletos в комнате слева; чтобы победить
+Skeletos, Grappler должен нанести четыре удара
+Конечно, теперь Grappler проходит сквозь стены. Пришло время добавить новый набор
+коллизионных «GrapTiles», которые будут поражаться только Grappler.
+
+<Callout>
+### Совет [!toc]
+ЕСЛИ НАЖАТИЕ КНОПКИ X НЕ ЗАПУСКАЕТ ГРАППЛЕР Вероятно, вы не
+прикрепили скрипт Grappler к префабу Grappler в панели «Проект» (это был шаг № 2).
+Без этого скрипта вызов `GetComponentInChild ren<Grappler>()` возвращает
+null.  
+
+Чтобы исправить это, выберите GameObject Grappler в папке _Prefabs панели Project и
+убедитесь, что к нему прикреплен компонент Grappler (Script). Прикрепление скрипта
+Grappler к префабу также прикрепит скрипт Grappler к экземпляру этого префаба,
+являющемуся дочерним объектом Dray. (Если вы используете Plastic SCM, не забудьте
+зафиксировать префаб Grappler после этого изменения.)
+</Callout>

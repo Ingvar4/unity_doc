@@ -1,0 +1,219 @@
+---
+title: Настройка нанесения урона Dray врагами
+description: Пришло время добавить в мир немного опасности, сделав так, чтобы враги могли наносить урон Dray при контакте.
+---
+
+Это также будет отбрасывать Dray назад и делать его неуязвимым на короткое время.
+
+### Реализация DamageEffect [!toc]
+
+Скрипт DamageEffect используется для отслеживания того, какой урон нанесет враг Дрею и вызовет ли
+контакт с врагом отталкивание. Позже вы примените этот же скрипт к оружию Дрея, чтобы определить,
+как это оружие влияет на врагов.  
+
+1. Создайте новый скрипт C# с именем DamageEffect в папке *__Scripts*.
+2. Откройте DamageEffect в Visual Studio и введите код.  
+        Листинг кода DamageEffect.cs
+```c#
+using UnityEngine;
+
+public class DamageEffect : MonoBehaviour {
+    [Header("Inscribed")]
+    public int damage = 1;
+    public bool knockback = true;
+
+    // void Start() {…} // Please delete the unused Start() and Update() methods
+    // void Update() {…}
+}
+```
+3. Сохраните DamageEffect в Visual Studio и вернитесь в Unity.
+4. Прикрепите скрипт DamageEffect к экземпляру GameObject Skeletos в иерархии.
+5. Выберите Skeletos в иерархии, и вы увидите инспектор DamageEffect (Script) на GameObject
+Skeletos.
+6. Добавьте Circle Collider 2D к Skeletos (Component > Physics 2D > Circle Collider 2D).
+7. Сохраните сцену!  
+
+<Callout>
+### Примечание [!toc]
+Компоненты DamageEffect (Script) и Circle Collider 2D, которые мы только что добавили
+к этому экземпляру префаба Skeletos, в данный момент существуют в качестве
+переопределений только на этом одном экземпляре Skeletos, а не в префабе. В конечном
+итоге вы примените эти и другие переопределения обратно к префабу Skeletos на шаге 6
+раздела «Модификация врага для получения урона».
+</Callout>  
+
+По умолчанию наносимый урон равен 1, что соответствует половине индикатора здоровья в только
+что созданном вами графическом интерфейсе. Значения по умолчанию подходят для Skeletos,
+поэтому вам не нужно ничего менять в инспекторе.  
+
+<Callout>
+### Совет [!toc]
+Когда вы добавляете скрипт DamageEffect к Skeletos, вы можете заметить, что у него нет
+флажка для отключения (в то время как компоненты Skeletos, InRoom и GridMove (Script)
+имеют такой флажок). Это связано с тем, что флажок, который устанавливает поле bool
+enabled в любом подклассе MonoBehaviour, не отключает весь скрипт; он отключает
+только вызовы следующих сообщений MonoBehaviour:
+```c#
+Start()           OnGUI()
+Update()          OnDisable()
+FixedUpdate()     OnEnable()
+LateUpdate()
+```
+И, если ни один из этих методов не появляется в скрипте, флажок для отключения
+скрипта не будет отображаться в Инспекторе (как вы можете видеть на DamageEffect).
+</Callout>
+
+### Изменение класса Dray для получения урона [!toc]
+Вам также необходимо внести изменения в Dray, чтобы включить использование скрипта DamageEffect,
+который вы только что прикрепили к Skeletos.  
+
+1. Откройте скрипт Dray в Visual Studio и внесите изменения.  
+        Листинг кода Dray.cs
+
+```c#
+public class Dray : MonoBehaviour, IFacingMover, IKeyMaster {
+    static private Dray S;
+    static public IFacingMover IFM;
+    public enum eMode { idle, move, attack, roomTrans, knockback } // a
+
+    [Header("Inscribed")]
+    public float speed = 5;
+    public float attackDuration = 0.25f;// Number of seconds to attack
+    public float attackDelay = 0.5f; // Delay between attacks
+    public float roomTransDelay = 0.5f; // Room transition delay
+    public int maxHealth = 10;
+    public float knockbackSpeed = 10; // b
+    public float knockbackDuration = 0.25f;
+    public float invincibleDuration = 0.5f;
+
+
+    [Header("Dynamic")]
+    public int dirHeld = -1; // Direction of the held movement key
+    public int facing = 1; // Direction Dray is facing
+    public eMode mode = eMode.idle;
+    public bool invincible = false; // c
+    [SerializeField] [Range(0,10)]
+    private int _numKeys = 0;
+    …
+
+    private float roomTransDone = 0;
+    private Vector2 roomTransPos;
+    private float knockbackDone = 0; // d
+    private float invincibleDone = 0;
+    private Vector2 knockbackVel;
+
+    private SpriteRenderer sRend; // e
+    private Rigidbody2D rigid;
+    …
+
+    void Awake() {
+        S = this;
+        IFM = this;
+        sRend = GetComponent<SpriteRenderer>(); // f
+        rigid = GetComponent<Rigidbody2D>();
+        …
+    }
+
+    void Update() {
+        // Check knockback and invincibility
+        if (invincible && Time.time > invincibleDone) invincible = false; // g
+        sRend.color = invincible ? Color.red : Color.white;
+        if ( mode == eMode.knockback ) {
+            rigid.velocity = knockbackVel;
+        if (Time.time < knockbackDone) return;
+            // The following line is only reached if Time.time >= knockbackDone
+            mode = eMode.idle;
+        }
+
+        if ( mode == eMode.roomTrans ) { … }
+        …
+    }
+
+    void LateUpdate() { … }
+
+    void OnCollisionEnter2D( Collision2D coll ) {
+        if (invincible) return; // Return if Dray can’t be damaged // h
+        DamageEffect dEf = coll.gameObject.GetComponent<DamageEffect>();
+        if (dEf == null) return; // If no DamageEffect, exit this method
+
+        health -= dEf.damage; // Subtract the damage amount from health // i
+        invincible = true; // Make Dray invincible
+        invincibleDone = Time.time + invincibleDuration;
+
+        if (dEf.knockback) { // Knockback Dray // j
+            // Determine the direction of knockback from relative position
+            Vector2 delta = transform.position - coll.transform.position; // k
+            if (Mathf.Abs(delta.x) >= Mathf.Abs(delta.y)) {
+                // Knockback should be horizontal
+                delta.x = (delta.x > 0) ? 1 : -1;
+                delta.y = 0;
+            } else {
+                // Knockback should be vertical
+                delta.x = 0;
+                delta.y = (delta.y > 0) ? 1 : -1;
+            }
+
+            // Apply knockback speed to the Rigidbody
+            knockbackVel = delta * knockbackSpeed;
+            rigid.velocity = knockbackVel;
+
+            // Set mode to knockback and set time to stop knockback
+            mode = eMode.knockback;
+            knockbackDone = Time.time + knockbackDuration;
+        }
+    }
+
+    static public int HEALTH { get { return S._health; } }
+    static public int NUM_KEYS { get { return S._numKeys; } }
+
+    //———————————————————— Implementation of IFacingMover ————————————————————
+    …
+}
+```
+
+- a. В перечисление eMode добавлен новый элемент eMode.knockback.
+- b. Параметры knockbackSpeed, knockbackDuration и invincibleDuration можно
+настроить в инспекторе.
+- c. Публичная переменная bool invincible принимает значение true, когда Дрей
+неуязвим для урона. Это bool, а не состояние eMode, поскольку Дрей может быть неуязвим
+одновременно при нескольких разных eMode (если бы Дрей был неуязвим только при
+отталкивании, в этом не было бы необходимости).
+- d. Для реализации отталкивания и неуязвимости было добавлено несколько новых
+частных полей.
+- e. Чтобы показать игроку, что Дрей получил урон и что он неуязвим, Дрей будет окрашен в
+красный цвет на протяжении всего времени неуязвимости. Для этого вам понадобится ссылка на
+компонент Sprite Renderer Дрея.
+- f. Эта строка необходима для присвоения компонента Sprite Renderer переменной sRend.
+- g. Новый код в начале каждого Update() проверяет, истекло ли время неуязвимости или
+отталкивания. Если Дрей неуязвим, sRend окрашивается в красный цвет. Если Дрей
+отталкивается, knockbackVel присваивается rigid.velocity.
+- h. Этот метод OnCollisionEnter2D() вызывается Unity каждый раз, когда Dray сталкивается
+с Collider2D другого GameObject.
+Этот метод немедленно завершит работу, если Дрей неуязвим или если GameObject,
+столкнувшийся с Дреем, не имеет компонента DamageEffect (т. е. Дрей постоянно
+сталкивается со стенами, но стены не наносят урона).
+- i. Величина урона DamageEffect вычитается из здоровья, и Dray временно становится
+неуязвимым.
+- j. Если DamageEffect, с которым столкнулся Dray, вызывает отталкивание, то выполняется
+содержимое этого оператора if. Он находит разницу в положении между Dray и GameObject,
+с которым он столкнулся, фиксирует разницу в вертикальном или горизонтальном
+перемещении и преобразует её в knockbackVelocity. Затем Dray переводится в режим
+отталкивания, пока Time.time (т. е. текущее время) не станет больше knockbackDone.
+- k. Хотя transform.position и coll.transform.position являются объектами типа
+Vector3, существует неявная конвертация из Vector3 в Vector2, поэтому их разность
+можно присвоить переменной Vector2 delta без явного преобразования в Vector2.  
+
+2. Сохраните все скрипты в Visual Studio, вернитесь в Unity и нажмите «Play».  
+
+Теперь, если вы подведете Dray к Skeletos, вы увидите, что Dray получает урон, отбрасывается назад
+и становится неуязвимым. Если вы хотите проверить неуязвимость, вы можете использовать
+инспектор Dray (Script) на GameObject Dray, чтобы увеличить invincibleDuration до 10
+секунд, а затем несколько раз войти в Skeletos (но убедитесь, что invincibleDuration сброшена
+до 0,5 секунд, когда вы закончите).  
+
+Планируется использовать OnCollisionEnter2D() для нанесения урона Дрею и
+OnTriggerEnter2D() для нанесения урона Скелетосам и другим врагам. Это работает, потому что
+у всех оружий Дрея isTrigger будет установлен в true, что означает: любое столкновение между врагом
+и Дреем вызовет OnCollisionEnter2D(), тогда как пересечение триггеров оружия Дрея с врагом вызовет OnTriggerEnter2D(). Это различие между триггерами и столкновениями
+позволяет нам использовать DamageEffects как для урона, наносимого Дрею, так и для урона,
+наносимого врагам.

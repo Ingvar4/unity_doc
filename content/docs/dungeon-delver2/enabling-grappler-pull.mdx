@@ -1,0 +1,330 @@
+---
+title: Включение возможности Grappler притягивать Dray к себе
+description: Чтобы Grappler мог притягивать Dray к себе, нам нужно добавить в скрипт Dray некоторые свойства
+---
+
+Которые позволят управлять Dray и перемещать его с помощью другого класса. Поскольку Unity
+делает многие поля и свойства своих классов общедоступными, другой класс мог бы использовать
+`GetComponent<>()` для Rigidbody2D и Collider2D на GameObject Dray и отключить скрипт Dray -
+что и было сделано во втором издании этой книги - но это не очень хорошая практика
+программирования, и это означало бы, что скрипт Dray был полностью отключен, когда Dray
+притягивался Grappler.  
+
+Вместо этого в этом третьем издании мы добавим в Dray код, позволяющий перемещать его с
+помощью других скриптов, не отключая его. В основном это будет обеспечиваться новыми
+свойствами bool physicsEnabled и IGadget controlledBy.  
+
+Когда physicsEnabled имеет значение true, Dray сталкивается с другими объектами как
+обычно, но когда оно равно false, Collider2D Dray отключается, а Rigidbody2D.simulated
+устанавливается в false, что удаляет Dray из симуляции Physics2D. Это сделано для того, чтобы
+Grappler мог тянуть Dray через плитки лавы, которые в противном случае сталкивались бы с Dray.
+Это также имеет приятный побочный эффект: Dray становится неуязвимым для столкновений с
+врагами, пока его тянет Grappler.  
+
+Поле controlledBy Дрея обычно равно null, но когда Дрей управляется IGadget (например,
+когда Grappler тянет Дрея), этот IGadget назначается controlledBy. Если controlledBy не
+равно null, то свойство isControlled вернет true, и тело методов Dray Update(),
+LateUpdate(), OnCollisionEnter2D() и OnTriggerEnter2D() будет пропущено. Это
+гарантирует, что IGadget, указанный в controlledBy, имеет полный контроль над Dray и не
+прерывается никаким кодом в этих методах.  
+
+Вы также добавите Vector3 lastSafeLoc и int lastSafeFacing в листинге кода. В совокупности эти два поля позволяют вернуть Дрея в безопасное положение, если захват
+Grappler уронит его на «опасную» плитку с лавой. Я решил сделать так, чтобы lastSafeLoc
+всегда находилось внутри дверного проема, чтобы Дрей всегда возвращался в положение, где его
+не сможет поразить враг.  
+
+1. Откройте скрипт Dray в Visual Studio и внесите изменения в код.  
+        Листинг кода Dray.cs
+```c#
+public class Dray : MonoBehaviour, IFacingMover, IKeyMaster {
+    …
+    private float invincibleDone = 0;
+    private Vector2 knockbackVel;
+    private Vector3 lastSafeLoc; // a
+    private int lastSafeFacing;
+
+    private Collider2D colld; // b
+    private Grappler grappler;
+    private SpriteRenderer sRend;
+    private Rigidbody2D rigid;
+    …
+
+    void Awake() {
+        …
+        grappler = GetComponentInChildren<Grappler>();
+        if ( startWithGrappler ) currentGadget = grappler;
+        colld = GetComponent<Collider2D>(); // c
+    }
+
+    void Start() {
+        lastSafeLoc = transform.position; // d
+        lastSafeFacing = facing;
+    }
+
+    void Update() {
+        if ( isControlled ) return; // e
+
+        // Check knockback and invincibility
+        if (invincible && Time.time > invincibleDone) invincible = false;
+        …
+    }
+
+    void LateUpdate() {
+        if ( isControlled ) return; // e
+
+        // Get the nearest quarter-grid position to Dray
+        Vector2 gridPosIR = GetGridPosInRoom( 0.25f );
+        …
+
+        // Make sure that the rm we want to jump to is valid
+        if (0 <= rm.x && rm.x <= InRoom.MAX_RM_X) {
+            if (0 <= rm.y && rm.y <= InRoom.MAX_RM_Y) {
+                …
+                mode = eMode.roomTrans;
+                roomTransDone = Time.time + roomTransDelay;
+                lastSafeLoc = transform.position; // f
+                lastSafeFacing = facing;
+            }
+        }
+    }
+
+    void OnCollisionEnter2D( Collision2D coll ) {
+        if ( isControlled ) return; // e
+
+        if (invincible) return; // Return if Dray can’t be damaged
+        …
+    }
+
+    void OnTriggerEnter2D( Collider2D colld ) {
+        if ( isControlled ) return; // e
+
+        PickUp pup = colld.GetComponent<PickUp>();
+        …
+    }
+
+    public void ResetInRoom( int healthLoss = 0 ) { // g
+        transform.position = lastSafeLoc;
+        facing = lastSafeFacing;
+        health -= healthLoss;
+
+        invincible = true; // Make Dray invincible
+        invincibleDone = Time.time + invincibleDuration;
+    }
+
+    static public int HEALTH { get { return S._health; } }
+    …
+
+    #region IGadget_Affordances
+    //- IGadget Affordances -
+    …
+
+    public bool GadgetIsDone( IGadget gadget ) {
+        if ( gadget != currentGadget ) {
+            …
+        }
+        controlledBy = null; // h
+        physicsEnabled = true;
+        mode = eMode.idle;
+        return true;
+    }
+
+    public IGadget controlledBy { get; set; } // i
+    public bool isControlled {
+        get { return (controlledBy != null); }
+    }
+
+    [SerializeField]
+    private bool _physicsEnabled = true; // j
+    public bool physicsEnabled {
+        get { return _physicsEnabled; }
+        set {
+            if ( _physicsEnabled != value ) {
+                _physicsEnabled = value;
+                colld.enabled = _physicsEnabled;
+                rigid.simulated = _physicsEnabled;
+            }
+        }
+    }
+    #endregion
+}
+```
+
+    - a. lastSafeLoc и lastSafeFacing используются для сброса положения Dray, если он
+заканчивает Grapple на плитке с лавой. Оба этих поля задаются в Start() и LateUpdate().
+    - b. colld хранит ссылку на Collider2D Дрея, который используется в physicsEnabled.
+    - c. Здесь задается значение colld.
+    - d. В методе Start() lastSafeLoc и lastSafeFacing устанавливаются в положение и
+направление Дрея в начале уровня.
+    - e. Если isControlled равно true, то тело методов Update(), LateUpdate(),
+OnCollisionEnter2D() и OnTriggerEnter2D() будет пропущено. Убедитесь, что вы
+добавили это во все четыре метода.
+    - f. Когда Дрей проходит через дверной проем в другую комнату, lastSafeLoc и
+lastSafeFacing устанавливаются в положение и направление, в которых Дрей вошел в
+комнату.  
+
+>Используя редактор уровней, о котором я упоминаю в конце этой главы, некоторые из моих студентов создали очень
+классные подземелья, где Дрей мог перебираться через лаву в другие комнаты (вместо того, чтобы проходить через
+дверные проемы). В этом случае, если Дрей падал в лаву, он сбрасывался к последнему безопасному дверному проему,
+через который он вошел в комнату.  
+
+    - g. Метод ResetInRoom() перемещает Дрея в его последнее безопасное положение и
+направление, а затем вычитает любой штраф healthLoss, который передается в него.
+Наконец, Дрей временно становится неуязвимым, чтобы у него было время приспособиться к
+перемещению, в течение которого он не уязвим.
+    - h. Когда IGadget вызывает GadgetIsDone(), controlledBy и
+physicsEnabled возвращаются в свои состояния по умолчанию.
+    - i. controlledBy - это общедоступное автоматическое свойство IGadget, а значение
+isControlled определяется значением controlledBy.
+    - j. physicsEnabled - это свойство, поддерживаемое частным bool
+_physicsEnabled. Когда устанавливается свойство physicsEnabled, оно также
+устанавливает и colld.enabled, и rigid.simulated, позволяя другим классам включать
+или выключать физику Dray путем установки одного bool.  
+
+В продолжение `// j`: поскольку Unity делает все компоненты на GameObject публичными, любой
+класс может получить компоненты Rigidbody2D и Collider2D GameObject Dray и установить
+значения любых публичных полей этих компонентов. Никакой код, который мы могли бы написать,
+не предотвратил бы этого.
+Вместо этого мы предоставляем другим классам простой способ включать или отключать эти
+компоненты через свойство physicsEnabled на Dray, и если это когда-либо происходит, когда
+вы этого не хотите, вы можете запустить отладчик с точкой останова в блоке set
+physicsEnabled и использовать его для анализа каждого случая, когда устанавливается
+physicsEnabled. Если бы другие классы напрямую изменяли значения в компонентах
+Rigidbody2D или Collider2D, то отслеживать эти изменения в отладчике было бы не так
+просто.  
+
+2. Сохраните все скрипты в Visual Studio (вы, наверное, сохраняли по ходу работы, но на всякий
+случай сохраните их сейчас).  
+
+Далее мы добавим код в Grappler, чтобы наконец реализовать состояние eMode.gPull Grappler.
+3. Откройте скрипт Grappler в Visual Studio и внесите изменения в код.  
+        Листинг Grappler.cs
+```c#
+public class Grappler : MonoBehaviour, IGadget {
+    …
+    [Tooltip("Minimum distance of Grappler from Dray")]
+    public float minLength = 0.5f;
+    [Tooltip("Health deducted when Dray ends a grapple on an unsafe tile")]
+    public int unsafeTileHealthPenalty = 2; // a
+
+    [Header("Dynamic")] [SerializeField]
+    private eMode _mode = eMode.gIdle;
+    …
+
+    void SetGrappleMode( eMode newMode ) {
+        switch ( newMode ) {
+            case eMode.gIdle:
+            transform.DetachChildren(); // Release any child Transforms
+            gameObject.SetActive( false );
+            if ( dray != null && dray.controlledBy == this as IGadget ) { // b
+                dray.controlledBy = null;
+                dray.physicsEnabled = true;
+            }
+            break;
+            …
+
+            case eMode.gPull:
+            p1 = transform.position; // c
+            rigid.velocity = Vector2.zero;
+            dray.controlledBy = this; // d
+            dray.physicsEnabled = false;
+            break;
+        }
+
+        mode = newMode;
+    }
+
+
+    void FixedUpdate() {
+        …
+        switch (mode) {
+            …
+
+        case eMode.gPull:
+            if ( ( p1 - p0 ).magnitude > minLength ) { // e
+                // Move Dray toward the Grappler hit point
+                p0 += dirV3s[facing] * grappleSpd * Time.fixedDeltaTime;
+                dray.transform.position = p0;
+                line.SetPosition(0,p0);
+                // Stop Grappler from moving with Dray
+                transform.position = p1;
+            } else { // f
+                // Dray is close enough to stop grappling
+                p0 = p1 - ( dirV3s[facing] * minLength );
+                dray.transform.position = p0;
+                // Check whether Dray landed on an unsafe tile
+                Vector2 checkPos = (Vector2) p0 + new Vector2( 0, -0.25f ); // g
+                if ( MapInfo.UNSAFE_TILE_AT_VECTOR2( checkPos ) ) {
+                    // Dray landed on an unsafe tile
+                    dray.ResetInRoom( unsafeTileHealthPenalty );
+                }
+                GrappleDone();
+            }
+            break;
+        }
+    }
+    …
+
+    void OnTriggerEnter2D( Collider2D colld ) {
+        …
+
+        switch ( otherLayer ) { // Please DOUBLE CHECK layer name spelling!
+        …
+
+        case "GrapTiles": // We’ve hit a GrapTile
+        // SetGrappleMode( eMode.gRetract ); // Delete this line
+        SetGrappleMode( eMode.gPull );
+        // h
+        break;
+        …
+
+        }
+    }
+
+    void GrappleDone() { … }
+
+    …
+}
+```
+
+    - a. unsafeTileHealthPenalty нанесет Дрею 2 единицы урона, если он выйдет из состояния
+eMode.gPull, находясь на «небезопасной» плитке с лавой.
+    - b. Когда Grappler переходит в состояние eMode.gIdle, если dray не равен null и
+управляется им, необходимо вернуть управление Dray и повторно включить физику Dray. «as
+IGadget» требуется для предотвращения ошибки, которую C# выдает при попытке сравнить
+ссылки двух разных типов. dray.controlledBy является IGadget, но это Grappler,
+реализующий IGadget, поэтому для сравнения мы должны рассматривать его как IGadget.
+Поля controlledBy и physicsEnabled объекта Dray также сбрасываются на эти
+значения в методе Dray.GadgetIsDone() (строка `// h` в листинге кода) на случай,
+если будущий IGadget этого не сделает.
+    - c. При переходе в состояние eMode.gPull p1 устанавливается в текущее положение
+головки Grappler (для LineRenderer), а скорость Grappler - в ноль.
+    - d. Здесь dray.controlledBy устанавливается в значение этого IGadget, а
+dray.physicsEnabled - в false. Эти настройки позволяют данному Grappler перемещать
+Dray, избегая столкновений.  
+
+    - e. В состоянии eMode.gPull в FixedUpdate(), пока расстояние между Grappler и Dray (т. е.
+расстояние p1 – p0) больше minLength:
+        - p0 перемещается в направлении, в котором смотрит Dray (к Grappler).
+        - Положение Dray устанавливается в p0.
+        - Нулевая точка LineRenderer также обновляется до p0 (чтобы линия двигалась вместе с Dray).
+        - Поскольку GameObject Grappler является дочерним объектом Dray, он естественным образом
+будет перемещаться вместе с Dray при изменении положения Dray. Чтобы предотвратить это,
+положение Grappler в мире сбрасывается на p1, удерживая Grappler на одном месте на
+протяжении всего тягового действия.
+    - f. Когда расстояние между Grappler и Dray меньше или равно minLength:
+        - p0 устанавливается ровно на расстояние minLength от Grappler.
+        - Положение Dray устанавливается в p0.
+        - Вызывается GrappleDone().
+        - (Поскольку GrappleDone() приводит к остановке рендеринга Grappler, нам не нужно
+сбрасывать его положение в p1.)
+    - g. Когда Grappler завершит работу, он проверяет, находится ли Dray на небезопасной плитке,
+используя
+MapInfo.UNSAFE_TILE_AT_VECTOR2(), который мы написали ранее в листинге кода. Новый вектор Vector2( 0, –0.25f ) добавляется к координатам p0 Дрея, чтобы
+проверка на наличие опасной плитки выполнялась по отношению к плитке, на которой находятся
+ноги Дрея (а не по центру его спрайта). Если ноги Дрея находятся на небезопасной плитке, его
+положение сбрасывается на последний проем, через который он вошел в комнату, и Дрею
+наносится урон unsafeTileHealthPenalty.
+    - h. Когда триггер Grappler сталкивается с чем-либо в физическом слое GrapTiles (то есть, он
+ударился о плитку Tilemap_GrapTiles), Grappler переводится в режим eMode.gPull (заменяя
+предыдущий вызов, который устанавливал его в режим eMode.gRetract).
+4. Сохраните все скрипты в Visual Studio и вернитесь в Unity.
