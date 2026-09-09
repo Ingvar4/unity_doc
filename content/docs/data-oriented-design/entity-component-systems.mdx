@@ -38,14 +38,14 @@ ECS стабильна, и именно ее я опишу здесь.
 Например, в ООП объект PlayerShip имеет положение и скорость, а
 также метод `UpdatePosition()`, который перемещает его в каждом кадре.
 
-<img src="/images/ex46.jpeg" alt="1" style={{  height: 'auto' }} />
+<img src="/unity_doc/images/ex46.jpeg" alt="1" style={{  height: 'auto' }} />
 
 Упрощённое объектно-ориентированное представление объектов в игре Asteroids  
 
 Однако, взглянув на это, вы увидите, что здесь много сходств, как
 показано на рисунке
 
-<img src="/images/ex47.jpeg" alt="1" style={{  height: 'auto' }} />
+<img src="/unity_doc/images/ex47.jpeg" alt="1" style={{  height: 'auto' }} />
 Объекты в игре Asteroids имеют много общих типов данных и методов  
 
 В объектно-ориентированном программировании можно было бы создать
@@ -55,7 +55,7 @@ ECS стабильна, и именно ее я опишу здесь.
 каждого из типов объектов, но ECS подходит к обработке этих сходств иначе,
 как показано на рисунке
 
-<img src="/images/ex48.jpeg" alt="1" style={{  height: 'auto' }} />
+<img src="/unity_doc/images/ex48.jpeg" alt="1" style={{  height: 'auto' }} />
 
 Сущности, компоненты и системы в Asteroids с
 выделением по типу компонента ECS (Обратите внимание, что хотя
@@ -139,7 +139,7 @@ public struct Sys_UpdatePosition : ComponentSystem {
 только к массивам компонентов `Com_Position` и `Com_Velocity`, и она
 никогда не будет загружать в кэш-память массивы других компонентов.
 
-<img src="/images/ex49.jpeg" alt="1" style={{  height: 'auto' }} />
+<img src="/unity_doc/images/ex49.jpeg" alt="1" style={{  height: 'auto' }} />
 Хранение компонентов ECS в массивах повышает
 эффективность.  
 
