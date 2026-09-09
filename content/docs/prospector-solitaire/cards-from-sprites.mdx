@@ -6,7 +6,7 @@ description: Теперь, когда у карт есть информация,
 Хотя ваши карты пока выглядят пустыми, на рисунке вы можете увидеть, что
 мы будем создавать на следующих нескольких страницах кода.
 
-<img src="/unity_doc/images/ex114.jpeg" alt="1" style={{  height: 'auto' }} />
+<img src="/images/ex114.jpeg" alt="1" style={{  height: 'auto' }} />
 Сетка карт, которая будет создана классом Deck, когда вы закончите этот
 раздел  
 
@@ -50,13 +50,13 @@ public class Card : MonoBehaviour {
         foreach (JsonPip pip in JsonParseDeck.DECORATORS) { // e
             if (pip.type == "suit") {
                 // Instantiate a Sprite GameObject
-                _tGO = Instantiate<GameObject> (Deck.SPRITE_PREFAB,transform); // f
+                _tGO = Instantiate<GameObject> (Deck.SPRITE_PREFAB, transform); // f
                 // Get the SpriteRenderer Component
                 _tSRend = _tGO.GetComponent<SpriteRenderer>();
                 // Get the suit Sprite from the CardSpritesSO.SUIT static field
                 _tSRend.sprite = CardSpritesSO.SUITS[suit];
             } else {
-                _tGO = Instantiate<GameObject> (Deck.SPRITE_PREFAB,transform); // f
+                _tGO = Instantiate<GameObject> (Deck.SPRITE_PREFAB, transform); // f
                 _tSRend = _tGO.GetComponent<SpriteRenderer>();
                 // Get the rank Sprite from the CardSpritesSO.RANK static field
                 _tSRend.sprite = CardSpritesSO.RANKS[rank];
@@ -91,7 +91,7 @@ public class Card : MonoBehaviour {
 повторно использоваться в этих методах так много раз, что я решил, что объявить их один
 раз как private-поля будет гораздо лучше, чем создавать и пересоздавать их как локальные
 переменные. Подчеркивание ( `_` ) в имени указывает на то, что они являются частными,
-тогда как буква t означает, что они предназначены для временного использования (в
+тогда как буква *t* означает, что они предназначены для временного использования (в
 отличие от поля, на которое позже будут часто ссылаться). И то, и другое - просто мой
 личный стиль именования.
 
@@ -172,7 +172,7 @@ public class Card : MonoBehaviour {
                 _tGO.transform.localScale = Vector3.one * pip.scale;
             }
             // Give this GameObject a name
-            _tGO.name = "pip_"+pipNum++; // c
+            _tGO.name = "pip_" + pipNum++; // c
             // Get the SpriteRenderer Component
             _tSRend = _tGO.GetComponent<SpriteRenderer>();
             // Set the Sprite to the proper suit
@@ -250,7 +250,7 @@ public class Card : MonoBehaviour {
 ```
 
     - a. Не забудьте добавить эту строку в конец `Init()`, иначе `AddFace()` не будет вызвана.
-    - b. Это генерирует имя спрайта лица на основе def.face (например, «FaceCard_12») и
+    - b. Это генерирует имя спрайта face на основе def.face (например, «FaceCard_12») и
 масти данной карты (например, «H»), чтобы получить имя спрайта лица в массиве
 faceSprites класса CardSpritesSO (например, «FaceCard_12H» для дамы
 червей).
@@ -323,7 +323,7 @@ public class Card : MonoBehaviour {
 
     - a. Не забудьте добавить эти строки в конец функции `Init()`.
     - b. Свойство `faceUp` предоставляет этому скрипту и другим скриптам противоположное
-значение по отношению к back.activeSelf. Если спрайт back активен (т. е.
+значение по отношению к `back.activeSelf`. Если спрайт back активен (т. е.
 отображается в сцене), faceUp равно false, а если спрайт back неактивен и скрыт,
 faceUp равно true.
     - c. У спрайта back sortingOrder=2, что означает, что он отображается поверх всех других
@@ -331,12 +331,12 @@ faceUp равно true.
 изображений лиц sortingOrder=1.)  
 
 2. Сохраните скрипт Card и вернитесь в Unity.
-3. Выберите MainCamera в иерархии и установите startFaceUp в компоненте Deck
+3. Выберите *MainCamera* в иерархии и установите `startFaceUp` в компоненте *Deck*
 (Script) инспектора в false (не отмечено).
 4. Нажмите Play, и вы должны увидеть, что все карты теперь закрыты одним и тем же
 спрайтом обратной стороны.
 5. Остановите воспроизведение.
-6. Выберите MainCamera в иерархии и верните значение startFaceUp в true (отмечено).
+6. Выберите *MainCamera* в иерархии и верните значение startFaceUp в true (отмечено).
 Вы можете нажать Play, чтобы еще раз убедиться, что все карты снова лежат лицевой
 стороной вверх.
 7. Сохраните сцену. Всегда сохраняйте сцену.
