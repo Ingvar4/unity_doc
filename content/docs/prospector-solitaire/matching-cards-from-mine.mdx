@@ -29,8 +29,8 @@ public class Prospector : MonoBehaviour {
             if (!cp.AdjacentTo(S.target)) validMatch = false; // b
 
             if (validMatch) { // If it’s a valid card
-            S.mine.Remove(cp); // Remove it from the tableau List
-            S.MoveToTarget(cp); // Make it the target card
+                S.mine.Remove(cp); // Remove it from the tableau List
+                S.MoveToTarget(cp); // Make it the target card
             }
             break;
         }
@@ -61,7 +61,7 @@ public class Card : MonoBehaviour {
     /// <param name="otherCard">The card to compare to</param>
     /// <param name="wrap">If true (default) Ace and King wrap</param>
     /// <returns>true, if the cards are adjacent</returns>
-    public bool AdjacentTo(Card otherCard, bool wrap=true) {
+    public bool AdjacentTo(Card otherCard, bool wrap = true) {
         // If either card is face-down, it’s not a valid match.
         if (!faceUp || !otherCard.faceUp) return (false);
 
@@ -92,15 +92,11 @@ hiddenBy, который мы создали ранее при разборе JS
 каждого слота хранит идентификационные номера других слотов расположения мин, которые
 его покрывают.  
 
-Если мы создадим словарь, связывающий идентификационный номер каждого слота
-расположения мин с CardProspector, который был в него помещен, а затем установим эти
-слоты в null, когда карта в слоте будет разыграна, мы сможем проверить, следует ли
-перевернуть какую-либо карту в мине лицевой стороной вверх. Если два слота карт, скрывающих
-любую закрытую карту, равны null, то эту карту следует перевернуть лицевой стороной вверх.  
+Если мы создадим словарь, связывающий идентификатор каждого слота в раскладке шахты с размещенной в нем картой `CardProspector`, а затем будем присваивать этим слотам значение `null` после разыгрывания находящейся в них карты, то сможем проверять, не следует ли перевернуть какую-либо карту в шахте лицевой стороной вверх. Если оба слота, скрывающие карту, лежащую «рубашкой» вверх, содержат `null`, значит, эту карту нужно перевернуть.
 
 Для этого необходимо добавить код в Prospector в нескольких местах.  
 
-4. Добавьте следующий выделенный жирным шрифтом код по всему скрипту Prospector. Сюда
+4. Добавьте следующий код по всему скрипту Prospector. Сюда
 входит следующее (что вы можете увидеть, отмеченное от `// a` до `// e` в листинге кода):
     - a. Новое поле `mineIdToCardDict` над `Start()`
     - b. Инициализация `mineIdToCardDict` в `LayoutMine()`

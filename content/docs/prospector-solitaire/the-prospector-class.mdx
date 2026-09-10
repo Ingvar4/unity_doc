@@ -8,8 +8,8 @@ description: Я уверен, что кажется, что это заняло 
 Начнем с извлечения карт из колоды и преобразования их в
 CardProspectors, которые можно использовать в этой игре.  
 
-1. Создайте новый скрипт на C# с именем Prospector и поместите его в папку *__Scripts*.
-2. Откройте скрипт Prospector в Visual Studio и введите код из листинга.  
+1. Создайте новый скрипт на C# с именем *Prospector* и поместите его в папку *__Scripts*.
+2. Откройте скрипт *Prospector* в Visual Studio и введите код из листинга.  
 
         Листинг кода Prospector.cs
 
@@ -30,7 +30,7 @@ public class Prospector : MonoBehaviour {
     private Deck deck;
     private JsonLayout jsonLayout;
 
-    void Start () {
+    void Start() {
         // Set the private Singleton. We’ll use this later.
         if (S != null) Debug.LogError("Attempted to set S more than once!"); // b
         S = this;
@@ -54,11 +54,11 @@ public class Prospector : MonoBehaviour {
     List<CardProspector> ConvertCardsToCardProspectors(List<Card> listCard) { 
         List<CardProspector> listCP = new List<CardProspector>();
         CardProspector cp;
-        foreach( Card card in listCard) {
+        foreach(Card card in listCard) {
             cp = card as CardProspector; // c
-            listCP.Add( cp );
+            listCP.Add(cp);
         }
-        return( listCP );
+        return(listCP);
     }
 
     // void Update() {…} // Please delete the unused Update() method
@@ -72,20 +72,20 @@ public class Prospector : MonoBehaviour {
 попытается установить S во второй раз, но она не использует return; для выхода из
 метода Start(). Моя идея здесь заключается в том, что если вы увидите эту ошибку, вы
 исправите проблему, найдя и удалив второй скрипт Prospector в сцене, поэтому вам не нужно использовать код для обработки этого случая.
-    - c. Ключевое слово as попытается преобразовать Card в CardProspector. Подробнее
+    - c. Ключевое слово `as` попытается преобразовать Card в CardProspector. Подробнее
 об этом вскоре.
 
 3. Сохраните скрипт Prospector и вернитесь в Unity.
-4. Прикрепите новый скрипт Prospector к объекту _MainCamera в иерархии.
+4. Прикрепите новый скрипт *Prospector* к объекту *_MainCamera* в иерархии.
 5. Сохраните сцену и нажмите «Play» в Unity. 
 
-Теперь посмотрите на drawPile в компоненте Prospector (Script) панели
-панели инспектора _ MainCamera. Вы заметите, что все карты в drawPile имеют значение None
-(Card Prospector), что означает, что они равны null. (Вы также можете увидеть это, установив
+Теперь посмотрите на drawPile в компоненте *Prospector* (Script) панели
+панели инспектора *_MainCamera*. Вы заметите, что все карты в drawPile имеют значение None
+(Card Prospector), что означает, что они равны `null`. (Вы также можете увидеть это, установив
 точку останова на строке, помеченной `// c` в предыдущем коде, и запустив отладчик.) Когда мы
-пытаемся преобразовать Card в CardProspector, в строке `// c`
-as возвращает null вместо CardProspector, преобразованного из Card. Это связано с тем,
-как работает объектно-ориентированное программирование в C# (см. боковую панель
+пытаемся преобразовать *Card* в *CardProspector*, в строке `// c`
+`as` возвращает `null` вместо *CardProspector*, преобразованного из *Card*. Это связано с тем,
+как работает объектно-ориентированное программирование в C# (см. панель
 «Суперклассы нельзя привести к подклассам»).
 
 <Callout>
@@ -116,27 +116,27 @@ as возвращает null вместо CardProspector, преобразова
 Animal всегда был Scorpion.
 </Callout>  
 
-Решение в данном случае заключается в том, чтобы убедиться, что CardProspector всегда
-был CardProspector и просто использовал полиморфизм, чтобы действовать как Card для
-всего кода в классе Deck.  
+Решение в данном случае заключается в том, чтобы убедиться, что *CardProspector* всегда
+был *CardProspector* и просто использовал полиморфизм, чтобы действовать как *Card* для
+всего кода в классе *Deck*.  
 
-6. Для этого выберите PrefabCard на панели Project, и вы увидите, что он появляется в
-Inspector с компонентом Card (Script).
+6. Для этого выберите *PrefabCard* на панели Project, и вы увидите, что он появляется в
+Inspector с компонентом *Card* (Script).
 7. В панели меню Unity выберите *Component > Scripts > CardProspector*. Это добавит компонент
-CardProspector (Script) к GameObject PrefabCard (прокрутите вниз в Inspector, чтобы его
+*CardProspector* (Script) к GameObject *PrefabCard* (прокрутите вниз в Inspector, чтобы его
 увидеть).
-8. Чтобы удалить старый компонент Card (Script), щелкните значок с тремя вертикальными
-точками ( ⋮ ) в правом верхнем углу инспектора Card (Script) и выберите Remove Component в
+8. Чтобы удалить старый компонент *Card* (Script), щелкните значок с тремя вертикальными
+точками ( ⋮ ) в правом верхнем углу инспектора *Card* (Script) и выберите Remove Component в
 всплывающем меню.
-9. Выберите MainCamera в иерархии и запустите сцену. Вы увидите, что все записи в поле
-drawPile класса Prospector теперь являются действительными экземплярами
-CardProspector, а не None.  
+9. Выберите *_MainCamera* в иерархии и запустите сцену. Вы увидите, что все записи в поле
+drawPile класса *Prospector* теперь являются действительными экземплярами
+*CardProspector*, а не None.  
 
-Когда скрипт Deck создает экземпляр PrefabCard и получает его компонент Card, это по-
+Когда скрипт *Deck* создает экземпляр *PrefabCard* и получает его компонент *Card*, это по-
 прежнему будет работать отлично, поскольку полиморфизм позволяет обращаться к
-CardProspector как к Card. Затем, когда функция
-ConvertCardsToCardProspectors() пытается вызвать cp = card как
-CardProspector, все работает нормально.  
+*CardProspector* как к *Card*. Затем, когда функция
+`ConvertCardsToCardProspectors()` пытается вызвать `cp = card` как
+*CardProspector*, все работает нормально.  
 
 10. Остановите воспроизведение и сохраните сцену. Вы знаете, что делать.  
 
@@ -145,7 +145,7 @@ CardProspector, все работает нормально.
 Теперь, когда все готово, пришло время добавить в класс Prospector код для фактического
 размещения элементов игры.  
 
-1. Откройте скрипт Prospector в Visual Studio и добавьте строки из листинга кода.  
+1. Откройте скрипт *Prospector* в Visual Studio и добавьте строки из листинга кода.  
 
         Листинг кода Prospector.cs
 ```c#
@@ -208,10 +208,10 @@ public class Prospector : MonoBehaviour {
             int z = int.Parse(slot.layer[slot.layer.Length - 1].ToString()); // c
 
             // Set the localPosition of the card based on the slot information
-            cp.SetLocalPos( new Vector3(
-            jsonLayout.multiplier.x * slot.x,
-            jsonLayout.multiplier.y * slot.y,
-            -z ) ); // d
+            cp.SetLocalPos(new Vector3(
+                jsonLayout.multiplier.x * slot.x,
+                jsonLayout.multiplier.y * slot.y,
+                -z)); // d
 
             cp.layoutID = slot.id;
             cp.layoutSlot = slot;
@@ -245,7 +245,7 @@ SortingLayers и sortingOrder не влияют на то, какой Box Collid
 требуют точки с запятой
 `;` в конце.  
 
-2. Сохраните скрипт Prospector и вернитесь в Unity.  
+2. Сохраните скрипт *Prospector* и вернитесь в Unity.  
 
 Когда вы нажмете «Play», вы увидите, что первые 28 карт действительно расставлены в шахте в
 соответствии с макетом, описанным в JSON_Layout.json, и верхний ряд лежит лицевой стороной
