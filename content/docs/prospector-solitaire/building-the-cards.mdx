@@ -165,7 +165,7 @@ public class JsonParseDeck : MonoBehaviour {
     /// <param name="rank">Must be an int in range 1-13</param>
     /// <returns>JsonCard information</returns>
     static public JsonCard GET_CARD_DEF(int rank) {
-        if ( (rank < 1) || (rank > S.deck.cards.Count) ) {
+        if ((rank < 1) || (rank > S.deck.cards.Count)) {
             Debug.LogWarning("Illegal rank argument: " + rank);
             return null;
         }
@@ -198,13 +198,13 @@ using UnityEngine;
 
 [RequireComponent( typeof(JsonParseDeck) )] // a
 public class Deck : MonoBehaviour {
-    [Header( "Inscribed" )]
+    [Header("Inscribed")]
     public CardSpritesSO cardSprites;
     public GameObject prefabCard;
     public GameObject prefabSprite;
     public bool startFaceUp = true;
 
-    [Header( "Dynamic" )]
+    [Header("Dynamic")]
     public Transform deckAnchor;
     public List<Card> cards;
 
@@ -230,8 +230,8 @@ public class Deck : MonoBehaviour {
         jsonDeck = GetComponent<JsonParseDeck>(); // b
 
         // Create an anchor for all the Card GameObjects in the Hierarchy
-        if ( GameObject.Find( "_Deck" ) == null ) { // c
-            GameObject anchorGO = new GameObject( "_Deck" );
+        if ( GameObject.Find("_Deck") == null ) { // c
+            GameObject anchorGO = new GameObject("_Deck");
             deckAnchor = anchorGO.transform;
         }
 
@@ -248,9 +248,9 @@ public class Deck : MonoBehaviour {
         // Generate 13 cards for each suit
         string suits = "CDHS";
         for ( int i = 0; i < 4; i++ ) {
-            for ( int j = 1; j <= 13; j++ ) { // d
-                c = MakeCard( suits[i], j ); // e
-                cards.Add( c );
+            for (int j = 1; j <= 13; j++) { // d
+                c = MakeCard(suits[i], j); // e
+                cards.Add(c);
 
                 // This aligns the cards in nice rows for testing
                 c.transform.position =
@@ -281,45 +281,45 @@ public class Deck : MonoBehaviour {
 
     - a. Атрибут компилятора RequireComponent сообщает Unity, что для работы этого
 компонента Deck необходимо, чтобы к тому же GameObject был также прикреплен
-компонент JsonParseDeck. Это может дать полезные ошибки, если компонент
-JsonParseDeck отсутствует, и если вы прикрепите Deck к GameObject, у которого
-еще нет компонента JsonParseDeck, компонент JsonParseDeck будет
+компонент *JsonParseDeck*. Это может дать полезные ошибки, если компонент
+*JsonParseDeck* отсутствует, и если вы прикрепите *Deck* к GameObject, у которого
+еще нет компонента *JsonParseDeck*, компонент *JsonParseDeck* будет
 прикреплен автоматически.
     - b. Благодаря атрибуту RequireComponent, указанному выше, нам не нужно
 проверять, является ли jsonDeck нулевым после этой строки. Компонент
-JsonParseDeck является обязательным, поэтому этот вызов GetComponent всегда
+*JsonParseDeck* является обязательным, поэтому этот вызов GetComponent всегда
 будет возвращать значение, отличное от нуля.
     - c. Добавление всех карт на корневом уровне иерархии сделало бы её довольно
 загромождённой, поэтому вместо этого эти строки создают пустой GameObject с именем
-_Deck, который станет родительским Transform для всех карт в иерархии. Я часто называю пустые GameObjects, используемые таким образом, «якорями», поскольку они собирают и служат корнем для
+`_Deck`, который станет родительским Transform для всех карт в иерархии. Я часто называю пустые GameObjects, используемые таким образом, «якорями», поскольку они собирают и служат корнем для
 всех своих дочерних GameObjects.
-    - d. Обратите внимание, что j будет принимать значения от 1 до 13 включительно (а не от 0
+    - d. Обратите внимание, что `j` будет принимать значения от 1 до 13 включительно (а не от 0
 до 12), потому что я хотел, чтобы j соответствовал рангу создаваемой карты (например, я
-хотел, чтобы j имел значение 5 при создании карты 5).
+хотел, чтобы `j` имел значение 5 при создании карты 5).
     - e. Поскольку строку можно рассматривать как упорядоченную коллекцию символов,
 мы можем использовать доступ через квадратные скобки к строке suits для
 выбора отдельных символов.
-    - f. Добавление deckAnchor в качестве опционального второго параметра к вызову
+    - f. Добавление `deckAnchor` в качестве опционального второго параметра к вызову
 `Instantiate<>()` приведет к инстанциированию префаба card go в качестве
-дочернего объекта deckAnchor (т. е. дочернего объекта Transform GameObject-а _Deck в
+дочернего объекта `deckAnchor` (т. е. дочернего объекта Transform GameObject-а _Deck в
 иерархии), что более эффективно, чем инстанциировать карту без родителя, а затем
-вызывать go.transform.SetParent().
-    - g. На данный момент мы закомментировали этот вызов Init(), так как еще не написали
-метод Init() в классе Card. Однако позже мы раскомментируем его.
+вызывать `go.transform.SetParent()`.
+    - g. На данный момент мы закомментировали этот вызов `Init()`, так как еще не написали
+метод `Init()` в классе *Card*. Однако позже мы раскомментируем его.
 
-3. Сохраните скрипт Deck и вернитесь в Unity.
-4. Выберите MainCamera в иерархии. Нам нужно присвоить ресурсы трем
-общедоступным полям, которые только что были созданы в компоненте Deck (Script),
+3. Сохраните скрипт *Deck* и вернитесь в Unity.
+4. Выберите *_MainCamera* в иерархии. Нам нужно присвоить ресурсы трем
+общедоступным полям, которые только что были созданы в компоненте *Deck* (Script),
 прикрепленном к
-_MainCamera.
-    - a. Присвойте экземпляр ScriptableObject CardSprites из панели Project полю
-поле cardSprites компонента Deck (Script) объекта _MainCamera.
+*_MainCamera*.
+    - a. Присвойте экземпляр ScriptableObject *CardSprites* из панели Project полю
+поле cardSprites компонента *Deck* (Script) объекта *_MainCamera*.
     - b. Перетащите PrefabCard из папки Prefabs панели Project в поле prefabCard.
     - c. Перетащите PrefabSprite из папки Prefabs в поле prefabSprite.
 5. Сохраните сцену.  
 
-Если вы нажмете «Play now», скрипт Deck расположит 54 пустых карты в сетке 13x4, которая
-заполнит панель Game (именно поэтому мы установили ортогональный размер _MainCamera
+Если вы нажмете «Play now», скрипт *Deck* расположит 54 пустых карты в сетке 13x4, которая
+заполнит панель Game (именно поэтому мы установили ортогональный размер *_MainCamera*
 равным 15). Далее мы воспользуемся информацией из JSON_Deck, чтобы сделать это гораздо
 интереснее.
 
@@ -411,7 +411,7 @@ public class Deck : MonoBehaviour {
     …
 
     Card MakeCard( char suit, int rank ) {
-        GameObject go = Instantiate<GameObject>( prefabCard, deckAnchor );
+        GameObject go = Instantiate<GameObject>(prefabCard, deckAnchor);
 
         Card card = go.GetComponent<Card>();
 
