@@ -98,7 +98,7 @@ public class Card : MonoBehaviour {
 <Callout>
 ### Примечание [!toc]
 Unity, вероятно, выдаст вам в консоли желтое предупреждение о том, что
-_tSprite присвоено, но никогда не используется. Не беспокойтесь об этом.
+`_tSprite` присвоено, но никогда не используется. Не беспокойтесь об этом.
 Предупреждения - это просто попытка Unity побудить вас к более
 качественному стилю программирования, поэтому их часто можно
 игнорировать. В данном случае код, который мы напишем в листинге будет использовать _tSprite, и предупреждение исчезнет.
@@ -123,9 +123,9 @@ GameObject (т. е. текущего GameObject Card), что позволяет
 CardFront равен 0, тогда как SortingOrder всех декоративных спрайтов равен 1, поэтому
 декоративные элементы будут отображаться поверх.
     - h. Эта строка демонстрирует однострочное условие `if`, использующее кэшированный
-кватернион _flipRot для переворачивания спрайта декоратора, если это необходимо.  
+кватернион `_flipRot` для переворачивания спрайта декоратора, если это необходимо.  
 
-2. Сохраните скрипт Card, вернитесь в Unity и нажмите Play.  
+2. Сохраните скрипт *Card*, вернитесь в Unity и нажмите Play.  
 
 Теперь вы должны увидеть все 52 карты, разложенные по экрану, что позволит вам убедиться,
 что декораторы для каждой карты правильные и расположены в нужном месте. После того как вы
@@ -144,7 +144,7 @@ CardFront равен 0, тогда как SortingOrder всех декорати
 ```c#
 public class Card : MonoBehaviour {
     …
-    public void Init(char eSuit, int eRank, bool startFaceUp=true) {
+    public void Init(char eSuit, int eRank, bool startFaceUp = true) {
         …
         // Build the card from Sprites
         AddDecorators();
@@ -195,7 +195,7 @@ pipNum инкрементируется после того, как к нему 
 GameObjects pip на карте ранга 3 будут называться «pip_0», «pip_1» и «pip_2». И когда
 цикл foreach завершится, значение pipNum будет равно 3.  
 
-2. Сохраните скрипт Card, вернитесь в Unity и нажмите Play.  
+2. Сохраните скрипт *Card*, вернитесь в Unity и нажмите Play.  
 
 Теперь все карты, кроме фигурных, должны иметь свои пики. Мы почти закончили создание
 колоды!
@@ -205,7 +205,7 @@ GameObjects pip на карте ранга 3 будут называться «p
 Последний шаг в создании лицевой стороны карт - добавление изображений валетов, дам и
 королей.  
 
-1. Откройте скрипт Card в Visual Studio и добавьте код из листинга в конец метода
+1. Откройте скрипт *Card* в Visual Studio и добавьте код из листинга в конец метода
 `Init()` и после метода `AddPips()`.  
 
         Листинг кода Card.cs
@@ -228,18 +228,18 @@ public class Card : MonoBehaviour {
     /// Adds the face sprite for card ranks 11 to 13
     /// </summary>
     private void AddFace() {
-        if ( def.face == "" )
+        if (def.face == "")
         return;// No need to run if this isn’t a face card
 
         // Find a face sprite in CardSpritesSO with the right name
         string faceName = def.face + suit; // b
-        _tSprite = CardSpritesSO.GET_FACE( faceName ); // c
-        if ( _tSprite == null ) {
-            Debug.LogError( "Face sprite " + faceName + " not found." );
+        _tSprite = CardSpritesSO.GET_FACE(faceName); // c
+        if (_tSprite == null) {
+            Debug.LogError("Face sprite " + faceName + " not found.");
             return;
         }
 
-        _tGO = Instantiate<GameObject>( Deck.SPRITE_PREFAB, transform ); // d
+        _tGO = Instantiate<GameObject>(Deck.SPRITE_PREFAB, transform); // d
         _tSRend = _tGO.GetComponent<SpriteRenderer>();
         _tSRend.sprite = _tSprite;// Assign the face Sprite to _tSRend
         _tSRend.sortingOrder = 1;// Set the sortingOrder
@@ -254,16 +254,16 @@ public class Card : MonoBehaviour {
 масти данной карты (например, «H»), чтобы получить имя спрайта лица в массиве
 faceSprites класса CardSpritesSO (например, «FaceCard_12H» для дамы
 червей).
-    - c. В этой строке используется статический метод CardSpritesSO.GET_FACE() для
+    - c. В этой строке используется статический метод `CardSpritesSO.GET_FACE()` для
 поиска нужного спрайта по имени faceName. Если спрайт не найден, в консоль
 записывается сообщение об ошибке, и метод завершает работу.
     - d. Добавление параметра transform в качестве опционального второго параметра при
 вызове `Instantiate<>()` приведет к созданию экземпляра SpritePrefab _tGO в
 качестве дочернего объекта transform (т. е. дочернего объекта Transform данного
 GameObject), что более эффективно, чем создание экземпляра без родителя с
-последующим вызовом _tGO.transform.SetParent().  
+последующим вызовом `_tGO.transform.SetParent()`.  
 
-2. Сохраните скрипт Card, вернитесь в Unity и нажмите Play.  
+2. Сохраните скрипт *Card*, вернитесь в Unity и нажмите Play.  
 
 Наконец-то у нас есть полная колода карт, включая валетов, дам и королей!
 
@@ -309,7 +309,7 @@ public class Card : MonoBehaviour {
     /// Adds a back to the card so that renders on top of everything else
     /// </summary>
     private void AddBack() {
-        _tGO = Instantiate<GameObject>( Deck.SPRITE_PREFAB, transform );
+        _tGO = Instantiate<GameObject>(Deck.SPRITE_PREFAB, transform);
         _tSRend = _tGO.GetComponent<SpriteRenderer>();
         _tSRend.sprite = CardSpritesSO.BACK;
         _tGO.transform.localPosition = Vector3.zero;
@@ -330,7 +330,7 @@ faceUp равно true.
 спрайтов карты. (У Card_Front sortingOrder=0. У всех спрайтов мастей, рангов и
 изображений лиц sortingOrder=1.)  
 
-2. Сохраните скрипт Card и вернитесь в Unity.
+2. Сохраните скрипт *Card* и вернитесь в Unity.
 3. Выберите *MainCamera* в иерархии и установите `startFaceUp` в компоненте *Deck*
 (Script) инспектора в false (не отмечено).
 4. Нажмите Play, и вы должны увидеть, что все карты теперь закрыты одним и тем же
