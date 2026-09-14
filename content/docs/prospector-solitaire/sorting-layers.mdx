@@ -22,10 +22,10 @@ description: Чтобы настроить слой сортировки, вып
 
 Поскольку SpriteRenderers и сортировка по глубине необходимы для любой карточной игры,
 созданной с использованием нашего кода, код для работы с сортировкой по глубине следует
-добавить в класс Card (а не в класс CardProspector, который используется только в этой
+добавить в класс *Card* (а не в класс CardProspector, который используется только в этой
 игре).  
 
-3. Откройте класс Card в Visual Studio и добавьте строки из
+3. Откройте класс *Card* в Visual Studio и добавьте строки из
 листинга кода  в конец скрипта, после всего остального кода, но перед закрывающей
 фигурной скобкой.  
 
@@ -106,7 +106,7 @@ sortingOrders всех Card_Fronts были равны 0, а всех пип - 1
 Далее нам нужно использовать этот новый метод внутри метода LayoutMine() класса
 Prospector.  
 
-4. Откройте скрипт Prospector и добавьте строки из листинга кода в `LayoutMine()`:  
+4. Откройте скрипт *Prospector* и добавьте строки из листинга кода в `LayoutMine()`:  
 
 Листинг кода Prospector.cs
 
@@ -180,7 +180,7 @@ public class Prospector : MonoBehaviour {
 
         // Place it on top of the pile for depth sorting
         cp.SetSpriteSortingLayer(jsonLayout.discardPile.layer); // a
-        cp.SetSortingOrder(-200 + (discardPile.Count * 3) ); // b
+        cp.SetSortingOrder(-200 + (discardPile.Count * 3)); // b
     }
 
     /// <summary>
