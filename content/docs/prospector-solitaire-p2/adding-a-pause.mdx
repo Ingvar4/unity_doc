@@ -6,8 +6,7 @@ description: Я уверен, что вы заметили, что раунды 
 Давайте что-нибудь с этим сделаем. Во-первых, мы задержим
 фактическую перезагрузку уровня с помощью функции `Invoke()`.
 
-1. Добавьте выделенный жирным шрифтом код из листинга в скрипт
-Prospector: заголовок и поле в верхней части класса, несколько строк
+1. Добавьте код из листинга в скрипт *Prospector*: заголовок и поле в верхней части класса, несколько строк
 в методе `GameOver()` и новый метод `ReloadLevel()`: 
 
         Листинг Prospector.cs
@@ -26,11 +25,11 @@ public class Prospector : MonoBehaviour {
     /// Called when the game is over. Simple for now, but expandable
     /// </summary>
     /// <param name="won">true if the player won</param>
-    void GameOver( bool won ) {
-        if ( won ) {
-            ScoreManager.TALLY( eScoreEvent.gameWin );
+    void GameOver(bool won) {
+        if (won) {
+            ScoreManager.TALLY(eScoreEvent.gameWin);
         } else {
-            ScoreManager.TALLY( eScoreEvent.gameLoss );
+            ScoreManager.TALLY(eScoreEvent.gameLoss);
         }
 
         // Reset the CardSpritesSO singleton to null
@@ -64,7 +63,7 @@ roundDelay секунд. Теперь при запуске игры будет 
 Мы также хотим предоставлять игроку больше обратной связи в конце
 каждого раунда.  
 
-1. Добавьте в сцену новый элемент интерфейса UI Text – TextMeshPro:
+1. Добавьте в сцену новый элемент интерфейса *UI Text – TextMeshPro*:
     - a. Выберите Canvas в иерархии.
     - b. В панели меню выберите *GameObject > UI > Текст - TPtexMsehro*.
     - c. Переименуйте Text (TMP) в GameOver.
@@ -78,13 +77,13 @@ Anchors. Лично я предпочитаю именно так.
 
 Настройки полей GameOver и RoundResult в UI TextMeshPro  
 
-3. Добавьте в сцену еще один UI Text – TextMeshPro:
+3. Добавьте в сцену еще один *UI Text – TextMeshPro*:
     - a. Щелкните правой кнопкой мыши по GameOver в иерархии и
 выберите «Duplicate» (Дублировать) в всплывающем меню.
     - b. Переименуйте этот текст GameOver (1) в RoundResult.
     - c. Установите для RoundResult настройки, показанные в правой
-части рисунка 34.5.
-4. Добавьте третий элемент UI Text – TextMeshPro:
+части рисунка.
+4. Добавьте третий элемент *UI Text – TextMeshPro*:
     - a. Скопируйте RoundResult в качестве дочернего элемента Canvas.
     - b. Переименуйте его в HighScore.
     - c. Установите для HighScore настройки, показанные на рисунке, за исключением всего, что связано с Liberation Sans SDF - High Score (Material), который вы создадите на следующем шаге.

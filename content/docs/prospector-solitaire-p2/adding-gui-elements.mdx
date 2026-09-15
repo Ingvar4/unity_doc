@@ -81,13 +81,13 @@ public class BezierMover : MonoBehaviour {
     // An enum to set the way position is set (see Tooltip that follows)
     public enum ePosMode { world, local, ugui }
 
-    [Header( "Inscribed" )]
-    [Tooltip( "world sets transform.position, " +
-    "local sets transform.localPosition, " +
-    "ugui sets anchorMin and anchorMax of RectTransform." )]
+    [Header("Inscribed")]
+    [Tooltip("world sets transform.position, " +
+        "local sets transform.localPosition, " +
+        "ugui sets anchorMin and anchorMax of RectTransform.")]
     public ePosMode posMode = ePosMode.ugui;
 
-    [Header( "Dynamic" )]
+    [Header("Dynamic")]
     public eState state = eState.idle;
     public float timeStart = -1f;
     public float timeDuration = 1f;
@@ -111,9 +111,9 @@ public class BezierMover : MonoBehaviour {
     /// <param name="pts">List of Vector3 Bezier points</param>
     /// <param name="timeD">The duration of the movement in seconds</param>
     /// <param name="timeS">The start time (default of 0 is now)</param>
-    public void Init( List<Vector3> pts, float timeD = 1, float timeS = 0 ) {
+    public void Init(List<Vector3> pts, float timeD = 1, float timeS = 0) {
         // Note the use of parameter default values for timeD & timeS
-        if ( pts == null || pts.Count == 0 ) {
+        if (pts == null || pts.Count == 0) {
             Debug.LogError( "You must pass at least one point into Init()!" );
             return;
         }
@@ -124,15 +124,15 @@ public class BezierMover : MonoBehaviour {
         pos = pts[0];
 
         // And if there’s only that one point, then just callback
-        if ( pts.Count == 1 ) {
+        if (pts.Count == 1) {
             completionEvent.Invoke(); // d
             return;
         }
 
-        bezierPts = new List<Vector3>( pts );
+        bezierPts = new List<Vector3>(pts);
 
         // If timeS is the default, just start at the current time
-        if ( timeS == 0 ) timeS = Time.time;
+        if (timeS == 0) timeS = Time.time;
         timeStart = timeS;
         timeDuration = timeD;
 
@@ -148,14 +148,14 @@ public class BezierMover : MonoBehaviour {
     /// <param name="ptsV2">List of Vector2 Bezier points</param>
     /// <param name="timeD">The duration of the movement in seconds</param>
     /// <param name="timeS">The start time (default of 0 is now)</param>
-    public void Init( List<Vector2> ptsV2, float timeD = 1, float timeS = 0 ) {
+    public void Init(List<Vector2> ptsV2, float timeD = 1, float timeS = 0) {
         // Cannot implicitly convert from List<Vector2> to List<Vector3>
         // so we’ll do it manually.
         List<Vector3> ptsV3 = new List<Vector3>();
-        foreach ( Vector2 v2 in ptsV2 ) { ptsV3.Add( (Vector3) v2 ); } // e
+        foreach (Vector2 v2 in ptsV2) { ptsV3.Add((Vector3)v2); } // e
 
         // Then call the Vector3 overload of Init()
-        Init( ptsV3, timeD, timeS );
+        Init(ptsV3, timeD, timeS);
     }
 
     /// <summary>
@@ -166,18 +166,18 @@ public class BezierMover : MonoBehaviour {
     /// </summary>
     public Vector3 pos { // f
         get {
-            if ( posMode == ePosMode.ugui ) {
+            if (posMode == ePosMode.ugui) {
                 return rectTrans.anchorMin;
-            } else if ( posMode == ePosMode.local ) {
+            } else if (posMode == ePosMode.local) {
                 return transform.localPosition;
             } else {
                 return transform.position;
             }
         }
         private set {
-            if ( posMode == ePosMode.ugui ) {
+            if (posMode == ePosMode.ugui) {
                 rectTrans.anchorMin = rectTrans.anchorMax = value;
-            } else if ( posMode == ePosMode.local ) {
+            } else if (posMode == ePosMode.local) {
                 transform.localPosition = value;
             } else {
                 transform.position = value;
@@ -189,18 +189,18 @@ public class BezierMover : MonoBehaviour {
 
     void Update() {
         // If this is not moving, just return
-        if ( state == eState.idle || state == eState.post ) return;
+        if (state == eState.idle || state == eState.post) return;
 
         // Get u from the current time and duration
         // u ranges from 0 to 1 (usually)
-        u = ( Time.time - timeStart ) / timeDuration;
+        u = (Time.time - timeStart) / timeDuration;
         // Use Easing class from Utils to curve the u value
-        uCurved = Easing.Ease( u, easingCurve );
+        uCurved = Easing.Ease(u, easingCurve);
 
-        if ( u < 0 ) { // If u<0, then we shouldn’t move yet.
+        if (u < 0) { // If u<0, then we shouldn’t move yet.
             state = eState.pre;
         } else {
-            if ( u < 1 ) { // 0<=u<1, which means this is active and moving
+            if (u < 1) { // 0<=u<1, which means this is active and moving
 
                 state = eState.active;
             } else { // u>=1, which means this is done moving
@@ -210,7 +210,7 @@ public class BezierMover : MonoBehaviour {
             }
 
             // Use the Utils Bézier curve method to move this to the right point
-            pos = Utils.Bezier( uCurved, bezierPts );
+            pos = Utils.Bezier(uCurved, bezierPts);
         }
     }
 }
@@ -244,7 +244,7 @@ foreach.
 гибкость делает `BezierMover` удобным компонентом,
 пригодным для повторного использования.  
 
-2. Сохраните скрипт BezierMover и вернитесь в Unity.  
+2. Сохраните скрипт *BezierMover* и вернитесь в Unity.  
 
 UnityEvent completionEvent позволит нам связывать движения
 воедино, уведомляя другие классы, когда BezierMover завершит
