@@ -7,6 +7,7 @@
     "burst-compiler",
     "archipelago",
     "colorizing-image",
-    "entity-component-systems"
+    "entity-component-systems",
+    "perlin-dots-code"
   ]
 }
