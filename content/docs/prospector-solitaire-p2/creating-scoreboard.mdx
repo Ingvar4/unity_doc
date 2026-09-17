@@ -7,15 +7,15 @@ description: GameObject ScoreBoard выглядит аналогично GameObj
 
 Чтобы создать GameObject ScoreBoard:  
 
-1. В панели меню Unity выберите *GameObject > UI > Tex t - TextMeshPro*.
-2. Измените имя нового GameObject Tex t (TMP) на ScoreBoard.
-3. Большинство настроек TextMeshPro для ScoreBoard и
+1. В панели меню Unity выберите *GameObject > UI > Text - TextMeshPro*.
+2. Измените имя нового GameObject Text (TMP) на *ScoreBoard*.
+3. Большинство настроек TextMeshPro для *ScoreBoard* и
 FloatingScore одинаковы, поэтому вы можете либо снова
 настроить их вручную, как показано на рис., либо выполнить
 следующее:
-    - a. Выберите префаб FloatingScore в папке Assets/_Prefabs на панели
+    - a. Выберите префаб *FloatingScore* в папке *Assets/_Prefabs* на панели
 Project.
-    - b. В инспекторе для FloatingScore нажмите на три точки ( ⋮ ) в крайнем
+    - b. В инспекторе для *FloatingScore* нажмите на три точки ( ⋮ ) в крайнем
 правом углу компонента TextMeshPro UGUI (Script) и
 выберите «Copy Component».
     - c. Выберите GameObject ScoreBoard в иерархии.
@@ -48,10 +48,10 @@ RectTransform ScoreBoard (единственные значения, котор�
 статическую версию метода FS_CALLBACK, который вызывается
 FloatingScores по завершении движения.  
 
-1. Создайте новый скрипт на C# с именем ScoreBoard.
-    - a. Поместите скрипт ScoreBoard в папку папку Scripts.
-    - b. Прикрепите скрипт ScoreBoard к GameObject ScoreBoard в иерархии.
-2. Откройте скрипт ScoreBoard в Visual Studio и введите код, в листинге кода.  
+1. Создайте новый скрипт на C# с именем *ScoreBoard*.
+    - a. Поместите скрипт *ScoreBoard* в папку папку Scripts.
+    - b. Прикрепите скрипт *ScoreBoard* к GameObject ScoreBoard в иерархии.
+2. Откройте скрипт *ScoreBoard* в Visual Studio и введите код, в листинге кода.  
 
       Листинг ScoreBoard.cs
 
@@ -71,17 +71,17 @@ public class ScoreBoard : MonoBehaviour {
     private int _score = 0;
     // The score property also sets the text of the TMP_Text
     public int score {
-        get { return ( _score ); }
+        get { return (_score); }
         set {
             _score = value;
-            textMP.text = _score.ToString( "#,##0" );// The 0 in #,##0 is a zero
+            textMP.text = _score.ToString("#,##0");// The 0 in #,##0 is a zero
         }
     }
 
     private TMP_Text textMP;
 
     void Awake() {
-        if ( S != null ) Debug.LogError( "ScoreBoard.S is already set!" );
+        if (S != null) Debug.LogError("ScoreBoard.S is already set!");
         S = this;// Set the private singleton
 
         textMP = GetComponent<TMP_Text>();
@@ -96,7 +96,7 @@ public class ScoreBoard : MonoBehaviour {
     }
 
     // When called by SendMessage, this adds the fs.score to S.score
-    static public void FS_CALLBACK( FloatingScore fs ) {
+    static public void FS_CALLBACK(FloatingScore fs) {
         SCORE += fs.score;
     }
 

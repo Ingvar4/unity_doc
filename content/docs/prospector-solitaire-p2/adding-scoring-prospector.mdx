@@ -44,18 +44,18 @@ description: В оригинальной карточной игре Tri-Peaks, 
 ### Реализация подсчета очков за цепочки [!toc]
 
 Чтобы отслеживать счет в этой игре, мы создадим скрипт ScoreManager
-для добавления к _MainCamera. Поскольку мы включаем серии (и в
+для добавления к *_MainCamera*. Поскольку мы включаем серии (и в
 конечном итоге умножаем значение серии на золотые карты), имеет смысл
 хранить счет за серию отдельно, а затем применять его к общему
 множителю серии после того, как серия закончилась (путем сдачи карты из
 drawPile).  
 
-1. Создайте новый скрипт C# в папке Scripts с именем ScoreManager.
-2. Прикрепите скрипт ScoreManager к _MainCamera.
+1. Создайте новый скрипт C# в папке Scripts с именем *ScoreManager*.
+2. Прикрепите скрипт *ScoreManager* к *_MainCamera*.
 3. Сохраните сцену. Главным моментом сцены, которую вы сохраняете,
-является добавление скрипта ScoreManager к объекту _MainCamera,
+является добавление скрипта *ScoreManager* к объекту *_MainCamera*,
 поэтому сейчас лучше сохранить сцену.
-4. Откройте ScoreManager в Visual Studio и введите код, в листинге.  
+4. Откройте *ScoreManager* в Visual Studio и введите код, в листинге.  
 
 Листинг кода ScoreManager.cs
 
@@ -91,7 +91,7 @@ public class ScoreManager : MonoBehaviour { // a
     public int scoreRun = 0;
     public int score = 0;
 
-    [Header( "Check this box to reset the ProspectorHighScore to 100" )] // c
+    [Header("Check this box to reset the ProspectorHighScore to 100")] // c
     public bool checkToResetHighScore = false;
 
     void Awake() {
@@ -111,15 +111,15 @@ public class ScoreManager : MonoBehaviour { // a
     /// <summary>
     /// This static method enables any other class to post an eScoreEvent.
     /// </summary>
-    static public void TALLY( eScoreEvent evt ) { // e
+    static public void TALLY(eScoreEvent evt) { // e
         S.Tally( evt );
     }
 
     /// <summary>
     /// Handle eScoreEvents (mostly sent by the Prospector class).
     /// </summary>
-    void Tally( eScoreEvent evt ) {
-        switch ( evt ) {
+    void Tally(eScoreEvent evt) {
+        switch (evt) {
             // When a mine card is clicked...
             case eScoreEvent.mine: // Remove a mine card
             chain++; // increase the score chain
@@ -136,9 +136,9 @@ public class ScoreManager : MonoBehaviour { // a
             break;
         }
 
-        string scoreStr = score.ToString( "#,##0" ); // The 0 is a zero // g
+        string scoreStr = score.ToString("#,##0"); // The 0 is a zero // g
         // This second switch statement handles round wins and losses
-        switch ( evt ) {
+        switch (evt) {
             case eScoreEvent.gameWin:
             // SCORE_THIS_ROUND is used here and in UITextManager
             SCORE_THIS_ROUND = score - SCORE_FROM_PREV_ROUND; // h
@@ -182,7 +182,7 @@ public class ScoreManager : MonoBehaviour { // a
     /// </summary>
     /// <param name="str">The string to be sent to the Console.</param>
     void Log(string str) { // i
-        if ( logScoreEvents ) Debug.Log( str );
+        if (logScoreEvents) Debug.Log(str);
     }
 
     /// <summary>
@@ -194,8 +194,8 @@ public class ScoreManager : MonoBehaviour { // a
     void OnDrawGizmos() { // c
         if (checkToResetHighScore) {
             checkToResetHighScore = false;
-            PlayerPrefs.SetInt( "ProspectorHighScore", 100 );
-            Debug.LogWarning( "PlayerPrefs.ProspectorHighScore reset to 100!" );
+            PlayerPrefs.SetInt("ProspectorHighScore", 100);
+            Debug.LogWarning("PlayerPrefs.ProspectorHighScore reset to 100!");
         }
     }
 
@@ -305,8 +305,7 @@ true).
 ```c#
 int z = 0;
 print( $"zero: a:{z} b:{z:0} c:{z:#} d:{z:0,000}" );
-// Output: zero: a:0 b:0 c: d:0,000 // Note that c:
-has no output
+// Output: zero: a:0 b:0 c: d:0,000 // Note that c: has no output
 int n = 12345;
 print( $"12345: a:{n} b:{n:#,##0} c:{n:000,000.00}" );
 // Output: 12345: a:12345 b:12,345 c:012,345.00
@@ -345,13 +344,13 @@ Prospector, как показано в листинге кода (в коде в
 public class Prospector : MonoBehaviour {
     …
 
-    void GameOver( bool won ) {
-    if ( won ) {
+    void GameOver(bool won) {
+    if (won) {
         //Debug.Log("Game Over. You won! :)"); // a
-        ScoreManager.TALLY( eScoreEvent.gameWin ); // b
+        ScoreManager.TALLY(eScoreEvent.gameWin); // b
     } else {
         //Debug.Log("Game Over. You Lost. :("); // a
-        ScoreManager.TALLY( eScoreEvent.gameLoss ); // b
+        ScoreManager.TALLY(eScoreEvent.gameLoss); // b
     }
     …
     }
@@ -366,7 +365,7 @@ public class Prospector : MonoBehaviour {
             // Call two methods on the Prospector Singleton S
             S.MoveToTarget(S.Draw()); // Draw a new target card
             S.UpdateDrawPile(); // Restack the drawPile
-            ScoreManager.TALLY( eScoreEvent.draw ); // c
+            ScoreManager.TALLY(eScoreEvent.draw); // c
             break;
             case eCardState.mine:
             …
