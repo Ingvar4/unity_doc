@@ -3,7 +3,7 @@ title: Обновление ScoreManager
 description: Теперь внесем изменения в ScoreManager, чтобы он использовал FloatingScore и ScoreBoard.
 ---
 
-1. Откройте скрипт ScoreManager в Visual Studio и введите
+1. Откройте скрипт *ScoreManager* в Visual Studio и введите
 дополнительный код, в листинге кода.  
 
         Листинг ScoreManager.cs
@@ -27,12 +27,12 @@ public class ScoreManager : MonoBehaviour {
     public bool logScoreEvents = true;
     …
 
-    void Tally( eScoreEvent evt ) {
-        switch ( evt ) { … }
+    void Tally(eScoreEvent evt) {
+        switch (evt) { … }
 
-        string scoreStr = score.ToString( "#,##0" );
+        string scoreStr = score.ToString("#,##0");
         // This second switch statement handles round wins and losses
-        switch ( evt ) { … }
+        switch (evt) { … }
 
         // Call FloatingScoreHandler to show the score moving
         FloatingScoreHandler(evt); // a
@@ -56,7 +56,7 @@ public class ScoreManager : MonoBehaviour {
 
     void Start() {
         ScoreBoard.SCORE = SCORE;// Show the score on the ScoreBoard
-        canvasTrans = GameObject.Find( "Canvas" ).transform;
+        canvasTrans = GameObject.Find("Canvas").transform;
     }
 
     /// <summary>
@@ -64,11 +64,11 @@ public class ScoreManager : MonoBehaviour {
     /// </summary>
     void FloatingScoreHandler(eScoreEvent evt) {
         List<Vector2> fsPts;
-        switch ( evt ) {
+        switch (evt) {
             case eScoreEvent.mine:// Remove a mine card
             // Create a FloatingScore for this score
-            GameObject go = Instantiate<GameObject>( floatingScorePrefab );
-            go.transform.SetParent( canvasTrans );
+            GameObject go = Instantiate<GameObject>(floatingScorePrefab);
+            go.transform.SetParent(canvasTrans);
             go.transform.localScale = Vector3.one; // c
             go.transform.localPosition = Vector3.zero;
             FloatingScore fs = go.GetComponent<FloatingScore>();
@@ -82,15 +82,15 @@ public class ScoreManager : MonoBehaviour {
 
             // Make Bezier points to move fs from mousePos to fsPosRun
             fsPts = new List<Vector2>();
-            fsPts.Add( mousePos );
-            fsPts.Add( fsPosMid );
-            fsPts.Add( fsPosRun );
+            fsPts.Add(mousePos);
+            fsPts.Add(fsPosMid);
+            fsPts.Add(fsPosRun);
 
             // Set the fs fontSizes
             fs.fontSizes = new float[] { 10, 56, 10 }; // d
 
             // If this is the first FloatingScore in this run
-            if ( fsFirstInRun == null ) {
+            if (fsFirstInRun == null) {
                 // Set it to stick around when it’s done // e
                 fsFirstInRun = fs;
                 fs.fontSizes[2] = 48;
@@ -99,7 +99,7 @@ public class ScoreManager : MonoBehaviour {
                 fs.FSCallbackEvent += fsFirstInRun.FSCallback; // f
             }
 
-            fs.Init( fsPts, floatDuration );
+            fs.Init(fsPts, floatDuration);
             break;
 
             // Same things need to happen whether it’s a draw, a win, or a loss
@@ -107,25 +107,24 @@ public class ScoreManager : MonoBehaviour {
             case eScoreEvent.gameWin:// Won the round
             case eScoreEvent.gameLoss:// Lost the round
             // Add fsFirstInRun to the ScoreBoard score
-            if ( fsFirstInRun != null ) {
+            if (fsFirstInRun != null) {
                 // Create points for the Bézier curve
                 fsPts = new List<Vector2>();
-                fsPts.Add( fsPosRun );
-                fsPts.Add( fsPosMid2 );
-                fsPts.Add( fsPosEnd );
+                fsPts.Add(fsPosRun);
+                fsPts.Add(fsPosMid2);
+                fsPts.Add(fsPosEnd);
                 // Also adjust the fontSize
                 fsFirstInRun.fontSizes = new float[] { 48, 56, 10 };
 
                 // Add a ScoreBoard listener to the fsFirstInRun.FSCallbackEvent
                 fsFirstInRun.FSCallbackEvent += ScoreBoard.FS_CALLBACK; // g
 
-                fsFirstInRun.Init( fsPts, floatDuration, 0 );// Init the movement
+                fsFirstInRun.Init(fsPts, floatDuration, 0);// Init the movement
 
                 fsFirstInRun = null; // Clear fsFirstInRun so it’s created again
             }
 
             break;
-
         }
     }
 }
