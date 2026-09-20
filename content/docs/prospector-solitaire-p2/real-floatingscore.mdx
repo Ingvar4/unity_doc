@@ -116,7 +116,7 @@ public class FloatingScore : MonoBehaviour {
     /// Reroute all existing FloatingScores to ScoreBoard at end of game
     /// </summary>
     static public void REROUTE_TO_SCOREBOARD() { // k
-        Vector2 fsPosEnd = new Vector2( 0.5f, 0.95f );
+        Vector2 fsPosEnd = new Vector2(0.5f, 0.95f);
         foreach (FloatingScore fs in FS_ALL) {
             fs.mover.bezierPts[fs.mover.bezierPts.Count - 1] = fsPosEnd;
             fs.FSCallbackEvent = null;
@@ -132,12 +132,12 @@ public class FloatingScore : MonoBehaviour {
 всевозможных значений, включая размер шрифта. Это приведет к
 тому, что шрифт сначала будет маленьким, затем увеличится, а
 затем установится на размере 48.
-- b. Поскольку в блоке set свойства score содержится
+- b. Поскольку в блоке `set` свойства `score` содержится
 пользовательский код, мы не можем использовать автоматическое
 свойство и вместо этого должны создать частную переменную
-float _score в качестве вспомогательного поля для хранения
+`float _score` в качестве вспомогательного поля для хранения
 данных, к которым обращается свойство score. Атрибут
-[SerializeField] на _score делает его видимым и
+`[SerializeField]` на `_score` делает его видимым и
 доступным для редактирования в инспекторе Unity, даже несмотря
 на то, что он является частным.
 - c. Вполне допустимо написать весь этот оператор get в одной строке.
@@ -145,7 +145,7 @@ float _score в качестве вспомогательного поля дл�
 больше об этом форматировании числа int,
 преобразованного в строку.
 - e. В этой строке мы объявляем тип делегата с именем
-FloatingScoreDelegate с типом возвращаемого значения
+`FloatingScoreDelegate` с типом возвращаемого значения
 void, который принимает в качестве параметра один объект
 FloatingScore.
 - f. Здесь мы создаём экземпляр события этого делегата с именем

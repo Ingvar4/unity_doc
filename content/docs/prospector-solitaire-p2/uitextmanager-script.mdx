@@ -45,7 +45,7 @@ public class UITextManager : MonoBehaviour {
 
     void ShowHighScore() {
         // The 0 in "#,##0" on the following line is a zero.
-        string str = $"High Score: {ScoreManager.HIGH_SCORE:#,##0}";
+        string str = $"High Score: { ScoreManager.HIGH_SCORE:#, ##0 }";
         highScoreText.text = str;
     }
 
@@ -53,27 +53,27 @@ public class UITextManager : MonoBehaviour {
     /// Static wrapper for S.GameOverUI(). Called when the game is over.
     /// </summary>
     /// <param name="won">True if the player won.</param>
-    static public void GAME_OVER_UI( bool won ) {
-        S.GameOverUI( won );
+    static public void GAME_OVER_UI(bool won) {
+        S.GameOverUI(won);
     }
 
     /// <summary>
     /// Called when the game is over.
     /// </summary>
     /// <param name="won">True if the player won.</param>
-    public void GameOverUI( bool won ) {
+    public void GameOverUI(bool won) {
         int score = ScoreManager.SCORE;
         string str;
-        if ( won ) {
+        if (won) {
             gameOverText.text = "Round Over";
             str = "You won this round!\n"
-            + $"Round Score: {ScoreManager.SCORE_THIS_ROUND:#,##0}";
+            + $"Round Score: { ScoreManager.SCORE_THIS_ROUND:#, ##0 }";
         } else {
             gameOverText.text = "Game Over";
-            if ( ScoreManager.HIGH_SCORE <= score ) {
-                str = $"You got the high score!\nHigh score: {score:#,##0}";
+            if (ScoreManager.HIGH_SCORE <= score) {
+                str = $"You got the high score!\nHigh score: { score:#, ##0 }";
             } else {
-                str = $"Your final score was:\n{score:#,##0}";
+                str = $"Your final score was:\n{ score:#, ##0 }";
             }
         }
         roundResultText.text = str;
@@ -93,7 +93,7 @@ public class UITextManager : MonoBehaviour {
 ```c#
 public class Prospector : MonoBehaviour {
     …
-    void GameOver( bool won ) {
+    void GameOver(bool won) {
         …
         // But wait a moment first, giving the final score a moment to travel
         Invoke ("ReloadLevel", roundDelay);
