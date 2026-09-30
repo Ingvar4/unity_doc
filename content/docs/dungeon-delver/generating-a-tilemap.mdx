@@ -48,17 +48,17 @@ public class MapInfo : MonoBehaviour {
 
         // Place the map data into a 2D Array for very fast access
         MAP = new int[W, H]; // Generate a 2D array of the right size
-        for ( int j = 0; j < H; j++ ) { // Iterate over every line in lines
+        for (int j = 0; j < H; j++) { // Iterate over every line in lines
             tileNums = lines[j].Trim().Split(' '); // A space between ' ' // f
-            for ( int i = 0; i < W; i++ ) { // Iterate over every tileNum string
-                if ( tileNums[i] == ".." ) { // g
+            for (int i = 0; i < W; i++) { // Iterate over every tileNum string
+                if (tileNums[i] == "..") { // g
                     MAP[i, j] = 0;
                 } else { // h
                     MAP[i, j] = int.Parse( tileNums[i], NumberStyles.HexNumber );
                 }
             }
         }
-        Debug.Log( "Map size: " + W + " wide by " + H + " high" );
+        Debug.Log("Map size: " + W + " wide by " + H + " high");
     }
 
     /// <summary>
@@ -66,7 +66,7 @@ public class MapInfo : MonoBehaviour {
     /// </summary>
     /// <returns></returns>
     public static BoundsInt GET_MAP_BOUNDS() { // i
-        BoundsInt bounds = new BoundsInt( 0, 0, 0, W, H, 1 );
+        BoundsInt bounds = new BoundsInt(0, 0, 0, W, H, 1);
         return bounds;
     }
     // void Update() {…} // Please delete the unused Update() method
@@ -111,9 +111,9 @@ DelverTiles_255).
 
 >См. документацию Unity: https://docs.unity3d.com/2020.3/Documentation/ScriptReference/BoundsInt.html. Такое использование не обязательно соответствует тому, для чего был разработан класс BoundsInt, но оно отлично подходит для данных, которые нам нужно передать обратно при вызове `GET_MAP_BOUNDS()`.
 
-3. Сохраните скрипт MapInfo и вернитесь в Unity.
-4. Перетащите скрипт MapInfo на объект Grid в иерархии.
-5. Выберите Grid в иерархии и посмотрите на панель Inspector.
+3. Сохраните скрипт *MapInfo* и вернитесь в Unity.
+4. Перетащите скрипт *MapInfo* на объект *Grid* в иерархии.
+5. Выберите *Grid* в иерархии и посмотрите на панель Inspector.
 6. В инспекторе MapInfo на Grid присвойте поле delverLevel текстовому ресурсу
 DelverLevel_Eagle (в папке Resources панели Project).
 7. Сохраните сцену, а затем нажмите «Play» в Unity.  
@@ -127,15 +127,15 @@ DelverLevel_Eagle (в папке Resources панели Project).
 
 Теперь, когда у вас есть данные, извлеченные из текстового файла уровня и преобразованные в
 целые числа, пришло время построить из них Tilemap. Первый шаг - добавить все Tiles из папки
-Resources / Tiles_Visual, чтобы мы могли использовать их в нашем коде. Папка Resources
+*Resources / Tiles_Visual*, чтобы мы могли использовать их в нашем коде. Папка Resources
 особенная, потому что все, что в ней хранится, будет включено в вашу сборку Unity (для всех
 платформ сборки), даже если это не находится в сцене. Это делает её идеальным местом для
 хранения таких вещей, как эти Tiles, которые нам нужно загружать вручную, чтобы использовать
 (см. `// a` ниже).
 
-1. Создайте новый скрипт на C# в папке Scripts с именем TilemapManager.
-2. Присвойте скрипт TilemapManager объекту Grid в иерархии.
-3. Откройте скрипт TilemapManager и введите код, в листинге кода:  
+1. Создайте новый скрипт на C# в папке Scripts с именем *TilemapManager*.
+2. Присвойте скрипт *TilemapManager* объекту *Grid* в иерархии.
+3. Откройте скрипт *TilemapManager* и введите код, в листинге кода:  
 
 Листинг кода TilemapManager.cs
 
@@ -163,15 +163,15 @@ public class TilemapManager : MonoBehaviour {
 
         // The order of the Tiles is not guaranteed, so arrange them by number
         DELVER_TILES = new Tile[tempTiles.Length];
-        for ( int i = 0; i < tempTiles.Length; i++ ) {
+        for (int i = 0; i < tempTiles.Length; i++) {
             string[] bits = tempTiles[i].name.Split( '_' ); // b
-            if ( int.TryParse( bits[1], out num ) ) { // c
+            if (int.TryParse( bits[1], out num)) { // c
                 DELVER_TILES[num] = tempTiles[i];
             } else {
-                Debug.LogError("Failed to parse num of: "+tempTiles[i].name); // d
+                Debug.LogError("Failed to parse num of: " + tempTiles[i].name); // d
             }
         }
-        Debug.Log("Parsed "+DELVER_TILES.Length+" tiles into TILES_VISUAL.");
+        Debug.Log("Parsed " + DELVER_TILES.Length + " tiles into TILES_VISUAL.");
     }
     // void Update() {…} // Please delete the unused Update() method
     // You will add code to the Start() method in Code Listing 35.3
@@ -181,9 +181,9 @@ public class TilemapManager : MonoBehaviour {
         - a. `Resources.LoadAll<Tile>( 'Tiles_Visual' )` загружает все ресурсы типа Tile из
 папки Resources / Tiles_ Visual в массив tempTiles. Это работает только в том случае, если
 ресурсы хранятся в папке с именем Resources.
-        - b. Здесь мы используем Split(), чтобы сделать нечто немного иное. Мы знаем, что все плитки
+        - b. Здесь мы используем `Split()`, чтобы сделать нечто немного иное. Мы знаем, что все плитки
 имеют имена типа DelverTiles20 , например. Разделив это имя по символу «_» (подчеркиванию), мы получаем
-два элемента в массиве bits (['DelverTiles', '20'] ).
+два элемента в массиве bits (['DelverTiles', '20']).
         - c. Затем мы пытаемся преобразовать первыйэлемент битовой строки (например, «20») в число.
 Стандартная функция `int.Parse()` завершит работу с ошибкой в случае неудачи, поэтому
 здесь мы используем `int.TryParse()`, которая возвращает true в случае успеха или
@@ -196,7 +196,7 @@ false в случае неудачи. В случае успеха num прис�
 возвращаемое значение - это bool (true, если разбор прошел успешно, и false, если
 он завершился сбоем), но нам также нужно получить обратно значение int, которое было
 проанализировано, и которое присваивается num с помощью ключевого слова out. Аргумент
-out num гарантирует, что функция TryParse() присвоит значение num, прежде чем
+out num гарантирует, что функция `TryParse()` присвоит значение num, прежде чем
 вернет true или false.  
 
         - d. Если вызов `int.TryParse()` завершился сбоем, мы выводим в консоль сообщение об
@@ -217,7 +217,7 @@ TILES_VISUAL». Это говорит нам о том, что всё прошл
 выполнить несколько простых математических вычислений, чтобы все работало. Но хорошая новость
 заключается в том, что после этого шага мы впервые увидим визуальный результат в панели «Сцена».  
 
-6. Откройте скрипт TilemapManager в Visual Studio и добавьте код из листинга:  
+6. Откройте скрипт *TilemapManager* в Visual Studio и добавьте код из листинга:  
         Листинг кода TilemapManager.cs
 
 ```c#
@@ -257,8 +257,8 @@ public class TilemapManager : MonoBehaviour {
         int tileNum;
         Tile tile;
         TileBase[] mapTiles = new TileBase[MapInfo.W * MapInfo.H];
-        for ( int y = 0; y < MapInfo.H; y++ ) {
-            for ( int x = 0; x < MapInfo.W; x++ ) {
+        for (int y = 0; y < MapInfo.H; y++) {
+            for (int x = 0; x < MapInfo.W; x++) {
                 tileNum = MapInfo.MAP[ x, y ]; // c
                 tile = DELVER_TILES[ tileNum ]; // d
                 mapTiles[ y * MapInfo.W + x ] = tile; // e
