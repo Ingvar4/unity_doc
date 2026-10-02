@@ -12,7 +12,7 @@ description: Сейчас Дрей бегает немного слишком б
 иерархии и раскройте треугольник рядом с Dray : Sprite на панели «Анимация».  
 
 В левом верхнем углу панели «Анимация» находится всплывающее меню, в котором в данный момент
-отображается Dray_Walk_0 (обведено красным прямоугольником на рис.). В оставшейся части
+отображается *Dray_Walk_0* (обведено красным прямоугольником на рис.). В оставшейся части
 этого раздела я буду называть это всплывающее меню «Селектором анимации». Справа от селектора
 анимации находится поле для ввода количества кадров (обведено синим прямоугольником на рис.). Параметр «Образцы» задает частоту воспроизведения анимации (это количество кадров,
 отображаются каждую секунду). Если вы не видите поле «Samples», щелкните три вертикальные
@@ -98,10 +98,10 @@ public class Dray : MonoBehaviour {
 
     void Update () {
         dirHeld = -1;
-        if ( Input.GetKey( KeyCode.RightArrow ) ) dirHeld = 0; // a
-        if ( Input.GetKey( KeyCode.UpArrow ) ) dirHeld = 1;
-        if ( Input.GetKey( KeyCode.LeftArrow ) ) dirHeld = 2;
-        if ( Input.GetKey( KeyCode.DownArrow ) ) dirHeld = 3;
+        if (Input.GetKey( KeyCode.RightArrow)) dirHeld = 0; // a
+        if (Input.GetKey( KeyCode.UpArrow)) dirHeld = 1;
+        if (Input.GetKey( KeyCode.LeftArrow)) dirHeld = 2;
+        if (Input.GetKey( KeyCode.DownArrow)) dirHeld = 3;
 
         Vector2 vel = Vector2.zero;
         switch (dirHeld) { // b
